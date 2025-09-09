@@ -170,6 +170,8 @@ export default function Home() {
 
             // 3) For each slot type in your starting lineup, find best FA eligible
             const seen: Record<string, boolean> = {};
+            const optimalIds = new Set(optimalSlots.map(s => s.player?.player_id).filter(Boolean) as string[]);
+            
             for (const slot of Object.keys(slotToOptimal)) {
               let bestFA: any = null;
 
@@ -179,6 +181,7 @@ export default function Home() {
                 for (const cand of scoredFAs[pos]) {
                   const key = cand.player_id; // avoid suggesting same FA for multiple slots
                   if (seen[key]) continue;
+                  if (optimalIds.has(cand.player_id)) continue; // skip suggesting someone already starting optimally
                   bestFA = bestFA && bestFA.proj > cand.proj ? bestFA : cand;
                 }
               }

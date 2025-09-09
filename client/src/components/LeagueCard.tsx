@@ -1,21 +1,14 @@
 import React, { useMemo, useState } from "react";
 import type { LeagueSummary } from "../lib/types";
 import { statusFlags } from "../lib/optimizer";
+import { buildLineupDiff } from "../lib/diff";
 
 export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
   const [open, setOpen] = useState(false);
 
-  // Count suggested changes by comparing current starters to optimal starters
-  const changeCount = useMemo(() => {
-    const fixedLen = lg.roster_positions.length;
-    let diffs = 0;
-    for (let i = 0; i < fixedLen; i++) {
-      const curId = lg.starters[i];
-      const optId = lg.optimalSlots[i]?.player?.player_id;
-      if (curId && optId && curId !== optId) diffs++;
-    }
-    return diffs;
-  }, [lg]);
+  // TRUE ins/outs based on sets, not slot-by-slot
+  const diff = useMemo(() => buildLineupDiff(lg), [lg]);
+  const changeCount = Math.max(diff.ins.length, diff.outs.length);
 
   return (
     <div className="rounded-2xl shadow border" data-testid={`card-league-${lg.league_id}`}>
@@ -84,6 +77,22 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
               </ul>
             </div>
           </div>
+
+          {/* NEW: clear recommendations that avoid self-swaps */}
+          {diff.moves.length > 0 && (
+            <div className="mt-4">
+              <div className="font-semibold mb-1">Suggested Changes</div>
+              <ul className="space-y-1">
+                {diff.moves.map((m, i) => (
+                  <li key={i} className="text-sm" data-testid={`row-suggestion-${i}`}>
+                    Put <b>{m.in_name}</b> into <b>{m.slot}</b>
+                    {m.out_name ? <> (bench <b>{m.out_name}</b>)</> : null}
+                    <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="mt-3 text-sm" data-testid={`text-totals-${lg.league_id}`}>
             Current total: <b>{lg.currentTotal.toFixed(2)}</b> — Optimal total: <b>{lg.optimalTotal.toFixed(2)}</b>

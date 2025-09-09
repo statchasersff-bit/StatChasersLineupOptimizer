@@ -1,0 +1,160 @@
+Goal: Fix the “replace the same player who is already starting” bug. The root cause is slot-by-slot comparison. We need set-based diffs (true ins/outs) and clearer move suggestions.
+
+1) Add a lineup diff helper
+
+Create src/lib/diff.ts:
+
+import type { LeagueSummary } from "./types";
+
+export type LineupDiff = {
+  ins: { player_id: string; name: string; pos: string; proj: number }[];
+  outs: { player_id: string; name: string; pos: string; proj: number }[];
+  // Best-effort mapping of which player should move into which slot
+  moves: { slot: string; in_pid: string; in_name: string; out_pid?: string; out_name?: string; gain: number }[];
+  delta: number;
+};
+
+export function buildLineupDiff(lg: LeagueSummary): LineupDiff {
+  const fixedSlots = lg.roster_positions;
+
+  // current starters (by player_id -> info)
+  const curIds = lg.starters.filter(Boolean);
+  const curSet = new Set(curIds);
+
+  // optimal starters (by player_id -> info)
+  const optPlayers = lg.optimalSlots.map(s => s.player).filter(Boolean) as any[];
+  const optIds = optPlayers.map(p => p.player_id);
+  const optSet = new Set(optIds);
+
+  // true ins = in optimal but not in current
+  const ins = optPlayers
+    .filter(p => !curSet.has(p.player_id))
+    .map(p => ({ player_id: p.player_id, name: p.name, pos: p.pos, proj: p.proj ?? 0 }));
+
+  // true outs = in current but not in optimal
+  const outs = curIds
+    .filter(pid => !optSet.has(pid))
+    .map(pid => {
+      // try to find name/pos/proj from optimalSlots (bench info not carried; set proj 0 if unknown)
+      const hit = optPlayers.find(p => p.player_id === pid);
+      return { player_id: pid, name: hit?.name ?? `player_id ${pid}`, pos: hit?.pos ?? "", proj: hit?.proj ?? 0 };
+    });
+
+  // slot-level suggestions without self-swaps:
+  // For each slot in optimal, suggest "put <opt player> into <slot>" and, if the current
+  // player occupying that slot is NOT the same pid and is NOT used somewhere else in optimal, mark as out.
+  const moves: LineupDiff["moves"] = [];
+  const usedIn = new Set<string>(); // avoid suggesting the same 'in' twice
+  const usedOut = new Set<string>();
+
+  lg.optimalSlots.forEach((s, i) => {
+    const inP = s.player;
+    const slot = s.slot;
+    if (!inP) return;
+
+    const curPidAtSlot = curIds[i]; // what the user currently has in the same slot index
+    const same = curPidAtSlot === inP.player_id;
+
+    if (!same && !usedIn.has(inP.player_id)) {
+      // if the current player in that slot is part of optimal elsewhere, we shouldn't call it an OUT
+      const currentIsOptimalSomewhere = curPidAtSlot && optSet.has(curPidAtSlot);
+      moves.push({
+        slot,
+        in_pid: inP.player_id,
+        in_name: inP.name,
+        out_pid: currentIsOptimalSomewhere ? undefined : curPidAtSlot,
+        out_name: currentIsOptimalSomewhere ? undefined : (curPidAtSlot ? `player_id ${curPidAtSlot}` : undefined),
+        gain: (inP.proj ?? 0),
+      });
+      usedIn.add(inP.player_id);
+      if (curPidAtSlot && !currentIsOptimalSomewhere) usedOut.add(curPidAtSlot);
+    }
+  });
+
+  return { ins, outs, moves, delta: lg.delta };
+}
+
+2) Use the diff in LeagueCard.tsx
+
+Update src/components/LeagueCard.tsx to import and use the diff. Replace the current “changeCount” logic and the suggested changes display.
+
+import React, { useEffect, useMemo, useState } from "react";
+import type { LeagueSummary } from "../lib/types";
+import { statusFlags } from "../lib/optimizer";
+import { buildLineupDiff } from "../lib/diff";
+
+export default function LeagueCard({ lg, control }: { lg: LeagueSummary; control?: { expandKey: number; collapseKey: number } }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => { if (control?.expandKey) setOpen(true); }, [control?.expandKey]);
+  useEffect(() => { if (control?.collapseKey) setOpen(false); }, [control?.collapseKey]);
+
+  // TRUE ins/outs based on sets, not slot-by-slot
+  const diff = useMemo(() => buildLineupDiff(lg), [lg]);
+  const changeCount = Math.max(diff.ins.length, diff.outs.length);
+
+  return (
+    <div className="rounded-2xl shadow border">
+      <button className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 rounded-2xl"
+              onClick={() => setOpen(v => !v)} aria-expanded={open}>
+        <div className="min-w-0">
+          <div className="text-sm text-gray-500 truncate">{lg.rosterUserDisplay}</div>
+          <h3 className="text-base md:text-lg font-semibold truncate">{lg.name}</h3>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className={`text-sm md:text-base font-semibold ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`}>
+            {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
+          </div>
+          <div className="text-xs md:text-sm text-gray-500">{changeCount} changes</div>
+          <svg className={`h-5 w-5 transition-transform ${open ? "rotate-180" : "rotate-0"}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+            <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z" />
+          </svg>
+        </div>
+      </button>
+
+      {open && (
+        <div className="p-4 pt-0">
+          {/* existing Current vs Optimal tables remain the same */}
+          {/* ... */}
+
+          {/* NEW: clear recommendations that avoid self-swaps */}
+          {diff.moves.length > 0 && (
+            <div className="mt-4">
+              <div className="font-semibold mb-1">Suggested Changes</div>
+              <ul className="space-y-1">
+                {diff.moves.map((m, i) => (
+                  <li key={i} className="text-sm">
+                    Put <b>{m.in_name}</b> into <b>{m.slot}</b>
+                    {m.out_name ? <> (bench <b>{m.out_name}</b>)</> : null}
+                    <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-3 text-sm">
+            Current total: <b>{lg.currentTotal.toFixed(2)}</b> — Optimal total: <b>{lg.optimalTotal.toFixed(2)}</b>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+3) Sanity check in the optimizer
+
+Ensure optimizeLineup never duplicates a player across slots (we already add to used). If needed, confirm:
+
+// inside optimizeLineup where you pick a player:
+if (!used.has(p.player_id)) { /* assign */ used.add(p.player_id); }
+
+4) Waiver suggestions (optional)
+
+When computing waiver suggestions, exclude players already in optimalSlots:
+
+const optimalIds = new Set(optimalSlots.map(s => s.player?.player_id).filter(Boolean) as string[]);
+if (optimalIds.has(bestFA.player_id)) continue; // skip suggesting someone already starting optimally
+
+
+End of prompt.
