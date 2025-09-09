@@ -121,14 +121,21 @@ export default function Home() {
             // derive league-adjusted projection
             let adj = 0;
             if (pr) {
-              const stats = (pr as any).stats || {};
+              const stats = (pr as any)?.stats || {};
               const originalProj = pr.proj;
+              
+              // Debug: Log Dallas Goedert specifically to see the full projection object
+              if (lite.name === "Dallas Goedert") {
+                console.log(`Dallas Goedert full projection object:`, pr);
+                console.log(`Stats extracted from pr.stats:`, stats);
+                console.log(`All keys in pr:`, Object.keys(pr));
+              }
+              
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
-              // Debug: Log Dallas Goedert specifically
+              // Debug: Log calculation result
               if (lite.name === "Dallas Goedert") {
                 console.log(`Dallas Goedert calculation: Original=${originalProj}, Adjusted=${adj}, Position=${lite.pos}`);
-                console.log(`Stats used:`, stats);
               }
             } else {
               adj = 0; // no projection found
