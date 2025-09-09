@@ -1,0 +1,201 @@
+1) Expand your projections CSV (stat-level)
+
+Add columns so we can compute points per league. You don’t need every stat—missing ones default to 0.
+
+Core (QB/RB/WR/TE)
+pass_yd, pass_td, pass_int, rush_yd, rush_td, rec, rec_yd, rec_td, fum_lost, two_pt
+
+K (optional)
+xpm, xpa, fgm_0_19, fgm_20_29, fgm_30_39, fgm_40_49, fgm_50p, fg_att_0_19, fg_att_20_29, fg_att_30_39, fg_att_40_49, fg_att_50p
+
+DEF/DST (optional)
+sacks, defs_int, defs_fum_rec, defs_td, safety, blk_kick, ret_td, pts_allowed
+
+Keep your old proj column for backward compat. We’ll use stat scoring if available; otherwise fall back to proj.
+
+2) New scorer module
+
+Create src/lib/scoring.ts:
+
+type NumRec = Record<string, number | undefined>;
+
+export type LeagueScoring = NumRec; // Sleeper league.settings.scoring_settings
+
+// Safe getter with default
+const g = (s: LeagueScoring, k: string, d = 0) => (typeof s?.[k] === "number" ? (s[k] as number) : d);
+
+// Compute offensive player points (QB/RB/WR/TE)
+export function scoreOff(stats: NumRec, scoring: LeagueScoring) {
+  const passYd = stats.pass_yd ?? 0;
+  const passTd = stats.pass_td ?? 0;
+  const passInt = stats.pass_int ?? 0;
+  const rushYd = stats.rush_yd ?? 0;
+  const rushTd = stats.rush_td ?? 0;
+  const rec = stats.rec ?? 0;
+  const recYd = stats.rec_yd ?? 0;
+  const recTd = stats.rec_td ?? 0;
+  const fumLost = stats.fum_lost ?? 0;
+  const twoPt = stats.two_pt ?? 0;
+
+  // Sleeper defaults if league doesn’t specify (common conventions)
+  const pts =
+    passYd * g(scoring, "pass_yd", 0.04) +
+    passTd * g(scoring, "pass_td", 4) +
+    passInt * g(scoring, "pass_int", -1) +
+    rushYd * g(scoring, "rush_yd", 0.1) +
+    rushTd * g(scoring, "rush_td", 6) +
+    rec * g(scoring, "rec", 1) +
+    recYd * g(scoring, "rec_yd", 0.1) +
+    recTd * g(scoring, "rec_td", 6) +
+    fumLost * g(scoring, "fum_lost", -2) +
+    twoPt * g(scoring, "two_pt", 2);
+
+  return pts;
+}
+
+// Kickers
+export function scoreK(stats: NumRec, scoring: LeagueScoring) {
+  const xpm = stats.xpm ?? 0;
+
+  const fgm_0_19 = stats.fgm_0_19 ?? 0;
+  const fgm_20_29 = stats.fgm_20_29 ?? 0;
+  const fgm_30_39 = stats.fgm_30_39 ?? 0;
+  const fgm_40_49 = stats.fgm_40_49 ?? 0;
+  const fgm_50p = stats.fgm_50p ?? 0;
+
+  return (
+    xpm * g(scoring, "xpm", 1) +
+    fgm_0_19 * g(scoring, "fgm_0_19", 3) +
+    fgm_20_29 * g(scoring, "fgm_20_29", 3) +
+    fgm_30_39 * g(scoring, "fgm_30_39", 3) +
+    fgm_40_49 * g(scoring, "fgm_40_49", 4) +
+    fgm_50p * g(scoring, "fgm_50p", 5)
+  );
+}
+
+// DEF/DST (basic bucket)
+export function scoreDST(stats: NumRec, scoring: LeagueScoring) {
+  const sacks = stats.sacks ?? 0;
+  const ints = stats.defs_int ?? 0;
+  const fr = stats.defs_fum_rec ?? 0;
+  const td = stats.defs_td ?? 0;
+  const safety = stats.safety ?? 0;
+  const blk = stats.blk_kick ?? 0;
+  const ret_td = stats.ret_td ?? 0;
+
+  // Note: points-allowed brackets vary by league; not included here.
+  return (
+    sacks * g(scoring, "def_sack", 1) +
+    ints * g(scoring, "def_int", 2) +
+    fr * g(scoring, "def_fum_rec", 2) +
+    td * g(scoring, "def_td", 6) +
+    safety * g(scoring, "def_sfty", 2) +
+    blk * g(scoring, "def_blk_kick", 2) +
+    ret_td * g(scoring, "st_td", 6)
+  );
+}
+
+// Router by position (falls back to provided total)
+export function scoreByLeague(pos: string, stats: NumRec, scoring: LeagueScoring, fallbackTotal?: number) {
+  const P = pos.toUpperCase();
+  if (P === "K") return scoreK(stats, scoring);
+  if (P === "DEF" || P === "DST" || P === "D/ST") return scoreDST(stats, scoring);
+  // Offensive players
+  const off = scoreOff(stats, scoring);
+  if (!isFinite(off) || off === 0) return fallbackTotal ?? 0;
+  return off;
+}
+
+3) Parse the new columns
+
+Update src/lib/projections.ts to capture extra fields (keep it tolerant):
+
+// ...existing imports...
+const num = (v: any) => (v === null || v === undefined || v === "" ? 0 : Number(v) || 0);
+
+export function parseProjections(file: File): Promise<Projection[]> {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        try {
+          const rows: any[] = res.data as any[];
+          const mapped = rows.map((raw) => {
+            const base = {
+              sleeper_id: (raw.sleeper_id ?? raw.SLEEPER_ID ?? raw.player_id ?? raw.PLAYER_ID)?.toString()?.trim() || undefined,
+              name: (raw.name ?? raw.NAME ?? "").toString().trim(),
+              team: (raw.team ?? raw.TEAM ?? "").toString().trim().toUpperCase() || undefined,
+              pos: normalizePos((raw.pos ?? raw.POS ?? "").toString().trim()),
+              proj: num(raw.proj ?? raw.PROJ),
+              opp: (raw.opp ?? raw.OPP ?? "").toString().trim(),
+            };
+
+            // attach stat-level fields (only numbers; missing => 0)
+            const stats: Record<string, number> = {};
+            const keys = [
+              "pass_yd","pass_td","pass_int","rush_yd","rush_td","rec","rec_yd","rec_td","fum_lost","two_pt",
+              "xpm","xpa","fgm_0_19","fgm_20_29","fgm_30_39","fgm_40_49","fgm_50p",
+              "sacks","defs_int","defs_fum_rec","defs_td","safety","blk_kick","ret_td","pts_allowed"
+            ];
+            keys.forEach(k => { if (k in raw) (stats as any)[k] = num(raw[k]); });
+
+            return { ...base, stats };
+          });
+
+          resolve(mapped as any);
+        } catch (e) { reject(e); }
+      },
+      error: reject,
+    });
+  });
+}
+
+
+Your Projection type can stay as-is or you can extend it with stats?: Record<string, number>.
+
+4) Use league scoring when computing projections
+
+In src/App.tsx (inside runCheck()), grab the league’s scoring settings and compute adjusted points:
+
+import { scoreByLeague } from "./lib/scoring";
+
+// inside the loop for each league:
+const scoring = (lg?.settings?.scoring_settings) || {};
+
+// when constructing each player object (starter/bench), replace where you previously set proj:
+const addWithProj = (pid: string) => {
+  const lite = toPlayerLite(playersIndex!, pid);
+  if (!lite) return null;
+  const pr = projIdx[pid] || projIdx[`${lite.name.toLowerCase()}|${lite.team ?? ""}|${lite.pos}`];
+
+  // derive league-adjusted projection
+  let adj = 0;
+  if (pr) {
+    const stats = (pr as any).stats || {};
+    adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
+  } else {
+    adj = 0; // no projection found
+  }
+
+  return { ...lite, proj: adj, opp: pr?.opp };
+};
+
+
+This ensures every league uses its own scoring to create proj values before optimization.
+
+5) (Optional) Show which scoring preset applied
+
+Add a tiny tooltip or line in the league header:
+
+<div className="text-xs text-gray-500">
+  Scoring applied: PPR={String(scoring?.rec ?? 1)}, PassYd={scoring?.pass_yd ?? 0.04}, RushYd={scoring?.rush_yd ?? 0.1}
+</div>
+
+6) Notes / caveats
+
+Bonuses/First downs/Long TDs: Sleeper supports lots of niche keys (e.g., rush_yd_100_199, bonus_rec_te, etc.). You can add them into scoreOff the same pattern as above if your CSV provides the necessary stats (or flags).
+
+DEF points-allowed brackets: These use multiple keys (def_pa_0, def_pa_1_6, etc.). If you want this, include an estimated pts_allowed in your CSV and map it to the bracket weights—or leave it out (common approach for weekly tools).
+
+Missing stats: If your CSV has only proj, we still work—scoreByLeague falls back to proj.

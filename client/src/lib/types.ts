@@ -5,6 +5,7 @@ export type Projection = {
   pos: string;   // QB/RB/WR/TE/K/DEF
   proj: number;  // projected points (StatChasers weekly)
   opp?: string;  // 'BYE' to flag bye
+  stats?: Record<string, number>; // stat-level projections for league-specific scoring
 };
 
 export type PlayerLite = {

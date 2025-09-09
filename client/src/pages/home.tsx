@@ -5,6 +5,7 @@ import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getPla
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj } from "@/lib/optimizer";
 import { isBestBallLeague } from "@/lib/isBestBall";
+import { scoreByLeague } from "@/lib/scoring";
 import type { LeagueSummary, Projection } from "@/lib/types";
 import LeagueCard from "@/components/LeagueCard";
 import AdminModal from "@/components/AdminModal";
@@ -79,12 +80,25 @@ export default function Home() {
           const starters: string[] = (meRoster?.starters || []).filter((x: string) => !!x);
           const bench: string[] = (meRoster?.players || []).filter((p: string) => p && !starters.includes(p));
 
-          // Build enriched player list with projections
+          // Get league scoring settings
+          const scoring = (lg?.settings?.scoring_settings) || {};
+
+          // Build enriched player list with league-adjusted projections
           const addWithProj = (pid: string) => {
             const lite = toPlayerLite(currentPlayersIndex, pid);
             if (!lite) return null;
             const pr = projIdx[pid] || projIdx[`${lite.name.toLowerCase()}|${lite.team ?? ""}|${lite.pos}`];
-            return pr ? { ...lite, proj: pr.proj, opp: pr.opp } : { ...lite, proj: 0 };
+
+            // derive league-adjusted projection
+            let adj = 0;
+            if (pr) {
+              const stats = (pr as any).stats || {};
+              adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
+            } else {
+              adj = 0; // no projection found
+            }
+
+            return { ...lite, proj: adj, opp: pr?.opp };
           };
 
           const starterObjs = starters.map(addWithProj).filter(Boolean) as any[];
@@ -97,10 +111,9 @@ export default function Home() {
           // Calculate current total
           const fixedSlots = roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s));
           const currentSlots = starters.slice(0, fixedSlots.length).map((pid, i) => {
-            const lite = toPlayerLite(currentPlayersIndex, pid);
-            if (!lite) return { slot: fixedSlots[i] };
-            const pr = projIdx[pid] || projIdx[`${lite.name.toLowerCase()}|${lite.team ?? ""}|${lite.pos}`];
-            return { slot: fixedSlots[i], player: { ...lite, proj: pr?.proj ?? 0, opp: pr?.opp } };
+            const player = addWithProj(pid);
+            if (!player) return { slot: fixedSlots[i] };
+            return { slot: fixedSlots[i], player };
           });
           const currentTotal = sumProj(currentSlots as any);
 
