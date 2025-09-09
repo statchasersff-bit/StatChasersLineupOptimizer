@@ -1,0 +1,257 @@
+1) Types: add waiver suggestions
+
+src/lib/types.ts
+
+export type WaiverSuggestion = {
+  player_id: string;
+  name: string;
+  team?: string;
+  pos: string;
+  proj: number;        // league-scored projection
+  opp?: string;
+  replaceSlot: string; // which slot they would fill
+  gain: number;        // points gained over your current optimal for that slot
+};
+
+export type LeagueSummary = {
+  // ...existing fields
+  waiverSuggestions?: WaiverSuggestion[]; // sorted by gain desc
+};
+
+2) Helper: build unowned (free agent) pool for a league
+
+src/lib/freeAgents.ts (new)
+
+import type { Projection } from "./types";
+import { normalizePos } from "./projections";
+
+export function getOwnedPlayerIds(allRosters: any[]): Set<string> {
+  const owned = new Set<string>();
+  for (const r of allRosters) {
+    for (const id of (r.players || [])) if (id) owned.add(id);
+    for (const id of (r.reserve || [])) if (id) owned.add(id);
+    for (const id of (r.taxi || [])) if (id) owned.add(id);
+    for (const id of (r.starters || [])) if (id) owned.add(id);
+  }
+  return owned;
+}
+
+/**
+ * From projections + players index, create a lightweight pool of FAs.
+ * Only keep players that have a projection and are NOT owned in the league.
+ * Optionally limit number per position for performance.
+ */
+export function buildFreeAgentPool(opts: {
+  playersIndex: Record<string, any>;
+  owned: Set<string>;
+  projIdx: Record<string, Projection>;
+  perPosCap?: number; // e.g., 100
+}) {
+  const { playersIndex, owned, projIdx, perPosCap = 150 } = opts;
+  const byPos: Record<string, { player_id: string; name: string; team?: string; pos: string; proj: number; opp?: string }[]> = {};
+  const push = (p: any, pr: Projection, pid: string, pos: string) => {
+    (byPos[pos] ||= []).push({
+      player_id: pid,
+      name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.full_name || String(pid),
+      team: p.team,
+      pos,
+      proj: pr.proj, // NOTE: this is the raw projection; caller should convert to league-scored if using stat-level
+      opp: (pr as any).opp,
+    });
+  };
+
+  // Iterate just over projected players (faster than all players)
+  for (const key in projIdx) {
+    // only keys that are exact sleeper_id entries (numeric-like)
+    if (!/^\d+$/.test(key)) continue;
+    const pid = key;
+    if (owned.has(pid)) continue;
+    const p = playersIndex[pid];
+    if (!p) continue;
+    const pos = normalizePos(p.position || p.fantasy_positions?.[0] || "");
+    if (!pos) continue;
+    const pr = projIdx[pid];
+    if (!pr) continue;
+    push(p, pr, pid, pos);
+  }
+
+  // Thin the lists by top projected raw points per position
+  for (const pos of Object.keys(byPos)) {
+    byPos[pos].sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
+    byPos[pos] = byPos[pos].slice(0, perPosCap);
+  }
+  return byPos;
+}
+
+3) Scoring those FAs with the league settings
+
+You already have scoreByLeague. We’ll use that to convert each FA’s stat projections to league-scored points before evaluating.
+
+4) App state & UI: add toggle and cap
+
+In src/App.tsx add state near the top:
+
+const [considerWaivers, setConsiderWaivers] = useState(true);
+const [faCapPerPos, setFaCapPerPos] = useState(150); // perf guard
+
+
+Add a small control in your controls bar:
+
+<div className="flex items-center gap-3">
+  <label className="flex items-center gap-2 text-sm">
+    <input
+      type="checkbox"
+      checked={considerWaivers}
+      onChange={(e) => setConsiderWaivers(e.target.checked)}
+    />
+    Consider Free Agents
+  </label>
+
+  {considerWaivers && (
+    <label className="flex items-center gap-2 text-sm">
+      Per-pos cap:
+      <input
+        type="number"
+        className="w-20 border rounded px-2 py-1 text-sm"
+        value={faCapPerPos}
+        min={25}
+        max={500}
+        onChange={(e) => setFaCapPerPos(parseInt(e.target.value || "150", 10))}
+      />
+    </label>
+  )}
+</div>
+
+5) Compute waiver suggestions inside runCheck()
+
+Update imports:
+
+import { buildFreeAgentPool, getOwnedPlayerIds } from "./lib/freeAgents";
+import { scoreByLeague } from "./lib/scoring";
+
+
+Inside runCheck(), after you’ve fetched all rosters for a given league and before pushing out.push(...), add:
+
+// Build FA pool once per league (owned derived from league rosters)
+let waiverSuggestions: WaiverSuggestion[] = [];
+if (considerWaivers) {
+  const owned = getOwnedPlayerIds(rosters);
+
+  // Build a pool of candidate FAs limited per position for perf
+  const faByPos = buildFreeAgentPool({
+    playersIndex: playersIndex!,
+    owned,
+    projIdx,
+    perPosCap: faCapPerPos,
+  });
+
+  // Score the FA pool using league scoring
+  const scoredFAs: Record<string, { player_id: string; name: string; team?: string; pos: string; proj: number; opp?: string }[]> = {};
+  for (const pos of Object.keys(faByPos)) {
+    scoredFAs[pos] = faByPos[pos].map((fa) => {
+      // look up full projection row by id (for stat-level)
+      const pr = projIdx[fa.player_id];
+      const stats = (pr as any)?.stats || {};
+      const adj = scoreByLeague(pos, stats, scoring, pr?.proj ?? fa.proj);
+      return { ...fa, proj: adj };
+    }).sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
+  }
+
+  // For each starting slot, see if the best eligible FA beats your optimal player
+  // 1) map slot → current optimal player/proj
+  const slotToOptimal: Record<string, number> = {};
+  optimalSlots.forEach(s => {
+    slotToOptimal[s.slot] = Math.max(slotToOptimal[s.slot] ?? 0, s.player?.proj ?? 0);
+  });
+
+  // 2) eligibility for flex slots mirrors your optimizer
+  const FLEX_ELIG: Record<string, string[]> = {
+    FLEX: ["RB","WR","TE"],
+    WRT: ["RB","WR","TE"],
+    WRTQ: ["RB","WR","TE","QB"],
+    SUPER_FLEX: ["QB","RB","WR","TE"],
+    REC_FLEX: ["WR","TE"],
+    RB_WR: ["RB","WR"],
+    RB_WR_TE: ["RB","WR","TE"],
+  };
+  const isFlex = (slot: string) => Boolean(FLEX_ELIG[slot.toUpperCase()]);
+  const canFill = (slot: string, pos: string) => {
+    const s = slot.toUpperCase();
+    const p = pos.toUpperCase();
+    if (isFlex(s)) return (FLEX_ELIG[s] || []).includes(p);
+    return s === p;
+  };
+
+  // 3) For each slot type in your starting lineup, find best FA eligible
+  const seen: Record<string, boolean> = {};
+  for (const slot of Object.keys(slotToOptimal)) {
+    let bestFA: any = null;
+
+    // Choose from scoredFAs across positions that can fill this slot
+    for (const pos of Object.keys(scoredFAs)) {
+      if (!canFill(slot, pos)) continue;
+      for (const cand of scoredFAs[pos]) {
+        const key = cand.player_id; // avoid suggesting same FA for multiple slots
+        if (seen[key]) continue;
+        bestFA = bestFA && bestFA.proj > cand.proj ? bestFA : cand;
+      }
+    }
+
+    if (bestFA) {
+      const current = slotToOptimal[slot] ?? 0;
+      const gain = (bestFA.proj ?? 0) - current;
+      if (gain > 0.2) { // small threshold to avoid noise
+        waiverSuggestions.push({
+          player_id: bestFA.player_id,
+          name: bestFA.name,
+          team: bestFA.team,
+          pos: bestFA.pos,
+          proj: bestFA.proj,
+          opp: bestFA.opp,
+          replaceSlot: slot,
+          gain,
+        });
+        seen[bestFA.player_id] = true;
+      }
+    }
+  }
+
+  waiverSuggestions.sort((a, b) => b.gain - a.gain);
+}
+
+
+Then include waiverSuggestions in the out.push({ ... }) object:
+
+out.push({
+  // ...existing fields
+  waiverSuggestions,
+});
+
+6) Show a “Waiver Watchlist” section inside each expanded league
+
+In src/components/LeagueCard.tsx (inside the open block, below current/optimal totals), add:
+
+{lg.waiverSuggestions && lg.waiverSuggestions.length > 0 && (
+  <div className="mt-4">
+    <div className="font-semibold mb-1">Waiver Watchlist</div>
+    <ul className="space-y-1">
+      {lg.waiverSuggestions.slice(0, 10).map((w, i) => (
+        <li key={i} className="text-sm">
+          <span className="inline-block w-28 font-mono">{w.replaceSlot}</span>
+          {w.name} ({w.pos}{w.team ? ` • ${w.team}` : ""}) — {w.proj.toFixed(2)} pts
+          <span className="ml-2 text-green-600">(+{w.gain.toFixed(2)})</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
+7) Notes / behavior
+
+Ownership: We treat any player not on a roster (incl. IR/Taxi) as “available.” This aligns with typical Sleeper behavior; we don’t try to model temporary waiver locks (that would require transaction windows & timestamps).
+
+Projections coverage: Only FAs that exist in your uploaded projections are evaluated. If you want a broader search, include more players in the CSV.
+
+Performance: We cap FA candidates per position (faCapPerPos) to keep the app snappy. Adjust if you need deeper pools.
+
+Scoring: FA projections are converted with the same league scoring you apply for your roster, so comparisons are apples-to-apples.
