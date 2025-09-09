@@ -127,12 +127,13 @@ export default function Home() {
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
               // Debug: Log QB calculations for Baker Mayfield and Trevor Lawrence
-              if (lite.name === "Baker Mayfield" || lite.name === "Trevor Lawrence") {
-                console.log(`${lite.name}: Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
+              if (lite.name?.includes("Baker") || lite.name?.includes("Mayfield") || 
+                  lite.name?.includes("Trevor") || lite.name?.includes("Lawrence")) {
+                console.log(`🏈 QB FOUND: ${lite.name}: Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
                 if (Object.keys(stats).length > 0) {
-                  console.log(`${lite.name} stats used:`, stats);
+                  console.log(`${lite.name} stats:`, stats);
                 } else {
-                  console.log(`${lite.name}: No detailed stats found - using fallback proj`);
+                  console.log(`${lite.name}: No detailed stats - using fallback`);
                 }
               }
             } else {
