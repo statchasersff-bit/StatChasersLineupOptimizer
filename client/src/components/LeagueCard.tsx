@@ -88,6 +88,21 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
           <div className="mt-3 text-sm" data-testid={`text-totals-${lg.league_id}`}>
             Current total: <b>{lg.currentTotal.toFixed(2)}</b> — Optimal total: <b>{lg.optimalTotal.toFixed(2)}</b>
           </div>
+
+          {lg.waiverSuggestions && lg.waiverSuggestions.length > 0 && (
+            <div className="mt-4">
+              <div className="font-semibold mb-1">Waiver Watchlist</div>
+              <ul className="space-y-1">
+                {lg.waiverSuggestions.slice(0, 10).map((w, i) => (
+                  <li key={i} className="text-sm" data-testid={`row-waiver-${i}`}>
+                    <span className="inline-block w-28 font-mono">{w.replaceSlot}</span>
+                    {w.name} ({w.pos}{w.team ? ` • ${w.team}` : ""}) — {w.proj.toFixed(2)} pts
+                    <span className="ml-2 text-green-600">(+{w.gain.toFixed(2)})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
