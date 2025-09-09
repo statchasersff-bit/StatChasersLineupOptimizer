@@ -45,4 +45,6 @@ export type LeagueSummary = {
   currentTotal: number;       // sum of proj of current starters
   delta: number;              // optimal - current
   waiverSuggestions?: WaiverSuggestion[]; // sorted by gain desc
+  starterObjs?: (PlayerLite & { proj?: number; opp?: string })[]; // enriched starter objects
+  allEligible?: (PlayerLite & { proj?: number; opp?: string })[]; // all eligible players for lookup
 };

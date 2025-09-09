@@ -45,7 +45,8 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
               <ul className="space-y-1">
                 {lg.starters.map((pid, i) => {
                   const slot = lg.roster_positions[i];
-                  const cur = lg.optimalSlots.find(s => s.player?.player_id === pid)?.player;
+                  // First try to find in enriched starter objects, then in all eligible players
+                  const cur = lg.starterObjs?.[i] || lg.allEligible?.find(p => p.player_id === pid);
                   const flags = statusFlags(cur);
                   const shouldReplace = pid !== lg.optimalSlots[i]?.player?.player_id;
                   return (

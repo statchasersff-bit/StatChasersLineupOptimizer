@@ -220,6 +220,8 @@ export default function Home() {
             currentTotal,
             delta: optimalTotal - currentTotal,
             waiverSuggestions,
+            starterObjs, // Include enriched starter objects with names
+            allEligible, // Include all player objects for lookup
           });
         } catch (err) {
           console.warn("League failed", lg?.name, err);
