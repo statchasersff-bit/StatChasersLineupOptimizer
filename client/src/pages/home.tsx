@@ -6,7 +6,8 @@ import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj } from "@/lib/optimizer";
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { scoreByLeague } from "@/lib/scoring";
-import type { LeagueSummary, Projection } from "@/lib/types";
+import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
+import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 import LeagueCard from "@/components/LeagueCard";
 import AdminModal from "@/components/AdminModal";
 import { useToast } from "@/hooks/use-toast";
@@ -119,6 +120,93 @@ export default function Home() {
           });
           const currentTotal = sumProj(currentSlots as any);
 
+          // Build FA pool once per league (owned derived from league rosters)
+          let waiverSuggestions: WaiverSuggestion[] = [];
+          if (considerWaivers) {
+            const owned = getOwnedPlayerIds(rosters);
+
+            // Build a pool of candidate FAs limited per position for perf
+            const faByPos = buildFreeAgentPool({
+              playersIndex: currentPlayersIndex,
+              owned,
+              projIdx,
+              perPosCap: faCapPerPos,
+            });
+
+            // Score the FA pool using league scoring
+            const scoredFAs: Record<string, { player_id: string; name: string; team?: string; pos: string; proj: number; opp?: string }[]> = {};
+            for (const pos of Object.keys(faByPos)) {
+              scoredFAs[pos] = faByPos[pos].map((fa) => {
+                // look up full projection row by id (for stat-level)
+                const pr = projIdx[fa.player_id];
+                const stats = (pr as any)?.stats || {};
+                const adj = scoreByLeague(pos, stats, scoring, pr?.proj ?? fa.proj);
+                return { ...fa, proj: adj };
+              }).sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
+            }
+
+            // For each starting slot, see if the best eligible FA beats your optimal player
+            // 1) map slot → current optimal player/proj
+            const slotToOptimal: Record<string, number> = {};
+            optimalSlots.forEach(s => {
+              slotToOptimal[s.slot] = Math.max(slotToOptimal[s.slot] ?? 0, s.player?.proj ?? 0);
+            });
+
+            // 2) eligibility for flex slots mirrors your optimizer
+            const FLEX_ELIG: Record<string, string[]> = {
+              FLEX: ["RB","WR","TE"],
+              WRT: ["RB","WR","TE"],
+              WRTQ: ["RB","WR","TE","QB"],
+              SUPER_FLEX: ["QB","RB","WR","TE"],
+              REC_FLEX: ["WR","TE"],
+              RB_WR: ["RB","WR"],
+              RB_WR_TE: ["RB","WR","TE"],
+            };
+            const isFlex = (slot: string) => Boolean(FLEX_ELIG[slot.toUpperCase()]);
+            const canFill = (slot: string, pos: string) => {
+              const s = slot.toUpperCase();
+              const p = pos.toUpperCase();
+              if (isFlex(s)) return (FLEX_ELIG[s] || []).includes(p);
+              return s === p;
+            };
+
+            // 3) For each slot type in your starting lineup, find best FA eligible
+            const seen: Record<string, boolean> = {};
+            for (const slot of Object.keys(slotToOptimal)) {
+              let bestFA: any = null;
+
+              // Choose from scoredFAs across positions that can fill this slot
+              for (const pos of Object.keys(scoredFAs)) {
+                if (!canFill(slot, pos)) continue;
+                for (const cand of scoredFAs[pos]) {
+                  const key = cand.player_id; // avoid suggesting same FA for multiple slots
+                  if (seen[key]) continue;
+                  bestFA = bestFA && bestFA.proj > cand.proj ? bestFA : cand;
+                }
+              }
+
+              if (bestFA) {
+                const current = slotToOptimal[slot] ?? 0;
+                const gain = (bestFA.proj ?? 0) - current;
+                if (gain > 0.2) { // small threshold to avoid noise
+                  waiverSuggestions.push({
+                    player_id: bestFA.player_id,
+                    name: bestFA.name,
+                    team: bestFA.team,
+                    pos: bestFA.pos,
+                    proj: bestFA.proj,
+                    opp: bestFA.opp,
+                    replaceSlot: slot,
+                    gain,
+                  });
+                  seen[bestFA.player_id] = true;
+                }
+              }
+            }
+
+            waiverSuggestions.sort((a, b) => b.gain - a.gain);
+          }
+
           out.push({
             league_id: lg.league_id,
             name: lg.name,
@@ -130,6 +218,7 @@ export default function Home() {
             optimalTotal,
             currentTotal,
             delta: optimalTotal - currentTotal,
+            waiverSuggestions,
           });
         } catch (err) {
           console.warn("League failed", lg?.name, err);
