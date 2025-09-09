@@ -11,7 +11,7 @@ import AdminModal from "@/components/AdminModal";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
-  const [season, setSeason] = useState("2025");
+  const season = "2025";
   const [week, setWeek] = useState("15");
   const [username, setUsername] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -210,7 +210,7 @@ export default function Home() {
             Sleeper Account Setup
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">Sleeper Username</label>
               <input 
@@ -223,20 +223,6 @@ export default function Home() {
               />
             </div>
             
-            <div>
-              <label className="block text-sm font-medium mb-2">Season</label>
-              <select 
-                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                value={season}
-                onChange={(e) => setSeason(e.target.value)}
-                data-testid="select-season"
-              >
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-                <option value="2023">2023</option>
-              </select>
-            </div>
-
             <div>
               <label className="block text-sm font-medium mb-2">Week</label>
               <select 
