@@ -60,11 +60,14 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
               const slot = lg.roster_positions.filter(s => !["BN","IR","TAXI"].includes(s))[i];
               const cur = lg.optimalSlots.find(s => s.player?.player_id === pid)?.player;
               const flags = statusFlags(cur);
+              const shouldReplace = pid !== lg.optimalSlots[i]?.player?.player_id;
               return (
-                <div key={i} className="flex justify-between items-center p-2 bg-muted/50 rounded" data-testid={`row-current-${i}`}>
+                <div key={i} className={`flex justify-between items-center p-2 rounded ${
+                  shouldReplace ? 'bg-red-50 border border-red-200 dark:bg-red-950/20 dark:border-red-900/30' : 'bg-muted/50'
+                }`} data-testid={`row-current-${i}`}>
                   <div className="flex items-center space-x-3">
                     <span className="w-8 text-xs font-mono text-muted-foreground">{slot}</span>
-                    <span className="font-medium">
+                    <span className={`font-medium ${shouldReplace ? 'text-red-700 dark:text-red-300' : ''}`}>
                       {cur ? `${cur.name} (${cur.pos})` : `player_id ${pid}`}
                     </span>
                     {flags.length > 0 && (
@@ -102,17 +105,17 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
               const p = s.player;
               const flags = statusFlags(p);
               const currentPlayerId = lg.starters[i];
-              const isChange = currentPlayerId !== p?.player_id;
+              const isAddition = currentPlayerId !== p?.player_id;
               return (
                 <div key={i} className={`flex justify-between items-center p-2 rounded ${
-                  isChange ? 'bg-accent/10' : 'bg-muted/50'
+                  isAddition ? 'bg-green-50 border border-green-200 dark:bg-green-950/20 dark:border-green-900/30' : 'bg-muted/50'
                 }`} data-testid={`row-optimal-${i}`}>
                   <div className="flex items-center space-x-3">
                     <span className="w-8 text-xs font-mono text-muted-foreground">{s.slot}</span>
-                    <span className="font-medium">
+                    <span className={`font-medium ${isAddition ? 'text-green-700 dark:text-green-300' : ''}`}>
                       {p ? `${p.name} (${p.pos})` : "—"}
                     </span>
-                    {isChange && <ArrowUp className="w-3 h-3 text-accent" />}
+                    {isAddition && <ArrowUp className="w-3 h-3 text-accent" />}
                     {flags.length > 0 && (
                       <div className="flex gap-1">
                         {flags.map(flag => (
