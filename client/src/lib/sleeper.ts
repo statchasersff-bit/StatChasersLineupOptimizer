@@ -20,6 +20,10 @@ export async function getLeagueUsers(leagueId: string) {
   return fetchJSON<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`);
 }
 
+export async function getLeagueDetails(leagueId: string) {
+  return fetchJSON<any>(`https://api.sleeper.app/v1/league/${leagueId}`);
+}
+
 export async function getPlayersIndex() {
   // Big object of all NFL players; cache in app state.
   return fetchJSON<Record<string, any>>("https://api.sleeper.app/v1/players/nfl");

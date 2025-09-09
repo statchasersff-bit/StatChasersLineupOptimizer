@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown } from "lucide-react";
-import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getPlayersIndex } from "@/lib/sleeper";
+import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getPlayersIndex } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj } from "@/lib/optimizer";
 import { isBestBallLeague } from "@/lib/isBestBall";
@@ -77,9 +77,10 @@ export default function Home() {
 
       for (const lg of filteredLeagues) {
         try {
-          const [rosters, users] = await Promise.all([
+          const [rosters, users, leagueDetails] = await Promise.all([
             getLeagueRosters(lg.league_id),
             getLeagueUsers(lg.league_id),
+            getLeagueDetails(lg.league_id),
           ]);
 
           // Find user's roster
@@ -89,7 +90,7 @@ export default function Home() {
           const owner = users.find((u: any) => u.user_id === meRoster?.owner_id);
           const display = owner?.metadata?.team_name || owner?.display_name || "Unknown Manager";
 
-          const roster_positions: string[] = lg.roster_positions || [];
+          const roster_positions: string[] = leagueDetails?.roster_positions || lg.roster_positions || [];
           const slotCounts = buildSlotCounts(roster_positions);
 
           // Keep original starter structure (including empty slots) for display
@@ -98,8 +99,8 @@ export default function Home() {
           const validStarters = starters.filter((x): x is string => !!x);
           const bench: string[] = (meRoster?.players || []).filter((p: string) => p && !validStarters.includes(p));
 
-          // Get league scoring settings
-          const scoring = (lg?.settings?.scoring_settings) || {};
+          // Get league scoring settings from detailed league data
+          const scoring = (leagueDetails?.scoring_settings) || {};
           
           // Debug: Log scoring settings for first league
           if (out.length === 0) {
@@ -110,6 +111,7 @@ export default function Home() {
               rush_yd: scoring.rush_yd || "not set",
               rec_yd: scoring.rec_yd || "not set"
             });
+            console.log("Full league details keys:", Object.keys(leagueDetails || {}));
           }
 
           // Build enriched player list with league-adjusted projections
