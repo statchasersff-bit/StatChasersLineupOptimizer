@@ -8,7 +8,7 @@ export type LineupDiff = {
   delta: number;
 };
 
-export function buildLineupDiff(lg: LeagueSummary): LineupDiff {
+export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[]): LineupDiff {
   const fixedSlots = lg.roster_positions;
 
   // current starters (by player_id -> info)
@@ -29,8 +29,8 @@ export function buildLineupDiff(lg: LeagueSummary): LineupDiff {
   const outs = curIds
     .filter(pid => !optSet.has(pid))
     .map(pid => {
-      // try to find name/pos/proj from optimalSlots (bench info not carried; set proj 0 if unknown)
-      const hit = optPlayers.find(p => p.player_id === pid);
+      // try to find name/pos/proj from optimalSlots or allEligible (bench info not carried; set proj 0 if unknown)
+      const hit = optPlayers.find(p => p.player_id === pid) || allEligible?.find(p => p.player_id === pid);
       return { player_id: pid, name: hit?.name ?? `player_id ${pid}`, pos: hit?.pos ?? "", proj: hit?.proj ?? 0 };
     });
 
@@ -52,12 +52,20 @@ export function buildLineupDiff(lg: LeagueSummary): LineupDiff {
     if (!same && !usedIn.has(inP.player_id)) {
       // if the current player in that slot is part of optimal elsewhere, we shouldn't call it an OUT
       const currentIsOptimalSomewhere = curPidAtSlot && optSet.has(curPidAtSlot);
+      
+      // Look up the player being benched for proper name
+      let outName = undefined;
+      if (!currentIsOptimalSomewhere && curPidAtSlot) {
+        const outPlayer = optPlayers.find(p => p.player_id === curPidAtSlot) || allEligible?.find(p => p.player_id === curPidAtSlot);
+        outName = outPlayer?.name ?? `player_id ${curPidAtSlot}`;
+      }
+      
       moves.push({
         slot,
         in_pid: inP.player_id,
         in_name: inP.name,
         out_pid: currentIsOptimalSomewhere ? undefined : curPidAtSlot,
-        out_name: currentIsOptimalSomewhere ? undefined : (curPidAtSlot ? `player_id ${curPidAtSlot}` : undefined),
+        out_name: outName,
         gain: (inP.proj ?? 0),
       });
       usedIn.add(inP.player_id);

@@ -7,7 +7,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
   const [open, setOpen] = useState(false);
 
   // TRUE ins/outs based on sets, not slot-by-slot
-  const diff = useMemo(() => buildLineupDiff(lg), [lg]);
+  const diff = useMemo(() => buildLineupDiff(lg, lg.allEligible), [lg]);
   const changeCount = Math.max(diff.ins.length, diff.outs.length);
 
   return (

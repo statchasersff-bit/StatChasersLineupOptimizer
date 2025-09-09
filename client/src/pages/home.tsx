@@ -24,6 +24,7 @@ export default function Home() {
   const [summaries, setSummaries] = useState<LeagueSummary[]>([]);
   const [considerWaivers, setConsiderWaivers] = useState(true);
   const [filterDynasty, setFilterDynasty] = useState(false);
+  const [sortAlphabetical, setSortAlphabetical] = useState(false);
   const { toast } = useToast();
 
   // Fetch projections from our API
@@ -34,6 +35,13 @@ export default function Home() {
   const projIdx = useMemo(() => {
     return buildProjectionIndex(projectionsData);
   }, [projectionsData]);
+
+  // Re-sort summaries when alphabetical sort preference changes
+  const sortedSummaries = useMemo(() => {
+    return sortAlphabetical 
+      ? [...summaries].sort((a, b) => a.name.localeCompare(b.name))
+      : [...summaries].sort((a, b) => b.delta - a.delta);
+  }, [summaries, sortAlphabetical]);
 
   const handleAnalyzeLineups = async () => {
     if (!username.trim()) {
@@ -237,7 +245,7 @@ export default function Home() {
         }
       }
 
-      setSummaries(out.sort((a, b) => b.delta - a.delta));
+      setSummaries(out);
       toast({ title: "Success", description: `Analyzed ${out.length} leagues successfully` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to analyze lineups", variant: "destructive" });
@@ -247,14 +255,14 @@ export default function Home() {
   };
 
   const handleExportAll = () => {
-    if (summaries.length === 0) {
+    if (sortedSummaries.length === 0) {
       toast({ title: "Error", description: "No data to export", variant: "destructive" });
       return;
     }
 
     const csvData = [
       ['League', 'Manager', 'Current Total', 'Optimal Total', 'Delta', 'Changes Needed'],
-      ...summaries.map(s => [
+      ...sortedSummaries.map(s => [
         s.name,
         s.rosterUserDisplay,
         s.currentTotal.toFixed(2),
@@ -275,8 +283,8 @@ export default function Home() {
     toast({ title: "Success", description: "Analysis exported successfully" });
   };
 
-  const totalPotentialPoints = summaries.reduce((sum, s) => sum + Math.max(0, s.delta), 0);
-  const riskyStarters = summaries.reduce((count, s) => 
+  const totalPotentialPoints = sortedSummaries.reduce((sum, s) => sum + Math.max(0, s.delta), 0);
+  const riskyStarters = sortedSummaries.reduce((count, s) => 
     count + s.optimalSlots.filter(slot => {
       const p = slot.player;
       if (!p) return false;
@@ -285,7 +293,7 @@ export default function Home() {
       return status.includes("OUT") || status.includes("DOU") || status.includes("SUS") || opp === "BYE";
     }).length, 0
   );
-  const totalChanges = summaries.reduce((count, s) => 
+  const totalChanges = sortedSummaries.reduce((count, s) => 
     count + s.optimalSlots.filter((slot, i) => s.starters[i] !== slot.player?.player_id).length, 0
   );
 
@@ -376,6 +384,16 @@ export default function Home() {
               />
               Filter Dynasty Leagues
             </label>
+            
+            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-alphabetical">
+              <input
+                type="checkbox"
+                checked={sortAlphabetical}
+                onChange={(e) => setSortAlphabetical(e.target.checked)}
+                className="rounded border-input"
+              />
+              Sort Alphabetically
+            </label>
           </div>
           
           <div className="mt-3 text-xs text-muted-foreground">
@@ -405,8 +423,8 @@ export default function Home() {
 
         {/* Leagues Analysis Section */}
         <section className="space-y-3">
-          {summaries.length > 0 ? (
-            summaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)
+          {sortedSummaries.length > 0 ? (
+            sortedSummaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)
           ) : (
             <div className="text-center text-muted-foreground py-12">
               <ChartLine className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
@@ -419,7 +437,7 @@ export default function Home() {
         </section>
 
         {/* Export Section */}
-        {summaries.length > 0 && (
+        {sortedSummaries.length > 0 && (
           <div className="mt-8 card rounded-lg border border-border p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
               <FileSpreadsheet className="w-5 h-5 mr-2 text-primary" />
