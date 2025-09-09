@@ -126,13 +126,13 @@ export default function Home() {
               
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
-              // Debug: Log Dallas Goedert TE premium calculation
-              if (lite.name === "Dallas Goedert") {
-                console.log(`Dallas Goedert: Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
+              // Debug: Log QB calculations for Baker Mayfield and Trevor Lawrence
+              if (lite.name === "Baker Mayfield" || lite.name === "Trevor Lawrence") {
+                console.log(`${lite.name}: Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
                 if (Object.keys(stats).length > 0) {
-                  console.log(`Stats used:`, stats);
+                  console.log(`${lite.name} stats used:`, stats);
                 } else {
-                  console.log(`No detailed stats found - using fallback proj`);
+                  console.log(`${lite.name}: No detailed stats found - using fallback proj`);
                 }
               }
             } else {

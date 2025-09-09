@@ -62,6 +62,23 @@ export function scoreOff(stats: NumRec, scoring: LeagueScoring, position?: strin
     pts += rec * tePremium;
   }
 
+  // Debug QB calculations
+  if (position?.toUpperCase() === "QB" && (passYd > 200 || passTd > 1)) {
+    console.log(`QB calculation breakdown:`, {
+      position,
+      passAtt, passCmp, passYd, passTd, passInt,
+      rushYd, rushTd,
+      passYdPts: passYd * g(scoring, "pass_yd", 0.04),
+      passTdPts: passTd * g(scoring, "pass_td", 4),
+      totalCalculated: pts,
+      scoringSettings: {
+        pass_yd: scoring.pass_yd,
+        pass_td: scoring.pass_td,
+        pass_int: scoring.pass_int
+      }
+    });
+  }
+
   return pts;
 }
 
