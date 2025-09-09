@@ -48,9 +48,11 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                   // First try to find in enriched starter objects, then in all eligible players
                   const cur = lg.starterObjs?.[i] || lg.allEligible?.find(p => p.player_id === pid);
                   const flags = statusFlags(cur);
-                  const shouldReplace = pid !== lg.optimalSlots[i]?.player?.player_id;
+                  // Only highlight if player is truly being removed from lineup (not in optimal at all)
+                  const optimalIds = new Set(lg.optimalSlots.map(s => s.player?.player_id).filter(Boolean));
+                  const isBeingBenched = !optimalIds.has(pid);
                   return (
-                    <li key={i} className={`text-sm p-1 rounded ${shouldReplace ? 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300' : ''}`} data-testid={`row-current-${i}`}>
+                    <li key={i} className={`text-sm p-1 rounded ${isBeingBenched ? 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300' : ''}`} data-testid={`row-current-${i}`}>
                       <span className="inline-block w-28 font-mono">{slot}</span>
                       {cur ? `${cur.name} (${cur.pos}) — ${cur.proj?.toFixed(2) ?? "0.00"}` : `player_id ${pid}`}
                       {flags.length > 0 && <span className="ml-2 text-xs text-amber-600">[{flags.join(", ")}]</span>}
@@ -66,9 +68,11 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                 {lg.optimalSlots.map((s, i) => {
                   const p = s.player;
                   const flags = statusFlags(p);
-                  const isAddition = lg.starters[i] !== p?.player_id;
+                  // Only highlight if player is truly being added to lineup (not currently starting)
+                  const currentIds = new Set(lg.starters.filter(Boolean));
+                  const isNewAddition = p && !currentIds.has(p.player_id);
                   return (
-                    <li key={i} className={`text-sm p-1 rounded ${isAddition ? 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-300' : ''}`} data-testid={`row-optimal-${i}`}>
+                    <li key={i} className={`text-sm p-1 rounded ${isNewAddition ? 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-300' : ''}`} data-testid={`row-optimal-${i}`}>
                       <span className="inline-block w-28 font-mono">{s.slot}</span>
                       {p ? `${p.name} (${p.pos}) — ${p.proj?.toFixed(2) ?? "0.00"}` : "—"}
                       {flags.length > 0 && <span className="ml-2 text-xs text-amber-600">[{flags.join(", ")}]</span>}
