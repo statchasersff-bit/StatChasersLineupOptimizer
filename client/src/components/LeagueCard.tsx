@@ -68,13 +68,33 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                 {lg.optimalSlots.map((s, i) => {
                   const p = s.player;
                   const flags = statusFlags(p);
-                  // Only highlight if player is truly being added to lineup (not currently starting)
+                  
+                  if (!p) {
+                    return (
+                      <li key={i} className="text-sm p-1 rounded" data-testid={`row-optimal-${i}`}>
+                        <span className="inline-block w-28 font-mono">{s.slot}</span>
+                        —
+                      </li>
+                    );
+                  }
+
                   const currentIds = new Set(lg.starters.filter(Boolean));
-                  const isNewAddition = p && !currentIds.has(p.player_id);
+                  const benchIds = new Set(lg.bench.filter(Boolean));
+                  const isCurrentStarter = currentIds.has(p.player_id);
+                  const isBenchPlayer = benchIds.has(p.player_id);
+                  const isFreeAgent = !isCurrentStarter && !isBenchPlayer;
+                  
+                  let highlightClass = '';
+                  if (isFreeAgent) {
+                    highlightClass = 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/20 dark:text-yellow-300';
+                  } else if (isBenchPlayer) {
+                    highlightClass = 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-300';
+                  }
+                  
                   return (
-                    <li key={i} className={`text-sm p-1 rounded ${isNewAddition ? 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-300' : ''}`} data-testid={`row-optimal-${i}`}>
+                    <li key={i} className={`text-sm p-1 rounded ${highlightClass}`} data-testid={`row-optimal-${i}`}>
                       <span className="inline-block w-28 font-mono">{s.slot}</span>
-                      {p ? `${p.name} (${p.pos}) — ${p.proj?.toFixed(2) ?? "0.00"}` : "—"}
+                      {`${p.name} (${p.pos}) — ${p.proj?.toFixed(2) ?? "0.00"}`}
                       {flags.length > 0 && <span className="ml-2 text-xs text-amber-600">[{flags.join(", ")}]</span>}
                     </li>
                   );
