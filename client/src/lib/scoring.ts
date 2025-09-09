@@ -6,7 +6,7 @@ export type LeagueScoring = NumRec; // Sleeper league.settings.scoring_settings
 const g = (s: LeagueScoring, k: string, d = 0) => (typeof s?.[k] === "number" ? (s[k] as number) : d);
 
 // Compute offensive player points (QB/RB/WR/TE)
-export function scoreOff(stats: NumRec, scoring: LeagueScoring) {
+export function scoreOff(stats: NumRec, scoring: LeagueScoring, position?: string) {
   const passAtt = stats.pass_att ?? 0;
   const passComp = stats.pass_comp ?? 0;
   const passYd = stats.pass_yd ?? 0;
@@ -21,7 +21,7 @@ export function scoreOff(stats: NumRec, scoring: LeagueScoring) {
   const fumLost = stats.fum_lost ?? 0;
   const twoPt = stats.two_pt ?? 0;
 
-  const pts =
+  let pts =
     passAtt * g(scoring, "pass_att", 0) +
     passComp * g(scoring, "pass_cmp", 0) +
     passYd * g(scoring, "pass_yd", 0.04) +
@@ -35,6 +35,12 @@ export function scoreOff(stats: NumRec, scoring: LeagueScoring) {
     recTd * g(scoring, "rec_td", 6) +
     fumLost * g(scoring, "fum_lost", -2) +
     twoPt * g(scoring, "two_pt", 2);
+
+  // Add TE premium if applicable
+  if (position?.toUpperCase() === "TE" && rec > 0) {
+    const tePremium = g(scoring, "bonus_rec_te", 0);
+    pts += rec * tePremium;
+  }
 
   return pts;
 }
@@ -88,7 +94,7 @@ export function scoreByLeague(pos: string, stats: NumRec, scoring: LeagueScoring
   if (P === "DEF" || P === "DST" || P === "D/ST") return scoreDST(stats, scoring);
   
   // Offensive players
-  const off = scoreOff(stats, scoring);
+  const off = scoreOff(stats, scoring, pos);
   
   // Use calculated score if valid, otherwise fallback
   

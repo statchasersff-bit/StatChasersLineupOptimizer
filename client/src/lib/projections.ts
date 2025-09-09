@@ -29,6 +29,11 @@ export async function parseProjections(file: File): Promise<Projection[]> {
             console.warn('Could not fetch Sleeper players database:', err);
           }
           
+          // Debug: Log first row to see available columns
+          if (rows.length > 0) {
+            console.log("CSV columns available:", Object.keys(rows[0]));
+          }
+
           const mapped = rows.map((raw) => {
             const sleeperId = (raw.sleeper_id ?? raw.SLEEPER_ID ?? raw.player_id ?? raw.PLAYER_ID)?.toString()?.trim() || undefined;
             let name = (raw.name ?? raw.NAME ?? "").toString().trim();
@@ -102,6 +107,14 @@ export async function parseProjections(file: File): Promise<Projection[]> {
                     break; // Found a value, stop looking for other aliases
                   }
                 }
+              }
+            }
+
+            // Debug: Log stats for first player to verify extraction
+            if (stats && Object.keys(stats).length > 0) {
+              const name = (raw.name ?? raw.NAME ?? "").toString().trim();
+              if (name === "Dallas Goedert" || Object.keys(stats).length > 0) {
+                console.log(`Stats extracted for ${name}:`, stats);
               }
             }
 
