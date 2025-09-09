@@ -4,6 +4,7 @@ import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpre
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getPlayersIndex } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj } from "@/lib/optimizer";
+import { isBestBallLeague } from "@/lib/isBestBall";
 import type { LeagueSummary, Projection } from "@/lib/types";
 import LeagueCard from "@/components/LeagueCard";
 import AdminModal from "@/components/AdminModal";
@@ -44,7 +45,10 @@ export default function Home() {
     try {
       const user = await getUserByName(username.trim());
       const lgs = await getUserLeagues(user.user_id, season);
-      setLeagues(lgs);
+
+      // EXCLUDE Best Ball leagues by default
+      const nonBB = lgs.filter((lg) => !isBestBallLeague(lg));
+      setLeagues(nonBB);
       
       if (!playersIndex) {
         const idx = await getPlayersIndex();
@@ -55,7 +59,7 @@ export default function Home() {
       const out: LeagueSummary[] = [];
       const currentPlayersIndex = playersIndex || await getPlayersIndex();
 
-      for (const lg of lgs) {
+      for (const lg of nonBB) {
         try {
           const [rosters, users] = await Promise.all([
             getLeagueRosters(lg.league_id),
