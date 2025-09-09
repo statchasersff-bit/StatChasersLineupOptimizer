@@ -5,6 +5,7 @@ import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getPla
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj } from "@/lib/optimizer";
 import { isBestBallLeague } from "@/lib/isBestBall";
+import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
 import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
@@ -22,6 +23,7 @@ export default function Home() {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [summaries, setSummaries] = useState<LeagueSummary[]>([]);
   const [considerWaivers, setConsiderWaivers] = useState(true);
+  const [filterDynasty, setFilterDynasty] = useState(false);
   const { toast } = useToast();
 
   // Fetch projections from our API
@@ -49,9 +51,12 @@ export default function Home() {
       const user = await getUserByName(username.trim());
       const lgs = await getUserLeagues(user.user_id, season);
 
-      // EXCLUDE Best Ball leagues by default
-      const nonBB = lgs.filter((lg) => !isBestBallLeague(lg));
-      setLeagues(nonBB);
+      // EXCLUDE Best Ball leagues by default and optionally dynasty leagues
+      let filteredLeagues = lgs.filter((lg) => !isBestBallLeague(lg));
+      if (filterDynasty) {
+        filteredLeagues = filteredLeagues.filter((lg) => !isDynastyLeague(lg));
+      }
+      setLeagues(filteredLeagues);
       
       if (!playersIndex) {
         const idx = await getPlayersIndex();
@@ -62,7 +67,7 @@ export default function Home() {
       const out: LeagueSummary[] = [];
       const currentPlayersIndex = playersIndex || await getPlayersIndex();
 
-      for (const lg of nonBB) {
+      for (const lg of filteredLeagues) {
         try {
           const [rosters, users] = await Promise.all([
             getLeagueRosters(lg.league_id),
@@ -351,7 +356,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-6">
             <label className="flex items-center gap-2 text-sm" data-testid="checkbox-waivers">
               <input
                 type="checkbox"
@@ -360,6 +365,16 @@ export default function Home() {
                 className="rounded border-input"
               />
               Consider Free Agents
+            </label>
+            
+            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-dynasty">
+              <input
+                type="checkbox"
+                checked={filterDynasty}
+                onChange={(e) => setFilterDynasty(e.target.checked)}
+                className="rounded border-input"
+              />
+              Filter Dynasty Leagues
             </label>
           </div>
           
