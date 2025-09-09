@@ -290,7 +290,7 @@ export default function Home() {
         </div>
 
         {/* Leagues Analysis Section */}
-        <div className="space-y-6">
+        <section className="space-y-3">
           {summaries.length > 0 ? (
             summaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)
           ) : (
@@ -302,7 +302,7 @@ export default function Home() {
               </p>
             </div>
           )}
-        </div>
+        </section>
 
         {/* Export Section */}
         {summaries.length > 0 && (
