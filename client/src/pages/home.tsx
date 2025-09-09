@@ -22,7 +22,6 @@ export default function Home() {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [summaries, setSummaries] = useState<LeagueSummary[]>([]);
   const [considerWaivers, setConsiderWaivers] = useState(true);
-  const [faCapPerPos, setFaCapPerPos] = useState(150);
   const { toast } = useToast();
 
   // Fetch projections from our API
@@ -130,7 +129,6 @@ export default function Home() {
               playersIndex: currentPlayersIndex,
               owned,
               projIdx,
-              perPosCap: faCapPerPos,
             });
 
             // Score the FA pool using league scoring
@@ -358,7 +356,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-6">
+          <div className="mt-4">
             <label className="flex items-center gap-2 text-sm" data-testid="checkbox-waivers">
               <input
                 type="checkbox"
@@ -368,20 +366,6 @@ export default function Home() {
               />
               Consider Free Agents
             </label>
-
-            {considerWaivers && (
-              <label className="flex items-center gap-2 text-sm" data-testid="input-fa-cap">
-                Per-pos cap:
-                <input
-                  type="number"
-                  className="w-20 border border-input rounded px-2 py-1 text-sm"
-                  value={faCapPerPos}
-                  min={25}
-                  max={500}
-                  onChange={(e) => setFaCapPerPos(parseInt(e.target.value || "150", 10))}
-                />
-              </label>
-            )}
           </div>
           
           <div className="mt-3 text-xs text-muted-foreground">
