@@ -129,7 +129,8 @@ export default function Home() {
               // Debug: Log QB calculations for Baker Mayfield and Trevor Lawrence
               if (lite.name?.includes("Baker") || lite.name?.includes("Mayfield") || 
                   lite.name?.includes("Trevor") || lite.name?.includes("Lawrence")) {
-                console.log(`🏈 QB FOUND: ${lite.name}: Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
+                console.log(`🏈 QB FOUND: ${lite.name} in league "${lg?.name}": Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
+                console.log(`League scoring: pass_td=${scoring.pass_td}, pass_yd=${scoring.pass_yd}`);
                 if (Object.keys(stats).length > 0) {
                   console.log(`${lite.name} stats:`, stats);
                 } else {
