@@ -90,18 +90,7 @@ export function scoreByLeague(pos: string, stats: NumRec, scoring: LeagueScoring
   // Offensive players
   const off = scoreOff(stats, scoring);
   
-  // Debug: Check if we're using calculated score vs fallback
-  const hasValidStats = Object.keys(stats).length > 0;
-  const calculatedScore = isFinite(off) && off !== 0;
-  
-  if (!calculatedScore && hasValidStats) {
-    console.log(`Score calculation issue for ${pos}:`, {
-      stats: Object.keys(stats),
-      calculatedScore: off,
-      fallback: fallbackTotal,
-      scoringSettings: Object.keys(scoring).slice(0, 5)
-    });
-  }
+  // Use calculated score if valid, otherwise fallback
   
   if (!isFinite(off) || off === 0) return fallbackTotal ?? 0;
   return off;

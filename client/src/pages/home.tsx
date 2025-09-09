@@ -104,14 +104,12 @@ export default function Home() {
           
           // Debug: Log scoring settings for first league
           if (out.length === 0) {
-            console.log("League scoring settings:", scoring);
-            console.log("Sample scoring values:", {
+            console.log("League scoring settings sample:", {
               rec: scoring.rec || "not set",
               pass_yd: scoring.pass_yd || "not set", 
               rush_yd: scoring.rush_yd || "not set",
               rec_yd: scoring.rec_yd || "not set"
             });
-            console.log("Full league details keys:", Object.keys(leagueDetails || {}));
           }
 
           // Build enriched player list with league-adjusted projections
@@ -127,15 +125,9 @@ export default function Home() {
               const originalProj = pr.proj;
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
-              // Debug: Log for first few players in first league
-              if (out.length === 0) {
-                console.log(`Player ${lite.name} (${lite.pos}):`, {
-                  originalProj,
-                  adjustedProj: adj,
-                  hasStats: Object.keys(stats).length > 0,
-                  allStats: stats,
-                  statKeys: Object.keys(stats)
-                });
+              // Debug: Log first few players to verify stats are captured
+              if (out.length === 0 && Object.keys(stats).length > 0) {
+                console.log(`${lite.name} (${lite.pos}): Original=${originalProj}, Adjusted=${adj}, Stats=${Object.keys(stats).join(',')}`);
               }
             } else {
               adj = 0; // no projection found
