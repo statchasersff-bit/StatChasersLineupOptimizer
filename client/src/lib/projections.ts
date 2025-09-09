@@ -31,7 +31,7 @@ export async function parseProjections(file: File): Promise<Projection[]> {
           
           // Debug: Log first row to see available columns
           if (rows.length > 0) {
-            console.log("CSV columns available:", Object.keys(rows[0]));
+            console.log("CSV uploaded with columns:", Object.keys(rows[0]).length, "columns");
           }
 
           const mapped = rows.map((raw) => {
@@ -78,15 +78,9 @@ export async function parseProjections(file: File): Promise<Projection[]> {
               }
             }
 
-            // Debug: Log stats for Dallas Goedert specifically
-            if (name === "Dallas Goedert") {
-              console.log(`Dallas Goedert stats:`, stats);
-              console.log(`Dallas Goedert raw CSV data sample:`, {
-                rec: raw.rec,
-                rec_yd: raw.rec_yd,
-                rec_td: raw.rec_td,
-                proj: raw.proj
-              });
+            // Debug: Log stats extraction for first TE with stats
+            if (Object.keys(stats).length > 0 && (raw.pos || "").toUpperCase() === "TE") {
+              console.log(`TE with stats found: ${name}, extracted stats:`, Object.keys(stats));
             }
 
             return {

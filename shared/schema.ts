@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -19,6 +19,7 @@ export const projections = pgTable("projections", {
   pos: text("pos").notNull(),
   proj: real("proj").notNull(),
   opp: text("opp"),
+  stats: json("stats").$type<Record<string, number>>(),
   updated_at: timestamp("updated_at").default(sql`now()`),
 });
 
@@ -30,6 +31,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export const insertProjectionSchema = createInsertSchema(projections).omit({
   id: true,
   updated_at: true,
+}).extend({
+  stats: z.record(z.string(), z.number()).optional()
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

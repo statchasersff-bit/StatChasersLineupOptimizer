@@ -124,18 +124,16 @@ export default function Home() {
               const stats = (pr as any)?.stats || {};
               const originalProj = pr.proj;
               
-              // Debug: Log Dallas Goedert specifically to see the full projection object
-              if (lite.name === "Dallas Goedert") {
-                console.log(`Dallas Goedert full projection object:`, pr);
-                console.log(`Stats extracted from pr.stats:`, stats);
-                console.log(`All keys in pr:`, Object.keys(pr));
-              }
-              
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
-              // Debug: Log calculation result
+              // Debug: Log Dallas Goedert TE premium calculation
               if (lite.name === "Dallas Goedert") {
-                console.log(`Dallas Goedert calculation: Original=${originalProj}, Adjusted=${adj}, Position=${lite.pos}`);
+                console.log(`Dallas Goedert: Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
+                if (Object.keys(stats).length > 0) {
+                  console.log(`Stats used:`, stats);
+                } else {
+                  console.log(`No detailed stats found - using fallback proj`);
+                }
               }
             } else {
               adj = 0; // no projection found
