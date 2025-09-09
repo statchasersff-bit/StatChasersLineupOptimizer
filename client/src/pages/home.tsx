@@ -128,12 +128,13 @@ export default function Home() {
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
               // Debug: Log for first few players in first league
-              if (out.length === 0 && Object.keys(stats).length > 0) {
+              if (out.length === 0) {
                 console.log(`Player ${lite.name} (${lite.pos}):`, {
                   originalProj,
                   adjustedProj: adj,
                   hasStats: Object.keys(stats).length > 0,
-                  stats: Object.keys(stats).slice(0, 5)
+                  allStats: stats,
+                  statKeys: Object.keys(stats)
                 });
               }
             } else {
