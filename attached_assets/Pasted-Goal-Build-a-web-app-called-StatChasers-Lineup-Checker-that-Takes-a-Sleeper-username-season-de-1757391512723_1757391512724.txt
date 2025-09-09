@@ -1,0 +1,632 @@
+Goal: Build a web app called StatChasers Lineup Checker that:
+
+Takes a Sleeper username + season (default 2025).
+
+Lets user upload a CSV of StatChasers weekly projections (one week at a time).
+
+Pulls that user’s leagues, rosters, and players from the public Sleeper API.
+
+Computes the optimal lineup per league based on uploaded projections and league roster settings (including FLEX/SUPERFLEX rules).
+
+Compares current vs. optimal (projected points delta, which players to swap).
+
+Flags risky starters: OUT, Doubtful, Suspended, BYE, Empty.
+
+Exports results to CSV.
+
+Ready to embed on WordPress (via iframe or a simple page).
+
+1) Create the project
+
+Create a new Vite + React + TypeScript project.
+
+Add TailwindCSS.
+
+Add dependencies:
+
+npm i papaparse
+
+
+(No API keys needed—Sleeper API is public.)
+
+2) Configure Tailwind (quick)
+
+tailwind.config.js should scan index.html and all files in src/**/*.{ts,tsx}.
+
+src/index.css should include:
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+3) File structure (create these files)
+src/
+  main.tsx
+  App.tsx
+  index.css
+  lib/
+    sleeper.ts
+    projections.ts
+    optimizer.ts
+    types.ts
+  components/
+    FileUpload.tsx
+    LeagueCard.tsx
+
+4) Code: src/lib/types.ts
+export type Projection = {
+  sleeper_id?: string;
+  name: string;
+  team?: string;
+  pos: string;   // QB/RB/WR/TE/K/DEF
+  proj: number;  // projected points (StatChasers weekly)
+  opp?: string;  // 'BYE' to flag bye
+};
+
+export type PlayerLite = {
+  player_id: string;   // Sleeper player_id
+  name: string;
+  team?: string;
+  pos: string;         // primary fantasy position
+  multiPos: string[];  // fantasy_positions array
+  injury_status?: string; // OUT/DOUBTFUL/SUSPENDED/etc
+};
+
+export type RosterSlot = {
+  slot: string;        // QB, RB, WR, TE, FLEX, SUPER_FLEX, K, DEF
+  player?: PlayerLite & { proj?: number; opp?: string };
+};
+
+export type LeagueSummary = {
+  league_id: string;
+  name: string;
+  roster_positions: string[]; // from Sleeper: e.g. ["QB","RB","RB","WR","WR","TE","FLEX","FLEX","K","DEF","BN","BN"...]
+  starters: string[];         // current starters (player_ids) in slot order per Sleeper
+  bench: string[];            // bench player_ids
+  rosterUserDisplay: string;  // the team/owner display name
+  optimalSlots: RosterSlot[]; // computed optimal starters
+  optimalTotal: number;       // sum of proj
+  currentTotal: number;       // sum of proj of current starters
+  delta: number;              // optimal - current
+};
+
+5) Code: src/lib/sleeper.ts
+export async function fetchJSON<T>(url: string): Promise<T> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return res.json();
+}
+
+export async function getUserByName(username: string) {
+  return fetchJSON<{ user_id: string }>(`https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`);
+}
+
+export async function getUserLeagues(userId: string, season: string) {
+  return fetchJSON<any[]>(`https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${season}`);
+}
+
+export async function getLeagueRosters(leagueId: string) {
+  return fetchJSON<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`);
+}
+
+export async function getLeagueUsers(leagueId: string) {
+  return fetchJSON<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`);
+}
+
+export async function getPlayersIndex() {
+  // Big object of all NFL players; cache in app state.
+  return fetchJSON<Record<string, any>>("https://api.sleeper.app/v1/players/nfl");
+}
+
+6) Code: src/lib/projections.ts
+import Papa from "papaparse";
+import type { Projection } from "./types";
+
+export function normalizePos(p?: string) {
+  if (!p) return "";
+  const up = p.toUpperCase();
+  if (["DST","D/ST","DEF","D"].includes(up)) return "DEF";
+  return up;
+}
+
+export function parseProjections(file: File): Promise<Projection[]> {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        try {
+          const rows: Projection[] = (res.data as any[]).map((raw) => ({
+            sleeper_id: (raw.sleeper_id ?? raw.SLEEPER_ID ?? raw.player_id ?? raw.PLAYER_ID)?.toString()?.trim() || undefined,
+            name: (raw.name ?? raw.NAME ?? "").toString().trim(),
+            team: (raw.team ?? raw.TEAM ?? "").toString().trim().toUpperCase() || undefined,
+            pos: normalizePos((raw.pos ?? raw.POS ?? "").toString().trim()),
+            proj: Number(raw.proj ?? raw.PROJ ?? 0) || 0,
+            opp: (raw.opp ?? raw.OPP ?? "").toString().trim(),
+          }));
+          resolve(rows);
+        } catch (e) { reject(e); }
+      },
+      error: (err) => reject(err),
+    });
+  });
+}
+
+export function buildProjectionIndex(rows: Projection[]) {
+  const idx: Record<string, Projection> = {};
+  for (const r of rows) {
+    if (r.sleeper_id) idx[r.sleeper_id] = r;
+    const key = `${r.name.toLowerCase()}|${r.team ?? ""}|${r.pos}`;
+    idx[key] = r;
+  }
+  return idx;
+}
+
+export function csvTemplate(): string {
+  return [
+    ["sleeper_id","name","team","pos","proj","opp"].join(","),
+    ["4034","Patrick Mahomes","KC","QB","24.3",""].join(","),
+    ["6787","Christian McCaffrey","SF","RB","21.9",""].join(","),
+    ["6792","Justin Jefferson","MIN","WR","20.1",""].join(","),
+    ["4046","Travis Kelce","KC","TE","17.4",""].join(","),
+    ["9001","Generic Kicker","FA","K","8.0",""].join(","),
+    ["4999","San Francisco 49ers","SF","DEF","7.1",""].join(","),
+  ].join("\n");
+}
+
+7) Code: src/lib/optimizer.ts
+import type { Projection, PlayerLite, RosterSlot } from "./types";
+import { normalizePos } from "./projections";
+
+const FLEX_ELIGIBILITY: Record<string, string[]> = {
+  FLEX: ["RB","WR","TE"],
+  WRT: ["RB","WR","TE"],
+  WRTQ: ["RB","WR","TE","QB"],
+  SUPER_FLEX: ["QB","RB","WR","TE"],
+  REC_FLEX: ["WR","TE"],
+  RB_WR: ["RB","WR"],
+  RB_WR_TE: ["RB","WR","TE"],
+};
+
+function isFlex(slot: string) {
+  return Boolean(FLEX_ELIGIBILITY[slot.toUpperCase()]);
+}
+
+export function buildSlotCounts(roster_positions: string[]) {
+  const counts: Record<string, number> = {};
+  for (const slot of roster_positions) {
+    const s = slot.toUpperCase();
+    if (s === "BN" || s === "IR" || s === "TAXI") continue;
+    counts[s] = (counts[s] ?? 0) + 1;
+  }
+  return counts;
+}
+
+export function toPlayerLite(playersIndex: Record<string, any>, player_id: string): PlayerLite | null {
+  const p = playersIndex[player_id];
+  if (!p) return null;
+  const name = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.full_name || p.last_name || String(player_id);
+  const pos = normalizePos(p.position || p.fantasy_positions?.[0] || "");
+  return {
+    player_id,
+    name,
+    team: p.team,
+    pos,
+    multiPos: (p.fantasy_positions || []).map((x: string) => normalizePos(x)),
+    injury_status: p.injury_status,
+  };
+}
+
+export function statusFlags(p?: PlayerLite & { proj?: number; opp?: string }) {
+  const flags: string[] = [];
+  if (!p) return flags;
+  const s = (p.injury_status || "").toUpperCase();
+  if (s.includes("OUT")) flags.push("OUT");
+  if (s.includes("DOU")) flags.push("DOUB");
+  if (s.includes("SUS")) flags.push("SUS");
+  if ((p.opp || "").toUpperCase() === "BYE") flags.push("BYE");
+  return flags;
+}
+
+function byProjDesc(a: any, b: any) { return (b.proj ?? 0) - (a.proj ?? 0); }
+
+export function optimizeLineup(
+  slotsMap: Record<string, number>,
+  players: (PlayerLite & { proj?: number; opp?: string })[]
+): RosterSlot[] {
+  const slotList: string[] = [];
+  Object.entries(slotsMap).forEach(([slot, n]) => { for (let i=0;i<n;i++) slotList.push(slot); });
+
+  const sorted = [...players].sort(byProjDesc);
+  const filled: RosterSlot[] = slotList.map((s) => ({ slot: s }));
+  const used = new Set<string>();
+
+  // fill fixed positions first
+  for (let i=0;i<filled.length;i++){
+    const slot = filled[i].slot;
+    if (isFlex(slot)) continue;
+    const idx = sorted.findIndex(p =>
+      !used.has(p.player_id) &&
+      (p.multiPos?.includes(normalizePos(slot)) || normalizePos(p.pos) === normalizePos(slot))
+    );
+    if (idx !== -1) { filled[i].player = sorted[idx]; used.add(sorted[idx].player_id); }
+  }
+  // then flex
+  for (let i=0;i<filled.length;i++){
+    const slot = filled[i].slot;
+    if (!isFlex(slot) && filled[i].player) continue;
+    const elig = FLEX_ELIGIBILITY[slot.toUpperCase()] || [];
+    const idx = sorted.findIndex(p => {
+      if (used.has(p.player_id)) return false;
+      const ppos = normalizePos(p.pos);
+      const multi = (p.multiPos || []).map(normalizePos);
+      return elig.includes(ppos) || multi.some(m => elig.includes(m));
+    });
+    if (idx !== -1) { filled[i].player = sorted[idx]; used.add(sorted[idx].player_id); }
+  }
+  return filled;
+}
+
+export function sumProj(slots: RosterSlot[]) {
+  return slots.reduce((acc, s) => acc + (s.player?.proj ?? 0), 0);
+}
+
+8) Code: src/components/FileUpload.tsx
+import React from "react";
+
+type Props = {
+  onFile: (file: File) => void;
+  label?: string;
+};
+
+export default function FileUpload({ onFile, label = "Upload projections CSV" }: Props) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium">{label}</span>
+      <input
+        type="file"
+        accept=".csv"
+        className="mt-2 block w-full text-sm"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onFile(f);
+        }}
+      />
+    </label>
+  );
+}
+
+9) Code: src/components/LeagueCard.tsx
+import React from "react";
+import type { LeagueSummary } from "../lib/types";
+import { statusFlags } from "../lib/optimizer";
+
+export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
+  return (
+    <div className="rounded-2xl shadow p-4 border">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold">{lg.name}</h3>
+        <div className={`text-sm ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`}>
+          Δ {lg.delta.toFixed(2)} pts
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <div className="font-semibold mb-1">Current Starters</div>
+          <ul className="space-y-1">
+            {lg.starters.map((pid, i) => {
+              const slot = lg.roster_positions.filter(s => !["BN","IR","TAXI"].includes(s))[i];
+              const opt = lg.optimalSlots[i]?.player;
+              // current starter name & proj from optimalSlots pairing if same player_id
+              const cur = lg.optimalSlots.find(s => s.player?.player_id === pid)?.player;
+              const flags = statusFlags(cur);
+              return (
+                <li key={i} className="text-sm">
+                  <span className="inline-block w-28 font-mono">{slot}</span>
+                  {cur ? `${cur.name} (${cur.pos}) — ${cur.proj?.toFixed(2) ?? "0.00"}`
+                       : `player_id ${pid}`}
+                  {flags.length > 0 && <span className="ml-2 text-xs text-amber-600">[{flags.join(", ")}]</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <div>
+          <div className="font-semibold mb-1">Optimal Starters</div>
+          <ul className="space-y-1">
+            {lg.optimalSlots.map((s, i) => {
+              const p = s.player;
+              const flags = statusFlags(p);
+              return (
+                <li key={i} className="text-sm">
+                  <span className="inline-block w-28 font-mono">{s.slot}</span>
+                  {p ? `${p.name} (${p.pos}) — ${p.proj?.toFixed(2) ?? "0.00"}`
+                     : "—"}
+                  {flags.length > 0 && <span className="ml-2 text-xs text-amber-600">[{flags.join(", ")}]</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-3 text-sm text-gray-600">
+        Managed by: {lg.rosterUserDisplay}
+      </div>
+      <div className="mt-1 text-sm">
+        Current total: <b>{lg.currentTotal.toFixed(2)}</b> — Optimal total: <b>{lg.optimalTotal.toFixed(2)}</b>
+      </div>
+    </div>
+  );
+}
+
+10) Code: src/App.tsx
+import React, { useMemo, useState } from "react";
+import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getPlayersIndex } from "./lib/sleeper";
+import { parseProjections, buildProjectionIndex, csvTemplate, normalizePos } from "./lib/projections";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj } from "./lib/optimizer";
+import type { LeagueSummary, Projection } from "./lib/types";
+import FileUpload from "./components/FileUpload";
+import LeagueCard from "./components/LeagueCard";
+
+function download(filename: string, text: string) {
+  const el = document.createElement("a");
+  el.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(text));
+  el.setAttribute("download", filename);
+  el.style.display = "none";
+  document.body.appendChild(el);
+  el.click();
+  document.body.removeChild(el);
+}
+
+export default function App() {
+  const [season, setSeason] = useState("2025");
+  const [username, setUsername] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [playersIndex, setPlayersIndex] = useState<Record<string, any> | null>(null);
+  const [projections, setProjections] = useState<Projection[]>([]);
+  const [projIdx, setProjIdx] = useState<Record<string, Projection>>({});
+  const [leagues, setLeagues] = useState<any[]>([]);
+  const [summaries, setSummaries] = useState<LeagueSummary[]>([]);
+
+  async function handleUpload(file: File) {
+    const parsed = await parseProjections(file);
+    setProjections(parsed);
+    setProjIdx(buildProjectionIndex(parsed));
+  }
+
+  function handleDownloadTemplate() {
+    download(`statchasers_projections_template_${season}.csv`, csvTemplate());
+  }
+
+  async function connectSleeper() {
+    if (!username) { alert("Enter a Sleeper username"); return; }
+    setBusy(true);
+    try {
+      const user = await getUserByName(username);
+      const lgs = await getUserLeagues(user.user_id, season);
+      setLeagues(lgs);
+      if (!playersIndex) {
+        const idx = await getPlayersIndex();
+        setPlayersIndex(idx);
+      }
+    } catch (e: any) {
+      alert(e.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function resolveProjection(player: any): Projection | undefined {
+    if (!player) return;
+    if (player.player_id && projIdx[player.player_id]) return projIdx[player.player_id];
+    const key = `${(player.first_name + " " + player.last_name).toLowerCase()}|${player.team ?? ""}|${normalizePos(player.position || player.fantasy_positions?.[0] || "")}`;
+    return projIdx[key];
+  }
+
+  async function runCheck() {
+    if (!projections.length) { alert("Upload projections first"); return; }
+    if (!leagues.length) { alert("Connect a Sleeper username first"); return; }
+    if (!playersIndex) { alert("Players index not loaded yet"); return; }
+
+    setBusy(true);
+    const out: LeagueSummary[] = [];
+
+    for (const lg of leagues) {
+      try {
+        const [rosters, users] = await Promise.all([
+          getLeagueRosters(lg.league_id),
+          getLeagueUsers(lg.league_id),
+        ]);
+
+        // find my roster
+        const meRoster = rosters.find((r: any) => r.owner_id === lg.user_id) || rosters.find((r: any) => r.roster_id === lg.roster_id) || rosters[0];
+        const owner = users.find((u: any) => u.user_id === meRoster?.owner_id);
+        const display = owner?.metadata?.team_name || owner?.display_name || "Unknown Manager";
+
+        const roster_positions: string[] = lg.roster_positions || [];
+        const slotCounts = buildSlotCounts(roster_positions);
+
+        const starters: string[] = (meRoster?.starters || []).filter((x: string) => !!x);
+        const bench: string[] = (meRoster?.players || []).filter((p: string) => p && !starters.includes(p));
+
+        // build enriched player list (starters + bench) with projections
+        const addWithProj = (pid: string) => {
+          const lite = toPlayerLite(playersIndex!, pid);
+          if (!lite) return null;
+          const pr = projIdx[pid] || projIdx[`${lite.name.toLowerCase()}|${lite.team ?? ""}|${lite.pos}`];
+          return pr ? { ...lite, proj: pr.proj, opp: pr.opp } : { ...lite, proj: 0 };
+        };
+
+        const starterObjs = starters.map(addWithProj).filter(Boolean) as any[];
+        const benchObjs   = bench.map(addWithProj).filter(Boolean) as any[];
+        const allEligible = [...starterObjs, ...benchObjs];
+
+        const optimalSlots = optimizeLineup(slotCounts, allEligible);
+        const optimalTotal = sumProj(optimalSlots);
+
+        // current total uses starters order aligned to roster_positions (excluding BN/IR/TAXI)
+        const fixedSlots = roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s));
+        const currentSlots = starters.slice(0, fixedSlots.length).map((pid, i) => {
+          const lite = toPlayerLite(playersIndex!, pid);
+          if (!lite) return { slot: fixedSlots[i] };
+          const pr = projIdx[pid] || projIdx[`${lite.name.toLowerCase()}|${lite.team ?? ""}|${lite.pos}`];
+          return { slot: fixedSlots[i], player: { ...lite, proj: pr?.proj ?? 0, opp: pr?.opp } };
+        });
+        const currentTotal = sumProj(currentSlots as any);
+
+        out.push({
+          league_id: lg.league_id,
+          name: lg.name,
+          roster_positions: fixedSlots,
+          starters,
+          bench,
+          rosterUserDisplay: display,
+          optimalSlots,
+          optimalTotal,
+          currentTotal,
+          delta: optimalTotal - currentTotal,
+        });
+      } catch (err) {
+        console.warn("League failed", lg?.name, err);
+      }
+    }
+
+    setSummaries(out.sort((a, b) => b.delta - a.delta));
+    setBusy(false);
+  }
+
+  function exportCSV() {
+    const rows = summaries.map(s => ({
+      league: s.name,
+      manager: s.rosterUserDisplay,
+      current_total: s.currentTotal.toFixed(2),
+      optimal_total: s.optimalTotal.toFixed(2),
+      delta: s.delta.toFixed(2),
+    }));
+    if (!rows.length) return;
+    const headers = Object.keys(rows[0]);
+    const text = [headers.join(","), ...rows.map(r => headers.map(h => r[h as keyof typeof r]).join(","))].join("\n");
+    download(`statchasers_lineup_checker_${season}.csv`, text);
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto p-4 space-y-6">
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">StatChasers — Lineup Checker</h1>
+        <button className="text-sm underline" onClick={handleDownloadTemplate}>Download Projections CSV Template</button>
+      </header>
+
+      <section className="grid md:grid-cols-2 gap-4">
+        <div className="rounded-2xl border p-4 space-y-3">
+          <div>
+            <label className="text-sm font-medium">Sleeper Username</label>
+            <input
+              className="mt-1 w-full border rounded px-3 py-2"
+              placeholder="e.g., maklovric"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Season</label>
+            <input
+              className="mt-1 w-full border rounded px-3 py-2"
+              value={season}
+              onChange={(e) => setSeason(e.target.value)}
+            />
+          </div>
+
+          <button
+            className="mt-2 w-full rounded bg-black text-white py-2 disabled:opacity-50"
+            disabled={busy}
+            onClick={connectSleeper}
+          >
+            {busy ? "Working..." : "Connect Sleeper"}
+          </button>
+
+          <div className="text-xs text-gray-500">
+            Sleeper API is public—no keys needed.
+          </div>
+        </div>
+
+        <div className="rounded-2xl border p-4 space-y-3">
+          <FileUpload onFile={handleUpload} />
+          <div className="text-xs text-gray-500">
+            Required columns: <code>sleeper_id</code> (preferred), <code>name</code>, <code>team</code>, <code>pos</code>, <code>proj</code>. Optional: <code>opp</code> (use “BYE” to flag).
+          </div>
+          <button
+            className="mt-2 w-full rounded bg-emerald-600 text-white py-2 disabled:opacity-50"
+            disabled={busy}
+            onClick={runCheck}
+          >
+            {busy ? "Crunching…" : "Run Lineup Check"}
+          </button>
+          <button
+            className="mt-2 w-full rounded border py-2 disabled:opacity-50"
+            disabled={!summaries.length}
+            onClick={exportCSV}
+          >
+            Export Summary CSV
+          </button>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        {summaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)}
+        {!summaries.length && (
+          <div className="text-sm text-gray-600">
+            Connect to Sleeper, upload projections, then click <b>Run Lineup Check</b>.
+          </div>
+        )}
+      </section>
+
+      <footer className="text-xs text-gray-500 pt-4">
+        © StatChasers. For entertainment purposes only.
+      </footer>
+    </div>
+  );
+}
+
+11) Code: src/main.tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import "./index.css";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+12) Run & test
+npm run dev
+
+
+Test with a public Sleeper username and a small projections CSV using the provided template (download link in the app header).
+
+13) Notes / Constraints
+
+Join logic prefers sleeper_id for perfect matches. If missing, it tries name|team|pos. Your weekly CSV should include as many players as possible (at least all you might start).
+
+FLEX logic supports common labels: FLEX, SUPER_FLEX, WRT, REC_FLEX, RB_WR, RB_WR_TE.
+
+Risk flags shown for OUT/DOUB/SUS/BYE. (We read injury status from Sleeper and BYE from your CSV opp = BYE.)
+
+Defense/Kicker: use pos = DEF or K.
+
+14) Deploy & WordPress embed
+
+Deploy to Replit, Netlify, or Vercel (static build: npm run build).
+
+On WordPress, add a Custom HTML block and embed via iframe:
+
+<iframe
+  src="https://YOUR-DEPLOYED-URL"
+  style="width:100%;min-height:1200px;border:0;"
+  title="StatChasers Lineup Checker">
+</iframe>
