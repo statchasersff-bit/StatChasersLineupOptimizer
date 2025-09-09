@@ -49,73 +49,44 @@ export async function parseProjections(file: File): Promise<Projection[]> {
               name = `Player ${sleeperId}`;
             }
             
-            // Extract detailed stats for league-specific scoring
+            // Extract detailed stats using exact column names from CSV
             const stats: Record<string, number> = {};
             
-            // Common stat field mappings (case-insensitive)
-            const statMappings = {
-              // Passing stats
-              'pass_att': ['pass_att', 'PASS_ATT', 'passing_attempts', 'PASSING_ATTEMPTS'],
-              'pass_comp': ['pass_comp', 'PASS_COMP', 'pass_cmp', 'PASS_CMP', 'passing_completions', 'PASSING_COMPLETIONS'],
-              'pass_yd': ['pass_yd', 'PASS_YD', 'passing_yards', 'PASSING_YARDS'],
-              'pass_td': ['pass_td', 'PASS_TD', 'passing_tds', 'PASSING_TDS', 'passing_touchdowns', 'PASSING_TOUCHDOWNS'],
-              'pass_int': ['pass_int', 'PASS_INT', 'passing_ints', 'PASSING_INTS', 'passing_interceptions', 'PASSING_INTERCEPTIONS'],
-              'pass_2pt': ['pass_2pt', 'PASS_2PT', 'passing_2pt', 'PASSING_2PT'],
-              
-              // Rushing stats
-              'rush_att': ['rush_att', 'RUSH_ATT', 'rushing_attempts', 'RUSHING_ATTEMPTS'],
-              'rush_yd': ['rush_yd', 'RUSH_YD', 'rushing_yards', 'RUSHING_YARDS'],
-              'rush_td': ['rush_td', 'RUSH_TD', 'rushing_tds', 'RUSHING_TDS', 'rushing_touchdowns', 'RUSHING_TOUCHDOWNS'],
-              'rush_2pt': ['rush_2pt', 'RUSH_2PT', 'rushing_2pt', 'RUSHING_2PT'],
-              
-              // Receiving stats
-              'rec': ['rec', 'REC', 'receptions', 'RECEPTIONS', 'receiving_receptions', 'RECEIVING_RECEPTIONS'],
-              'rec_yd': ['rec_yd', 'REC_YD', 'receiving_yards', 'RECEIVING_YARDS'],
-              'rec_td': ['rec_td', 'REC_TD', 'receiving_tds', 'RECEIVING_TDS', 'receiving_touchdowns', 'RECEIVING_TOUCHDOWNS'],
-              'rec_2pt': ['rec_2pt', 'REC_2PT', 'receiving_2pt', 'RECEIVING_2PT'],
-              
-              // Fumbles
-              'fum_lost': ['fum_lost', 'FUM_LOST', 'fumbles_lost', 'FUMBLES_LOST'],
-              'fum': ['fum', 'FUM', 'fumbles', 'FUMBLES'],
-              
-              // Kicking stats
-              'xpm': ['xpm', 'XPM', 'extra_points_made', 'EXTRA_POINTS_MADE'],
-              'xpmiss': ['xpmiss', 'XPMISS', 'extra_points_missed', 'EXTRA_POINTS_MISSED'],
-              'fgm_0_19': ['fgm_0_19', 'FGM_0_19', 'fg_0_19', 'FG_0_19'],
-              'fgm_20_29': ['fgm_20_29', 'FGM_20_29', 'fg_20_29', 'FG_20_29'],
-              'fgm_30_39': ['fgm_30_39', 'FGM_30_39', 'fg_30_39', 'FG_30_39'],
-              'fgm_40_49': ['fgm_40_49', 'FGM_40_49', 'fg_40_49', 'FG_40_49'],
-              'fgm_50p': ['fgm_50p', 'FGM_50P', 'fg_50p', 'FG_50P', 'fgm_50_plus', 'FGM_50_PLUS'],
-              
-              // Defense stats
-              'sack': ['sack', 'SACK', 'sacks', 'SACKS', 'def_sack', 'DEF_SACK'],
-              'int': ['int', 'INT', 'interceptions', 'INTERCEPTIONS', 'def_int', 'DEF_INT', 'defs_int', 'DEFS_INT'],
-              'fum_rec': ['fum_rec', 'FUM_REC', 'def_fum_rec', 'DEF_FUM_REC', 'defs_fum_rec', 'DEFS_FUM_REC'],
-              'def_td': ['def_td', 'DEF_TD', 'defs_td', 'DEFS_TD'],
-              'safety': ['safety', 'SAFETY', 'def_sfty', 'DEF_SFTY'],
-              'blk_kick': ['blk_kick', 'BLK_KICK', 'def_blk_kick', 'DEF_BLK_KICK'],
-              'ret_td': ['ret_td', 'RET_TD', 'st_td', 'ST_TD'],
-            };
+            // Standard stat columns that should be directly extracted
+            const statColumns = [
+              // Passing
+              "pass_att", "pass_comp", "pass_yd", "pass_td", "pass_int",
+              // Rushing  
+              "rush_att", "rush_yd", "rush_td",
+              // Receiving
+              "rec", "rec_yd", "rec_td",
+              // Misc offense
+              "fum_lost", "two_pt",
+              // Kicking
+              "xpm", "xpa", "fgm_0_19", "fgm_20_29", "fgm_30_39", "fgm_40_49", "fgm_50p",
+              // Defense
+              "sacks", "defs_int", "defs_fum_rec", "defs_td", "safety", "blk_kick", "ret_td", "pts_allowed"
+            ];
 
-            // Extract stats from CSV columns
-            for (const [standardStat, aliases] of Object.entries(statMappings)) {
-              for (const alias of aliases) {
-                if (raw[alias] !== undefined && raw[alias] !== null && raw[alias] !== '') {
-                  const value = num(raw[alias]);
-                  if (value !== 0) {
-                    stats[standardStat] = value;
-                    break; // Found a value, stop looking for other aliases
-                  }
+            // Extract stats directly from CSV columns
+            for (const column of statColumns) {
+              if (raw[column] !== undefined && raw[column] !== null && raw[column] !== '') {
+                const value = num(raw[column]);
+                if (value !== 0) {
+                  stats[column] = value;
                 }
               }
             }
 
-            // Debug: Log stats for first player to verify extraction
-            if (stats && Object.keys(stats).length > 0) {
-              const name = (raw.name ?? raw.NAME ?? "").toString().trim();
-              if (name === "Dallas Goedert" || Object.keys(stats).length > 0) {
-                console.log(`Stats extracted for ${name}:`, stats);
-              }
+            // Debug: Log stats for Dallas Goedert specifically
+            if (name === "Dallas Goedert") {
+              console.log(`Dallas Goedert stats:`, stats);
+              console.log(`Dallas Goedert raw CSV data sample:`, {
+                rec: raw.rec,
+                rec_yd: raw.rec_yd,
+                rec_td: raw.rec_td,
+                proj: raw.proj
+              });
             }
 
             return {

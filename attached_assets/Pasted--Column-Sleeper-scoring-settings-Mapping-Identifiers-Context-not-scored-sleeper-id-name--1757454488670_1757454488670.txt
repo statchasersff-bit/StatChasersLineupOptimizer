@@ -1,0 +1,69 @@
+🗂 Column → Sleeper scoring_settings Mapping
+
+Identifiers / Context (not scored)
+
+sleeper_id, name, team, pos, opp, proj → metadata only.
+
+📌 Passing (QBs)
+Column	Sleeper Key	Notes
+pass_att	pass_att	Some leagues score per attempt.
+pass_comp	pass_cmp	Some leagues give points per completion.
+pass_yd	pass_yd	Default 0.04 pts/yd (25 yds = 1 pt).
+pass_td	pass_td	Default 4 pts/TD.
+pass_int	pass_int	Default -1 pt/interception.
+📌 Rushing (RBs / WRs / TEs / QBs)
+Column	Sleeper Key	Notes
+rush_att	rush_att	Some leagues award per carry.
+rush_yd	rush_yd	Default 0.1 pts/yd (10 yds = 1 pt).
+rush_td	rush_td	Default 6 pts/TD.
+📌 Receiving (WRs / TEs / RBs)
+Column	Sleeper Key	Notes
+rec	rec	PPR = 1, Half-PPR = 0.5, Standard = 0.
+rec_yd	rec_yd	Default 0.1 pts/yd.
+rec_td	rec_td	Default 6 pts/TD.
+📌 Miscellaneous Offense
+Column	Sleeper Key	Notes
+fum_lost	fum_lost	Default -2 pts.
+two_pt	two_pt	Default 2 pts.
+📌 Kicking
+Column	Sleeper Key	Notes
+xpm	xpm	Extra points made.
+xpa	xpa	Attempts (if league penalizes misses).
+fgm_0_19	fgm_0_19	Field goals made 0–19 yards.
+fgm_20_29	fgm_20_29	Field goals made 20–29 yards.
+fgm_30_39	fgm_30_39	Field goals made 30–39 yards.
+fgm_40_49	fgm_40_49	Field goals made 40–49 yards.
+fgm_50p	fgm_50p	Field goals made 50+ yards.
+📌 Defense / Special Teams (DST)
+Column	Sleeper Key	Notes
+sacks	def_sack	Usually +1 per sack.
+defs_int	def_int	Defensive interceptions.
+defs_fum_rec	def_fum_rec	Defensive fumble recoveries.
+defs_td	def_td	Defensive touchdowns.
+safety	def_sfty	Safeties scored.
+blk_kick	def_blk_kick	Blocked FG or punt.
+ret_td	st_td	Special teams return touchdowns.
+pts_allowed	def_pa_0, def_pa_1_6, def_pa_7_13, etc.	Sleeper uses bracket keys for points allowed. You’d map your pts_allowed column to the correct bracket weight (e.g. if pts_allowed=10 → use def_pa_7_13).
+📝 Notes for Implementation
+
+Always use league’s scoring_settings weights if they exist.
+Example:
+
+total += stats.pass_yd * (scoring.pass_yd ?? 0.04);
+
+
+If no stat projection is provided → fall back to proj column.
+
+For pts_allowed, you’ll need logic like:
+
+const pa = stats.pts_allowed ?? 0;
+if (pa === 0) pts += g(scoring, "def_pa_0", 0);
+else if (pa <= 6) pts += g(scoring, "def_pa_1_6", 0);
+else if (pa <= 13) pts += g(scoring, "def_pa_7_13", 0);
+else if (pa <= 20) pts += g(scoring, "def_pa_14_20", 0);
+else if (pa <= 27) pts += g(scoring, "def_pa_21_27", 0);
+else if (pa <= 34) pts += g(scoring, "def_pa_28_34", 0);
+else pts += g(scoring, "def_pa_35p", 0);
+
+
+This ensures every projection is league-specific instead of generic.

@@ -1,3 +1,6 @@
+here’s a drop-in scorer you can paste into src/lib/scoring.ts.
+It supports your added columns (pass_att, pass_comp, rush_att) and includes points-allowed bracket logic for DST.
+
 // src/lib/scoring.ts
 // Ready-made league-aware scoring for StatChasers
 
@@ -23,7 +26,7 @@ function paBracketPoints(pa: number, scoring: LeagueScoring) {
 }
 
 /** Offense (QB/RB/WR/TE) */
-export function scoreOff(stats: NumRec, scoring: LeagueScoring, position?: string) {
+export function scoreOff(stats: NumRec, scoring: LeagueScoring) {
   const passAtt  = stats.pass_att ?? 0;
   const passCmp  = stats.pass_comp ?? 0;
   const passYd   = stats.pass_yd ?? 0;
@@ -41,7 +44,7 @@ export function scoreOff(stats: NumRec, scoring: LeagueScoring, position?: strin
   const fumLost  = stats.fum_lost ?? 0;
   const twoPt    = stats.two_pt ?? 0;
 
-  let pts =
+  const pts =
     passAtt * g(scoring, "pass_att", 0) +
     passCmp * g(scoring, "pass_cmp", 0) +
     passYd  * g(scoring, "pass_yd", 0.04) +
@@ -55,12 +58,6 @@ export function scoreOff(stats: NumRec, scoring: LeagueScoring, position?: strin
     recTd   * g(scoring, "rec_td", 6) +
     fumLost * g(scoring, "fum_lost", -2) +
     twoPt   * g(scoring, "two_pt", 2);
-
-  // Add TE premium if applicable
-  if (position?.toUpperCase() === "TE" && rec > 0) {
-    const tePremium = g(scoring, "bonus_rec_te", 0);
-    pts += rec * tePremium;
-  }
 
   return pts;
 }
@@ -128,6 +125,27 @@ export function scoreByLeague(
   if (P === "K") return scoreK(stats, scoring);
   if (P === "DEF" || P === "DST" || P === "D/ST") return scoreDST(stats, scoring);
 
-  const off = scoreOff(stats, scoring, pos);
+  const off = scoreOff(stats, scoring);
   return (isFinite(off) && off !== 0) ? off : (fallbackTotal ?? 0);
 }
+
+How to use in your app
+
+Where you currently set proj for each player (inside runCheck()), replace with:
+
+import { scoreByLeague } from "./lib/scoring";
+
+// inside the per-league loop:
+const scoring = (lg?.settings?.scoring_settings) || {};
+
+const addWithProj = (pid: string) => {
+  const lite = toPlayerLite(playersIndex!, pid);
+  if (!lite) return null;
+  const pr = projIdx[pid] || projIdx[`${lite.name.toLowerCase()}|${lite.team ?? ""}|${lite.pos}`];
+  const stats = (pr as any)?.stats || pr || {}; // depending on how you stored parsed stats
+  const adj = scoreByLeague(lite.pos, stats, scoring, pr?.proj);
+  return { ...lite, proj: adj, opp: pr?.opp };
+};
+
+
+This will compute league-specific points using your stat columns (including pass_att, pass_comp, rush_att) and points-allowed brackets for DEF. If a row lacks stats, it gracefully falls back to the proj total.
