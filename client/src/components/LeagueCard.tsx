@@ -45,8 +45,19 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
               <ul className="space-y-1">
                 {lg.starters.map((pid, i) => {
                   const slot = lg.roster_positions[i];
+                  
+                  // Handle empty slots
+                  if (!pid || pid === "0" || pid === "") {
+                    return (
+                      <li key={i} className="text-sm p-1 rounded" data-testid={`row-current-${i}`}>
+                        <span className="inline-block w-28 font-mono">{slot}</span>
+                        <span className="text-gray-400 italic">Empty</span>
+                      </li>
+                    );
+                  }
+                  
                   // First try to find in enriched starter objects, then in all eligible players
-                  const cur = lg.starterObjs?.[i] || lg.allEligible?.find(p => p.player_id === pid);
+                  const cur = lg.starterObjs?.find(p => p.player_id === pid) || lg.allEligible?.find(p => p.player_id === pid);
                   const flags = statusFlags(cur);
                   // Only highlight if player is truly being removed from lineup (not in optimal at all)
                   const optimalIds = new Set(lg.optimalSlots.map(s => s.player?.player_id).filter(Boolean));
@@ -78,7 +89,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                     );
                   }
 
-                  const currentIds = new Set(lg.starters.filter(Boolean));
+                  const currentIds = new Set(lg.starters.filter((x): x is string => !!x));
                   const benchIds = new Set(lg.bench.filter(Boolean));
                   const isCurrentStarter = currentIds.has(p.player_id);
                   const isBenchPlayer = benchIds.has(p.player_id);

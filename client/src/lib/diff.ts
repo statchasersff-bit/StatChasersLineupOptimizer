@@ -12,7 +12,7 @@ export function buildLineupDiff(lg: LeagueSummary): LineupDiff {
   const fixedSlots = lg.roster_positions;
 
   // current starters (by player_id -> info)
-  const curIds = lg.starters.filter(Boolean);
+  const curIds = lg.starters.filter((x): x is string => !!x);
   const curSet = new Set(curIds);
 
   // optimal starters (by player_id -> info)

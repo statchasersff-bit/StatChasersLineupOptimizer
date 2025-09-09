@@ -37,7 +37,7 @@ export type LeagueSummary = {
   league_id: string;
   name: string;
   roster_positions: string[]; // from Sleeper: e.g. ["QB","RB","RB","WR","WR","TE","FLEX","FLEX","K","DEF","BN","BN"...]
-  starters: string[];         // current starters (player_ids) in slot order per Sleeper
+  starters: (string | null)[]; // current starters (player_ids) in slot order per Sleeper, null = empty slot
   bench: string[];            // bench player_ids
   rosterUserDisplay: string;  // the team/owner display name
   optimalSlots: RosterSlot[]; // computed optimal starters

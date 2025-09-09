@@ -79,8 +79,11 @@ export default function Home() {
           const roster_positions: string[] = lg.roster_positions || [];
           const slotCounts = buildSlotCounts(roster_positions);
 
-          const starters: string[] = (meRoster?.starters || []).filter((x: string) => !!x);
-          const bench: string[] = (meRoster?.players || []).filter((p: string) => p && !starters.includes(p));
+          // Keep original starter structure (including empty slots) for display
+          const starters: (string | null)[] = (meRoster?.starters || []);
+          // For bench calculation, filter out empties and get non-starting players
+          const validStarters = starters.filter((x): x is string => !!x);
+          const bench: string[] = (meRoster?.players || []).filter((p: string) => p && !validStarters.includes(p));
 
           // Get league scoring settings
           const scoring = (lg?.settings?.scoring_settings) || {};
@@ -103,7 +106,7 @@ export default function Home() {
             return { ...lite, proj: adj, opp: pr?.opp };
           };
 
-          const starterObjs = starters.map(addWithProj).filter(Boolean) as any[];
+          const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];
           const benchObjs = bench.map(addWithProj).filter(Boolean) as any[];
           const allEligible = [...starterObjs, ...benchObjs];
 
@@ -113,6 +116,7 @@ export default function Home() {
           // Calculate current total
           const fixedSlots = roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s));
           const currentSlots = starters.slice(0, fixedSlots.length).map((pid, i) => {
+            if (!pid) return { slot: fixedSlots[i] }; // Handle empty slots
             const player = addWithProj(pid);
             if (!player) return { slot: fixedSlots[i] };
             return { slot: fixedSlots[i], player };
