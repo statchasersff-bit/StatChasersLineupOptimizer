@@ -60,6 +60,26 @@ export function scoreOff(stats: NumRec, scoring: LeagueScoring, position?: strin
   if (position?.toUpperCase() === "TE" && rec > 0) {
     const tePremium = g(scoring, "bonus_rec_te", 0);
     pts += rec * tePremium;
+    
+    // Debug TE premium calculation
+    console.log(`TE Premium for ${position}: rec=${rec}, bonus_rec_te=${tePremium}, extra_pts=${rec * tePremium}`);
+  }
+
+  // Debug calculation for Dallas Goedert
+  if (rec > 4 && recYd > 40) {
+    console.log(`Scoring calculation:`, {
+      position,
+      rec, recYd, recTd,
+      recPoints: rec * g(scoring, "rec", 1),
+      recYdPoints: recYd * g(scoring, "rec_yd", 0.1),
+      recTdPoints: recTd * g(scoring, "rec_td", 6),
+      totalCalculated: pts,
+      scoringSettings: {
+        rec: scoring.rec,
+        rec_yd: scoring.rec_yd,
+        bonus_rec_te: scoring.bonus_rec_te
+      }
+    });
   }
 
   return pts;

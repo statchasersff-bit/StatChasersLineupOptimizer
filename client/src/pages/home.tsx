@@ -125,9 +125,10 @@ export default function Home() {
               const originalProj = pr.proj;
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
-              // Debug: Log first few players to verify stats are captured
-              if (out.length === 0 && Object.keys(stats).length > 0) {
-                console.log(`${lite.name} (${lite.pos}): Original=${originalProj}, Adjusted=${adj}, Stats=${Object.keys(stats).join(',')}`);
+              // Debug: Log Dallas Goedert specifically
+              if (lite.name === "Dallas Goedert") {
+                console.log(`Dallas Goedert calculation: Original=${originalProj}, Adjusted=${adj}, Position=${lite.pos}`);
+                console.log(`Stats used:`, stats);
               }
             } else {
               adj = 0; // no projection found
