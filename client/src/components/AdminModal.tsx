@@ -82,7 +82,7 @@ export default function AdminModal({ isOpen, onClose, currentWeek, currentSeason
     }
   });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       bulkUploadMutation.mutate({ file });

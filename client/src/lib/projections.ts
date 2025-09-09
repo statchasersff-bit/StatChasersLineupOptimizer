@@ -11,18 +11,42 @@ export function normalizePos(p?: string) {
   return up;
 }
 
-export function parseProjections(file: File): Promise<Projection[]> {
+export async function parseProjections(file: File): Promise<Projection[]> {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (res) => {
+      complete: async (res) => {
         try {
           const rows: any[] = res.data as any[];
+          
+          // Fetch Sleeper players database for name lookups
+          let playersDb: any = {};
+          try {
+            const response = await fetch('https://api.sleeper.app/v1/players/nfl');
+            playersDb = await response.json();
+          } catch (err) {
+            console.warn('Could not fetch Sleeper players database:', err);
+          }
+          
           const mapped = rows.map((raw) => {
+            const sleeperId = (raw.sleeper_id ?? raw.SLEEPER_ID ?? raw.player_id ?? raw.PLAYER_ID)?.toString()?.trim() || undefined;
+            let name = (raw.name ?? raw.NAME ?? "").toString().trim();
+            
+            // If we have a sleeper_id but missing/poor name, try to resolve from Sleeper DB
+            if (sleeperId && playersDb[sleeperId] && (!name || name.length < 3)) {
+              const player = playersDb[sleeperId];
+              name = `${player.first_name || ''} ${player.last_name || ''}`.trim() || player.full_name || `Player ${sleeperId}`;
+            }
+            
+            // Final fallback if still no name
+            if (!name && sleeperId) {
+              name = `Player ${sleeperId}`;
+            }
+            
             const base = {
-              sleeper_id: (raw.sleeper_id ?? raw.SLEEPER_ID ?? raw.player_id ?? raw.PLAYER_ID)?.toString()?.trim() || undefined,
-              name: (raw.name ?? raw.NAME ?? "").toString().trim(),
+              sleeper_id: sleeperId,
+              name: name || 'Unknown Player',
               team: (raw.team ?? raw.TEAM ?? "").toString().trim().toUpperCase() || undefined,
               pos: normalizePos((raw.pos ?? raw.POS ?? "").toString().trim()),
               proj: num(raw.proj ?? raw.PROJ),
