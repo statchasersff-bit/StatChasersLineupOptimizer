@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const season = "2025";
-  const [week, setWeek] = useState("15");
+  const week = "15"; // Current NFL week
   const [username, setUsername] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -312,7 +312,7 @@ export default function Home() {
             Sleeper Account Setup
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">Sleeper Username</label>
               <input 
@@ -323,20 +323,6 @@ export default function Home() {
                 onChange={(e) => setUsername(e.target.value)}
                 data-testid="input-username"
               />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Week</label>
-              <select 
-                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                value={week}
-                onChange={(e) => setWeek(e.target.value)}
-                data-testid="select-week"
-              >
-                {Array.from({ length: 18 }, (_, i) => i + 1).map(w => (
-                  <option key={w} value={w.toString()}>Week {w}</option>
-                ))}
-              </select>
             </div>
             
             <div className="flex items-end">
