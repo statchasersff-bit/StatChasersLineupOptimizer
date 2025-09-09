@@ -126,10 +126,16 @@ export default function Home() {
               
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
-              // Debug: Log QB calculations for Baker Mayfield and Trevor Lawrence
+              // Debug: Log ALL QB calculations to find Trevor Lawrence
+              if (lite.pos === "QB" && adj > 15) {
+                console.log(`🏈 QB: ${lite.name} in "${lg?.name}": ${originalProj} → ${adj} pts (pass_td: ${scoring.pass_td})`);
+              }
+              
+              // Special debug for Baker and Trevor
               if (lite.name?.includes("Baker") || lite.name?.includes("Mayfield") || 
-                  lite.name?.includes("Trevor") || lite.name?.includes("Lawrence")) {
-                console.log(`🏈 QB FOUND: ${lite.name} in league "${lg?.name}": Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
+                  lite.name?.includes("Trevor") || lite.name?.includes("Lawrence") ||
+                  lite.name?.toLowerCase().includes("lawrence") || lite.name?.toLowerCase().includes("trevor")) {
+                console.log(`🎯 TARGET QB: ${lite.name} in league "${lg?.name}": Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
                 console.log(`League scoring: pass_td=${scoring.pass_td}, pass_yd=${scoring.pass_yd}`);
                 if (Object.keys(stats).length > 0) {
                   console.log(`${lite.name} stats:`, stats);
