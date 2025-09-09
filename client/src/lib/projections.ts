@@ -32,7 +32,9 @@ export function parseProjections(file: File): Promise<Projection[]> {
             // attach stat-level fields (only numbers; missing => 0)
             const stats: Record<string, number> = {};
             const keys = [
-              "pass_yd","pass_td","pass_int","rush_yd","rush_td","rec","rec_yd","rec_td","fum_lost","two_pt",
+              "pass_att","pass_comp","pass_yd","pass_td","pass_int",
+              "rush_att","rush_yd","rush_td",
+              "rec","rec_yd","rec_td","fum_lost","two_pt",
               "xpm","xpa","fgm_0_19","fgm_20_29","fgm_30_39","fgm_40_49","fgm_50p",
               "sacks","defs_int","defs_fum_rec","defs_td","safety","blk_kick","ret_td","pts_allowed"
             ];

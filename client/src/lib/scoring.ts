@@ -7,9 +7,12 @@ const g = (s: LeagueScoring, k: string, d = 0) => (typeof s?.[k] === "number" ? 
 
 // Compute offensive player points (QB/RB/WR/TE)
 export function scoreOff(stats: NumRec, scoring: LeagueScoring) {
+  const passAtt = stats.pass_att ?? 0;
+  const passComp = stats.pass_comp ?? 0;
   const passYd = stats.pass_yd ?? 0;
   const passTd = stats.pass_td ?? 0;
   const passInt = stats.pass_int ?? 0;
+  const rushAtt = stats.rush_att ?? 0;
   const rushYd = stats.rush_yd ?? 0;
   const rushTd = stats.rush_td ?? 0;
   const rec = stats.rec ?? 0;
@@ -18,11 +21,13 @@ export function scoreOff(stats: NumRec, scoring: LeagueScoring) {
   const fumLost = stats.fum_lost ?? 0;
   const twoPt = stats.two_pt ?? 0;
 
-  // Sleeper defaults if league doesn't specify (common conventions)
   const pts =
+    passAtt * g(scoring, "pass_att", 0) +
+    passComp * g(scoring, "pass_cmp", 0) +
     passYd * g(scoring, "pass_yd", 0.04) +
     passTd * g(scoring, "pass_td", 4) +
     passInt * g(scoring, "pass_int", -1) +
+    rushAtt * g(scoring, "rush_att", 0) +
     rushYd * g(scoring, "rush_yd", 0.1) +
     rushTd * g(scoring, "rush_td", 6) +
     rec * g(scoring, "rec", 1) +
