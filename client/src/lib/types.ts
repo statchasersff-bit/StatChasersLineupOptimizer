@@ -22,6 +22,17 @@ export type RosterSlot = {
   player?: PlayerLite & { proj?: number; opp?: string };
 };
 
+export type WaiverSuggestion = {
+  player_id: string;
+  name: string;
+  team?: string;
+  pos: string;
+  proj: number;        // league-scored projection
+  opp?: string;
+  replaceSlot: string; // which slot they would fill
+  gain: number;        // points gained over your current optimal for that slot
+};
+
 export type LeagueSummary = {
   league_id: string;
   name: string;
@@ -33,4 +44,5 @@ export type LeagueSummary = {
   optimalTotal: number;       // sum of proj
   currentTotal: number;       // sum of proj of current starters
   delta: number;              // optimal - current
+  waiverSuggestions?: WaiverSuggestion[]; // sorted by gain desc
 };
