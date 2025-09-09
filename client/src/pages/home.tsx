@@ -100,6 +100,17 @@ export default function Home() {
 
           // Get league scoring settings
           const scoring = (lg?.settings?.scoring_settings) || {};
+          
+          // Debug: Log scoring settings for first league
+          if (out.length === 0) {
+            console.log("League scoring settings:", scoring);
+            console.log("Sample scoring values:", {
+              rec: scoring.rec || "not set",
+              pass_yd: scoring.pass_yd || "not set", 
+              rush_yd: scoring.rush_yd || "not set",
+              rec_yd: scoring.rec_yd || "not set"
+            });
+          }
 
           // Build enriched player list with league-adjusted projections
           const addWithProj = (pid: string) => {
@@ -111,7 +122,18 @@ export default function Home() {
             let adj = 0;
             if (pr) {
               const stats = (pr as any).stats || {};
+              const originalProj = pr.proj;
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
+              
+              // Debug: Log for first few players in first league
+              if (out.length === 0 && Object.keys(stats).length > 0) {
+                console.log(`Player ${lite.name} (${lite.pos}):`, {
+                  originalProj,
+                  adjustedProj: adj,
+                  hasStats: Object.keys(stats).length > 0,
+                  stats: Object.keys(stats).slice(0, 5)
+                });
+              }
             } else {
               adj = 0; // no projection found
             }
