@@ -56,8 +56,14 @@ export default function Home() {
 
     setIsAnalyzing(true);
     try {
+      console.log("🔍 Looking up username:", username.trim());
       const user = await getUserByName(username.trim());
+      console.log("✅ Found user ID:", user.user_id);
+      
       const lgs = await getUserLeagues(user.user_id, season);
+      console.log("📋 Raw leagues returned from Sleeper API:", lgs.length);
+      console.log("League names:", lgs.map(lg => lg.name));
+      console.log("User ID in each league:", lgs.map(lg => ({ name: lg.name, user_id: lg.user_id })));
 
       // EXCLUDE Best Ball leagues by default and optionally dynasty leagues
       let filteredLeagues = lgs.filter((lg) => !isBestBallLeague(lg));
