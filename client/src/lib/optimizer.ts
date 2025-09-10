@@ -47,6 +47,7 @@ export function statusFlags(p?: PlayerLite & { proj?: number; opp?: string }) {
   if (s.includes("OUT")) flags.push("OUT");
   if (s.includes("DOU")) flags.push("DOUB");
   if (s.includes("SUS")) flags.push("SUS");
+  if (s.includes("QUE")) flags.push("Q"); // Questionable
   if ((p.opp || "").toUpperCase() === "BYE") flags.push("BYE");
   return flags;
 }

@@ -98,12 +98,55 @@ export async function parseProjections(file: File): Promise<Projection[]> {
   });
 }
 
+// Generate name variations for better matching
+function getNameVariations(name: string): string[] {
+  const variations = [name];
+  const nameLower = name.toLowerCase();
+  
+  // Handle common nickname patterns
+  const commonNicknames: Record<string, string[]> = {
+    'chigoziem': ['chig'],
+    'christopher': ['chris'],
+    'alexander': ['alex'],
+    'benjamin': ['ben'],
+    'william': ['will', 'bill'],
+    'robert': ['rob', 'bob'],
+    'michael': ['mike'],
+    'anthony': ['tony'],
+    'joseph': ['joe'],
+    'kenneth': ['ken'],
+    'joshua': ['josh'],
+  };
+  
+  // Check if full name contains a nickname-able first name
+  for (const [fullName, nicknames] of Object.entries(commonNicknames)) {
+    if (nameLower.includes(fullName)) {
+      for (const nickname of nicknames) {
+        variations.push(name.replace(new RegExp(fullName, 'gi'), nickname));
+      }
+    }
+    // Also check reverse (nickname to full name)
+    for (const nickname of nicknames) {
+      if (nameLower.includes(nickname) && !nameLower.includes(fullName)) {
+        variations.push(name.replace(new RegExp(nickname, 'gi'), fullName));
+      }
+    }
+  }
+  
+  return [...new Set(variations)]; // Remove duplicates
+}
+
 export function buildProjectionIndex(rows: Projection[]) {
   const idx: Record<string, Projection> = {};
   for (const r of rows) {
     if (r.sleeper_id) idx[r.sleeper_id] = r;
-    const key = `${r.name.toLowerCase()}|${r.team ?? ""}|${r.pos}`;
-    idx[key] = r;
+    
+    // Create multiple keys for different name variations
+    const nameVariations = getNameVariations(r.name);
+    for (const nameVar of nameVariations) {
+      const key = `${nameVar.toLowerCase()}|${r.team ?? ""}|${r.pos}`;
+      idx[key] = r;
+    }
   }
   return idx;
 }
