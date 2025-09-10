@@ -176,13 +176,19 @@ export default function Home() {
             }
 
             // For each starting slot, see if the best eligible FA beats your CURRENT player
-            // 1) map slot → current starter's projection (not optimal)
+            // 1) map slot → current starter's projection (handle multiple slots of same type)
             const slotToCurrent: Record<string, { proj: number; name?: string }> = {};
-            currentSlots.forEach(s => {
+            const slotCounts: Record<string, number> = {};
+            
+            currentSlots.forEach((s, index) => {
+              const slotType = s.slot;
+              slotCounts[slotType] = (slotCounts[slotType] || 0) + 1;
+              const uniqueSlotKey = slotCounts[slotType] > 1 ? `${slotType}_${slotCounts[slotType]}` : slotType;
+              
               if (s.player) {
-                slotToCurrent[s.slot] = { proj: s.player.proj ?? 0, name: s.player.name };
+                slotToCurrent[uniqueSlotKey] = { proj: s.player.proj ?? 0, name: s.player.name };
               } else {
-                slotToCurrent[s.slot] = { proj: 0, name: "[EMPTY]" };
+                slotToCurrent[uniqueSlotKey] = { proj: 0, name: "[EMPTY]" };
               }
             });
 
@@ -198,10 +204,11 @@ export default function Home() {
             };
             const isFlex = (slot: string) => Boolean(FLEX_ELIG[slot.toUpperCase()]);
             const canFill = (slot: string, pos: string) => {
-              const s = slot.toUpperCase();
+              // Handle unique slot keys (e.g., "FLEX_2" -> "FLEX")
+              const baseSlot = slot.split('_')[0].toUpperCase();
               const p = pos.toUpperCase();
-              if (isFlex(s)) return (FLEX_ELIG[s] || []).includes(p);
-              return s === p;
+              if (isFlex(baseSlot)) return (FLEX_ELIG[baseSlot] || []).includes(p);
+              return baseSlot === p;
             };
 
             // 3) For each slot type in your starting lineup, find best FA eligible
@@ -223,18 +230,18 @@ export default function Home() {
               }
 
               // DEBUG: Baby Got Dak 4.0 FLEX slot analysis
-              if (lg.name.includes("Baby Got Dak 4.0") && slot === "FLEX") {
-                console.log(`🔍 FLEX slot analysis:`);
+              if (lg.name.includes("Baby Got Dak 4.0") && slot.startsWith("FLEX")) {
+                console.log(`🔍 ${slot} slot analysis:`);
                 console.log(`📊 Available positions for FLEX:`, Object.keys(scoredFAs));
                 Object.keys(scoredFAs).forEach(pos => {
-                  const canFillFlex = canFill("FLEX", pos);
-                  console.log(`${pos} can fill FLEX: ${canFillFlex}`);
+                  const canFillFlex = canFill(slot, pos);
+                  console.log(`${pos} can fill ${slot}: ${canFillFlex}`);
                   if (canFillFlex && pos === "TE") {
                     console.log(`Top 3 ${pos}:`, scoredFAs[pos].slice(0, 3).map(fa => `${fa.name} (${fa.proj.toFixed(2)})`));
                   }
                 });
-                console.log(`Current FLEX player:`, slotToCurrent[slot]);
-                console.log(`Best FA found for FLEX:`, bestFA ? `${bestFA.name} (${bestFA.proj.toFixed(2)})` : "NONE");
+                console.log(`Current ${slot} player:`, slotToCurrent[slot]);
+                console.log(`Best FA found for ${slot}:`, bestFA ? `${bestFA.name} (${bestFA.proj.toFixed(2)})` : "NONE");
                 if (bestFA) {
                   const gain = bestFA.proj - slotToCurrent[slot].proj;
                   console.log(`Potential gain: +${gain.toFixed(2)} pts`);
@@ -247,6 +254,8 @@ export default function Home() {
                 const current = currentInfo.proj;
                 const gain = (bestFA.proj ?? 0) - current;
                 if (gain > 0.2) { // small threshold to avoid noise
+                  // Use display-friendly slot name (remove unique suffix)
+                  const displaySlot = slot.split('_')[0];
                   waiverSuggestions.push({
                     player_id: bestFA.player_id,
                     name: bestFA.name,
@@ -254,7 +263,7 @@ export default function Home() {
                     pos: bestFA.pos,
                     proj: bestFA.proj,
                     opp: bestFA.opp,
-                    replaceSlot: slot,
+                    replaceSlot: displaySlot,
                     gain,
                     currentPlayerName: currentInfo.name, // Add current player name for display
                   });
