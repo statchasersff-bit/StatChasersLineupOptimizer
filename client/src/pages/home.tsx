@@ -25,6 +25,7 @@ export default function Home() {
   const [considerWaivers, setConsiderWaivers] = useState(true);
   const [filterDynasty, setFilterDynasty] = useState(false);
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
+  const [showOnlyEmptyBench, setShowOnlyEmptyBench] = useState(false);
   const { toast } = useToast();
 
   // Fetch projections from our API
@@ -229,25 +230,6 @@ export default function Home() {
                 }
               }
 
-              // DEBUG: Baby Got Dak 4.0 FLEX slot analysis
-              if (lg.name.includes("Baby Got Dak 4.0") && slot.startsWith("FLEX")) {
-                console.log(`🔍 ${slot} slot analysis:`);
-                console.log(`📊 Available positions for FLEX:`, Object.keys(scoredFAs));
-                Object.keys(scoredFAs).forEach(pos => {
-                  const canFillFlex = canFill(slot, pos);
-                  console.log(`${pos} can fill ${slot}: ${canFillFlex}`);
-                  if (canFillFlex && pos === "TE") {
-                    console.log(`Top 3 ${pos}:`, scoredFAs[pos].slice(0, 3).map(fa => `${fa.name} (${fa.proj.toFixed(2)})`));
-                  }
-                });
-                console.log(`Current ${slot} player:`, slotToCurrent[slot]);
-                console.log(`Best FA found for ${slot}:`, bestFA ? `${bestFA.name} (${bestFA.proj.toFixed(2)})` : "NONE");
-                if (bestFA) {
-                  const gain = bestFA.proj - slotToCurrent[slot].proj;
-                  console.log(`Potential gain: +${gain.toFixed(2)} pts`);
-                  console.log(`Above threshold (0.2): ${gain > 0.2}`);
-                }
-              }
 
               if (bestFA) {
                 const currentInfo = slotToCurrent[slot];
@@ -274,30 +256,31 @@ export default function Home() {
 
             waiverSuggestions.sort((a, b) => b.gain - a.gain);
             
-            // DEBUG: Check risky starters and name matching issues
-            if (lg.name.includes("Baby Got Dak 4.0")) {
-              console.log(`🔍 RISKY STARTERS DEBUG for ${lg.name}:`);
-              console.log(`📋 Current starters with injury/bye data:`);
-              currentSlots.forEach((s, i) => {
-                if (s.player) {
-                  const flags = statusFlags(s.player);
-                  console.log(`${i + 1}. ${s.slot}: ${s.player.name} - injury_status: "${s.player.injury_status || 'none'}", opp: "${s.player.opp || 'none'}", flags: [${flags.join(', ')}]`);
-                }
-              });
-              
-              console.log(`🔍 NAME MATCHING DEBUG - Chig Okonkwo:`);
-              const chigInRoster = Object.values(currentPlayersIndex).find((p: any) => 
-                p.full_name?.includes("Okonkwo") || p.last_name?.includes("Okonkwo")
-              );
-              console.log(`Sleeper API name:`, chigInRoster ? `"${chigInRoster.full_name}"` : "NOT FOUND");
-              const chigProjection = chigInRoster ? projIdx[chigInRoster.player_id] : null;
-              console.log(`Projection found:`, chigProjection ? `${chigProjection.proj} pts` : "NONE - name mismatch");
-              
-              console.log(`🎯 Waiver suggestions:`, waiverSuggestions.map(w => `${w.name} for ${w.replaceSlot} (+${w.gain.toFixed(2)})`));
-            }
             
             
           }
+
+          // Calculate bench capacity and empty spots
+          // Identify IR and Taxi players (don't count them toward BN)
+          const irList: string[] = (meRoster?.reserve || []).filter(Boolean);
+          const taxiList: string[] = (meRoster?.taxi || []).filter(Boolean);
+          
+          // All rostered players on the team
+          const allPlayers: string[] = (meRoster?.players || []).filter(Boolean);
+          
+          // Bench = rostered players not currently starting and not on IR/Taxi
+          const benchActual: string[] = allPlayers.filter(
+            (pid) => !validStarters.includes(pid) && !irList.includes(pid) && !taxiList.includes(pid)
+          );
+          
+          // Bench capacity = number of BN slots defined by league settings
+          const benchCapacity = roster_positions.filter((s) => s === "BN").length;
+          
+          // Current bench count
+          const benchCount = benchActual.length;
+          
+          // Empty bench slots (never negative)
+          const benchEmpty = Math.max(0, benchCapacity - benchCount);
 
           out.push({
             league_id: lg.league_id,
@@ -313,6 +296,9 @@ export default function Home() {
             waiverSuggestions,
             starterObjs, // Include enriched starter objects with names
             allEligible, // Include all player objects for lookup
+            benchCapacity,
+            benchCount,
+            benchEmpty,
           });
         } catch (err) {
           console.warn("League failed", lg?.name, err);
@@ -468,6 +454,16 @@ export default function Home() {
               />
               Sort Alphabetically
             </label>
+
+            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-empty-bench">
+              <input
+                type="checkbox"
+                checked={showOnlyEmptyBench}
+                onChange={(e) => setShowOnlyEmptyBench(e.target.checked)}
+                className="rounded border-input"
+              />
+              Show leagues with empty bench spots
+            </label>
           </div>
           
           <div className="mt-3 text-xs text-muted-foreground">
@@ -498,7 +494,17 @@ export default function Home() {
         {/* Leagues Analysis Section */}
         <section className="space-y-3">
           {sortedSummaries.length > 0 ? (
-            sortedSummaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)
+            <>
+              {showOnlyEmptyBench && (
+                <div className="text-xs text-gray-500 mb-2">
+                  Showing {
+                    sortedSummaries.filter(s => (s.benchEmpty ?? 0) > 0).length
+                  } of {sortedSummaries.length} leagues with empty bench spots
+                </div>
+              )}
+              {(showOnlyEmptyBench ? sortedSummaries.filter(s => (s.benchEmpty ?? 0) > 0) : sortedSummaries)
+                .map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)}
+            </>
           ) : (
             <div className="text-center text-muted-foreground py-12">
               <ChartLine className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />

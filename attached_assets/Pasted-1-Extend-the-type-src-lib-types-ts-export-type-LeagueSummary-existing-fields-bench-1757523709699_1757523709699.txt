@@ -1,0 +1,98 @@
+1) Extend the type
+// src/lib/types.ts
+export type LeagueSummary = {
+  // ...existing fields
+  benchCapacity: number;   // how many BN slots the league has
+  benchCount: number;      // how many players currently on BN (excl. IR/Taxi)
+  benchEmpty: number;      // benchCapacity - benchCount (min 0)
+};
+
+2) Compute bench capacity & empties when building each league
+
+In runCheck() inside App.tsx, right after you load lg.roster_positions, meRoster, etc.:
+
+const roster_positions: string[] = lg.roster_positions || [];
+const slotCounts = buildSlotCounts(roster_positions);
+
+// starters already computed:
+const starters: string[] = (meRoster?.starters || []).filter((x: string) => !!x);
+
+// Identify IR and Taxi players (don’t count them toward BN)
+const irList: string[] = (meRoster?.reserve || []).filter(Boolean);
+const taxiList: string[] = (meRoster?.taxi || []).filter(Boolean);
+
+// All rostered players on the team
+const allPlayers: string[] = (meRoster?.players || []).filter(Boolean);
+
+// Bench = rostered players not currently starting and not on IR/Taxi
+const bench: string[] = allPlayers.filter(
+  (pid) => !starters.includes(pid) && !irList.includes(pid) && !taxiList.includes(pid)
+);
+
+// Bench capacity = number of BN slots defined by league settings
+const benchCapacity = roster_positions.filter((s) => s === "BN").length;
+
+// Current bench count
+const benchCount = bench.length;
+
+// Empty bench slots (never negative)
+const benchEmpty = Math.max(0, benchCapacity - benchCount);
+
+
+When you push the league summary, include the new fields:
+
+out.push({
+  league_id: lg.league_id,
+  name: lg.name,
+  roster_positions: roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s)),
+  starters,
+  bench,
+  rosterUserDisplay: display,
+  optimalSlots,
+  optimalTotal,
+  currentTotal,
+  delta: optimalTotal - currentTotal,
+  benchCapacity,
+  benchCount,
+  benchEmpty,
+});
+
+3) Show it in the UI (header badge + detail line)
+
+Header badge in LeagueCard.tsx (where you show delta & change count):
+
+<div className="flex items-center gap-4">
+  <div className={`text-sm md:text-base font-semibold ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`}>
+    {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
+  </div>
+  <div className="text-xs md:text-sm text-gray-500">{changeCount} changes</div>
+
+  {/* New: bench empties badge */}
+  {lg.benchEmpty > 0 && (
+    <span className="text-xs md:text-sm rounded-full px-2 py-1 bg-amber-100 text-amber-800">
+      {lg.benchEmpty} empty bench {lg.benchEmpty === 1 ? "spot" : "spots"}
+    </span>
+  )}
+
+  <svg className={`h-5 w-5 transition-transform ${open ? "rotate-180" : "rotate-0"}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+    <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z" />
+  </svg>
+</div>
+
+
+Detail section (inside the expanded panel), add a quick line under the totals:
+
+<div className="mt-1 text-xs text-gray-600">
+  Bench: {lg.benchCount}/{lg.benchCapacity}
+  {lg.benchEmpty > 0 && <> — <span className="text-amber-700">{lg.benchEmpty} empty</span></>}
+</div>
+
+4) (Optional) Tie into Waiver Watchlist
+
+If you’ve enabled waiver suggestions, you can prepend a small note like:
+
+{lg.benchEmpty > 0 && lg.waiverSuggestions?.length > 0 && (
+  <div className="mt-2 text-xs text-emerald-700">
+    You have open bench slots — consider adding top waiver targets below.
+  </div>
+)}

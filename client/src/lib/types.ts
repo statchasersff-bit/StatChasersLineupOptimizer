@@ -48,4 +48,7 @@ export type LeagueSummary = {
   waiverSuggestions?: WaiverSuggestion[]; // sorted by gain desc
   starterObjs?: (PlayerLite & { proj?: number; opp?: string })[]; // enriched starter objects
   allEligible?: (PlayerLite & { proj?: number; opp?: string })[]; // all eligible players for lookup
+  benchCapacity: number;   // how many BN slots the league has
+  benchCount: number;      // how many players currently on BN (excl. IR/Taxi)
+  benchEmpty: number;      // benchCapacity - benchCount (min 0)
 };

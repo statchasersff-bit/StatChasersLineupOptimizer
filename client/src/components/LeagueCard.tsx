@@ -30,6 +30,14 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
           </div>
           <div className="text-xs md:text-sm text-gray-500" data-testid={`text-changes-${lg.league_id}`}>{changeCount} changes</div>
+
+          {/* Bench empties badge */}
+          {(lg.benchEmpty ?? 0) > 0 && (
+            <span className="text-xs md:text-sm rounded-full px-2 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300" data-testid={`text-bench-empty-${lg.league_id}`}>
+              {lg.benchEmpty} empty bench {lg.benchEmpty === 1 ? "spot" : "spots"}
+            </span>
+          )}
+
           <svg className={`h-5 w-5 transition-transform ${open ? "rotate-180" : "rotate-0"}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
             <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z" />
           </svg>
@@ -134,8 +142,18 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             Current total: <b>{lg.currentTotal.toFixed(2)}</b> — Optimal total: <b>{lg.optimalTotal.toFixed(2)}</b>
           </div>
 
+          <div className="mt-1 text-xs text-gray-600" data-testid={`text-bench-details-${lg.league_id}`}>
+            Bench: {lg.benchCount ?? 0}/{lg.benchCapacity ?? 0}
+            {(lg.benchEmpty ?? 0) > 0 && <> — <span className="text-amber-700">{lg.benchEmpty} empty</span></>}
+          </div>
+
           {lg.waiverSuggestions && lg.waiverSuggestions.length > 0 && (
             <div className="mt-4">
+              {(lg.benchEmpty ?? 0) > 0 && (
+                <div className="mb-2 text-xs text-emerald-700 dark:text-emerald-400">
+                  You have open bench slots — consider adding top waiver targets below.
+                </div>
+              )}
               <div className="font-semibold mb-1">Waiver Watchlist</div>
               <ul className="space-y-1">
                 {lg.waiverSuggestions.slice(0, 10).map((w, i) => (
