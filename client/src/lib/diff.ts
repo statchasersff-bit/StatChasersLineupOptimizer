@@ -53,6 +53,15 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[]): LineupD
       // if the current player in that slot is part of optimal elsewhere, we shouldn't call it an OUT
       const currentIsOptimalSomewhere = curPidAtSlot && optSet.has(curPidAtSlot);
       
+      // FILTER: Only show meaningful changes (bench ↔ starter), not position shuffling
+      const inPlayerIsCurrentlyStarting = curSet.has(inP.player_id);
+      const isPositionShuffle = inPlayerIsCurrentlyStarting && currentIsOptimalSomewhere;
+      
+      // Skip this move if it's just position shuffling within the starting lineup
+      if (isPositionShuffle) {
+        return;
+      }
+      
       // Look up the player being benched for proper name
       let outName = undefined;
       if (!currentIsOptimalSomewhere && curPidAtSlot) {
