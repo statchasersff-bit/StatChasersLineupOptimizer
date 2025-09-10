@@ -78,9 +78,9 @@ export async function parseProjections(file: File): Promise<Projection[]> {
               }
             }
 
-            // Debug: Log stats extraction for first TE with stats
-            if (Object.keys(stats).length > 0 && (raw.pos || "").toUpperCase() === "TE") {
-              console.log(`TE with stats found: ${name}, extracted stats:`, Object.keys(stats));
+            // Debug: Log all QB names to find Trevor Lawrence
+            if ((raw.pos || "").toUpperCase() === "QB") {
+              console.log(`QB in CSV: ${name} (proj: ${num(raw.proj ?? raw.PROJ)})`);
             }
 
             return {
