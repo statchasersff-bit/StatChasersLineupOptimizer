@@ -62,12 +62,17 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[]): LineupD
         return;
       }
       
-      // Look up the player being benched for proper name
+      // Look up the player being benched for proper name and projection
       let outName = undefined;
+      let outProj = 0;
       if (!currentIsOptimalSomewhere && curPidAtSlot) {
         const outPlayer = optPlayers.find(p => p.player_id === curPidAtSlot) || allEligible?.find(p => p.player_id === curPidAtSlot);
         outName = outPlayer?.name ?? `player_id ${curPidAtSlot}`;
+        outProj = outPlayer?.proj ?? 0;
       }
+      
+      // Calculate actual gain (difference between incoming and outgoing player)
+      const gain = (inP.proj ?? 0) - outProj;
       
       moves.push({
         slot,
@@ -75,7 +80,7 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[]): LineupD
         in_name: inP.name,
         out_pid: currentIsOptimalSomewhere ? undefined : curPidAtSlot,
         out_name: outName,
-        gain: (inP.proj ?? 0),
+        gain,
       });
       usedIn.add(inP.player_id);
       if (curPidAtSlot && !currentIsOptimalSomewhere) usedOut.add(curPidAtSlot);

@@ -239,28 +239,6 @@ export default function Home() {
 
             waiverSuggestions.sort((a, b) => b.gain - a.gain);
             
-            // DEBUG: Log waiver suggestions for Baby Got Dak 3.0
-            if (lg.name.includes("Baby Got Dak 3.0")) {
-              console.log(`🏈 WAIVER DEBUG for ${lg.name}:`);
-              console.log("📊 Free agents found by position:", Object.keys(scoredFAs).map(pos => `${pos}: ${scoredFAs[pos].length} players`));
-              console.log("🎯 TE free agents:", scoredFAs.TE?.slice(0, 5).map(fa => `${fa.name} (${fa.proj.toFixed(2)} pts)`));
-              console.log("🔄 Waiver suggestions generated:", waiverSuggestions.length);
-              console.log("📋 Suggestions:", waiverSuggestions.map(ws => `${ws.name} for ${ws.replaceSlot} (+${ws.gain.toFixed(2)})`));
-              
-              // Check specific players
-              const juwan = scoredFAs.TE?.find(fa => fa.name.toLowerCase().includes("juwan"));
-              if (juwan) {
-                console.log("🔍 Juwan Johnson found:", juwan.name, `${juwan.proj.toFixed(2)} pts`);
-              } else {
-                console.log("❌ Juwan Johnson not in TE free agents");
-              }
-              
-              // Check optimal TE projection
-              const teSlot = optimalSlots.find(s => s.slot === "TE");
-              if (teSlot) {
-                console.log("⭐ Current optimal TE:", teSlot.player?.name, `${teSlot.player?.proj?.toFixed(2)} pts`);
-              }
-            }
           }
 
           out.push({
