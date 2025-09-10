@@ -236,6 +236,7 @@ export default function Home() {
                     opp: bestFA.opp,
                     replaceSlot: slot,
                     gain,
+                    currentPlayerName: currentInfo.name, // Add current player name for display
                   });
                   seen[bestFA.player_id] = true;
                 }
@@ -244,19 +245,6 @@ export default function Home() {
 
             waiverSuggestions.sort((a, b) => b.gain - a.gain);
             
-            // DEBUG: Check Baby Got Dak 3.0 current vs optimal lineup
-            if (lg.name.includes("Baby Got Dak 3.0")) {
-              console.log("🔍 CURRENT vs OPTIMAL lineup comparison:");
-              console.log("📋 Current starters:", starters.map((pid, i) => {
-                if (!pid) return `${fixedSlots[i]}: [EMPTY]`;
-                const player = starterObjs.find(p => p.player_id === pid);
-                return `${fixedSlots[i]}: ${player?.name || pid} (${player?.proj?.toFixed(2) || 0} pts)`;
-              }));
-              console.log("⭐ Optimal lineup:", optimalSlots.map(s => 
-                `${s.slot}: ${s.player?.name || '[EMPTY]'} (${s.player?.proj?.toFixed(2) || 0} pts)`
-              ));
-              console.log("🎯 Slot-to-current mapping:", slotToCurrent);
-            }
             
           }
 

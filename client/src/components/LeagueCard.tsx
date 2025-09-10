@@ -140,9 +140,9 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
               <ul className="space-y-1">
                 {lg.waiverSuggestions.slice(0, 10).map((w, i) => (
                   <li key={i} className="text-sm" data-testid={`row-waiver-${i}`}>
-                    <span className="inline-block w-28 font-mono">{w.replaceSlot}</span>
-                    {w.name} ({w.pos}{w.team ? ` • ${w.team}` : ""}) — {w.proj.toFixed(2)} pts
-                    <span className="ml-2 text-green-600">(+{w.gain.toFixed(2)})</span>
+                    Put <b>{w.name}</b> into <b>{w.replaceSlot}</b>
+                    {w.currentPlayerName && w.currentPlayerName !== "[EMPTY]" ? <> (bench <b>{w.currentPlayerName}</b>)</> : null}
+                    <span className="ml-2 text-green-600">(+{w.gain.toFixed(2)} pts)</span>
                   </li>
                 ))}
               </ul>

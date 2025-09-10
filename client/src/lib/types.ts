@@ -31,6 +31,7 @@ export type WaiverSuggestion = {
   opp?: string;
   replaceSlot: string; // which slot they would fill
   gain: number;        // points gained over your current optimal for that slot
+  currentPlayerName?: string; // name of player currently in that slot
 };
 
 export type LeagueSummary = {
