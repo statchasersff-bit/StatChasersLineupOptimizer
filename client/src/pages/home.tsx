@@ -126,21 +126,16 @@ export default function Home() {
               
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
-              // Debug: Log ALL QB calculations to find Trevor Lawrence
-              if (lite.pos === "QB" && adj > 15) {
-                console.log(`🏈 QB: ${lite.name} in "${lg?.name}": ${originalProj} → ${adj} pts (pass_td: ${scoring.pass_td})`);
-              }
-              
-              // Special debug for Baker and Trevor
-              if (lite.name?.includes("Baker") || lite.name?.includes("Mayfield") || 
-                  lite.name?.includes("Trevor") || lite.name?.includes("Lawrence") ||
-                  lite.name?.toLowerCase().includes("lawrence") || lite.name?.toLowerCase().includes("trevor")) {
-                console.log(`🎯 TARGET QB: ${lite.name} in league "${lg?.name}": Original=${originalProj}, Adjusted=${adj} (${lite.pos})`);
-                console.log(`League scoring: pass_td=${scoring.pass_td}, pass_yd=${scoring.pass_yd}`);
-                if (Object.keys(stats).length > 0) {
-                  console.log(`${lite.name} stats:`, stats);
-                } else {
-                  console.log(`${lite.name}: No detailed stats - using fallback`);
+              // Debug: Focus on "Baby Got Dak 10.0" league specifically
+              if (lg?.name?.includes("Baby Got Dak")) {
+                console.log(`🍼 BABY GOT DAK: ${lite.name} (${lite.pos}): ${originalProj} → ${adj} pts`);
+                
+                // Special focus on our target QBs
+                if (lite.pos === "QB" && (lite.name?.includes("Baker") || lite.name?.includes("Mayfield") || 
+                    lite.name?.includes("Trevor") || lite.name?.includes("Lawrence"))) {
+                  console.log(`🎯 TARGET QB in BABY GOT DAK: ${lite.name}`);
+                  console.log(`Stats used:`, stats);
+                  console.log(`League scoring: pass_td=${scoring.pass_td}, pass_yd=${scoring.pass_yd}`);
                 }
               }
             } else {
