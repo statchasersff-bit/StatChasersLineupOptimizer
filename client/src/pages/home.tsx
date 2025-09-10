@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getPlayersIndex } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
-import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj } from "@/lib/optimizer";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
@@ -274,35 +274,26 @@ export default function Home() {
 
             waiverSuggestions.sort((a, b) => b.gain - a.gain);
             
-            // DEBUG: Check Baby Got Dak 4.0 waiver logic
+            // DEBUG: Check risky starters and name matching issues
             if (lg.name.includes("Baby Got Dak 4.0")) {
-              console.log(`🔍 WAIVER DEBUG for ${lg.name}:`);
-              console.log("📋 Current starters:", currentSlots.map(s => 
-                `${s.slot}: ${s.player?.name || '[EMPTY]'} (${s.player?.proj?.toFixed(2) || 0} pts)`
-              ));
+              console.log(`🔍 RISKY STARTERS DEBUG for ${lg.name}:`);
+              console.log(`📋 Current starters with injury/bye data:`);
+              currentSlots.forEach((s, i) => {
+                if (s.player) {
+                  const flags = statusFlags(s.player);
+                  console.log(`${i + 1}. ${s.slot}: ${s.player.name} - injury_status: "${s.player.injury_status || 'none'}", opp: "${s.player.opp || 'none'}", flags: [${flags.join(', ')}]`);
+                }
+              });
               
-              // Check if Juwan Johnson is available
-              const juwan = scoredFAs.TE?.find(fa => fa.name.toLowerCase().includes("juwan"));
-              const juwanInWR = scoredFAs.WR?.find(fa => fa.name.toLowerCase().includes("juwan"));
-              if (juwan) {
-                console.log("✅ Juwan Johnson found in TE:", juwan.name, `${juwan.proj.toFixed(2)} pts`);
-              } else if (juwanInWR) {
-                console.log("✅ Juwan Johnson found in WR:", juwanInWR.name, `${juwanInWR.proj.toFixed(2)} pts`);
-              } else {
-                console.log("❌ Juwan Johnson not found in free agents");
-              }
+              console.log(`🔍 NAME MATCHING DEBUG - Chig Okonkwo:`);
+              const chigInRoster = Object.values(currentPlayersIndex).find((p: any) => 
+                p.full_name?.includes("Okonkwo") || p.last_name?.includes("Okonkwo")
+              );
+              console.log(`Sleeper API name:`, chigInRoster ? `"${chigInRoster.full_name}"` : "NOT FOUND");
+              const chigProjection = chigInRoster ? projIdx[chigInRoster.player_id] : null;
+              console.log(`Projection found:`, chigProjection ? `${chigProjection.proj} pts` : "NONE - name mismatch");
               
-              // Check Adam Thielen
-              const adamInCurrent = currentSlots.find(s => s.player?.name.toLowerCase().includes("thielen"));
-              if (adamInCurrent) {
-                console.log("👤 Adam Thielen current slot:", adamInCurrent.slot, `${adamInCurrent.player?.proj?.toFixed(2)} pts`);
-              } else {
-                console.log("❓ Adam Thielen not found in current starters");
-              }
-              
-              console.log("🎯 All waiver suggestions:", waiverSuggestions.map(ws => 
-                `${ws.name} for ${ws.replaceSlot} (+${ws.gain.toFixed(2)})`
-              ));
+              console.log(`🎯 Waiver suggestions:`, waiverSuggestions.map(w => `${w.name} for ${w.replaceSlot} (+${w.gain.toFixed(2)})`));
             }
             
             
