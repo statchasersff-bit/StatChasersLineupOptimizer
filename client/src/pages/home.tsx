@@ -126,18 +126,6 @@ export default function Home() {
               
               adj = scoreByLeague(lite.pos, stats, scoring, pr.proj);
               
-              // Debug: Focus on "Baby Got Dak 10.0" league specifically
-              if (lg?.name?.includes("Baby Got Dak")) {
-                console.log(`🍼 BABY GOT DAK: ${lite.name} (${lite.pos}): ${originalProj} → ${adj} pts`);
-                
-                // Special focus on our target QBs
-                if (lite.pos === "QB" && (lite.name?.includes("Baker") || lite.name?.includes("Mayfield") || 
-                    lite.name?.includes("Trevor") || lite.name?.includes("Lawrence"))) {
-                  console.log(`🎯 TARGET QB in BABY GOT DAK: ${lite.name}`);
-                  console.log(`Stats used:`, stats);
-                  console.log(`League scoring: pass_td=${scoring.pass_td}, pass_yd=${scoring.pass_yd}`);
-                }
-              }
             } else {
               adj = 0; // no projection found
             }

@@ -62,26 +62,6 @@ export function scoreOff(stats: NumRec, scoring: LeagueScoring, position?: strin
     pts += rec * tePremium;
   }
 
-  // Debug specific QBs calculation breakdown
-  if (position?.toUpperCase() === "QB" && (passYd > 220)) {
-    const passYdPts = passYd * g(scoring, "pass_yd", 0.04);
-    const passTdPts = passTd * g(scoring, "pass_td", 4);
-    const passIntPts = passInt * g(scoring, "pass_int", -1);
-    const rushYdPts = rushYd * g(scoring, "rush_yd", 0.1);
-    const rushTdPts = rushTd * g(scoring, "rush_td", 6);
-    const fumPts = fumLost * g(scoring, "fum_lost", -2);
-    
-    console.log(`QB Calculation:`, {
-      passYd, passTd, passInt, rushYd, rushTd, fumLost,
-      passYdPts: Math.round(passYdPts * 100) / 100,
-      passTdPts: Math.round(passTdPts * 100) / 100,
-      passIntPts: Math.round(passIntPts * 100) / 100,
-      rushYdPts: Math.round(rushYdPts * 100) / 100,
-      rushTdPts: Math.round(rushTdPts * 100) / 100,
-      fumPts: Math.round(fumPts * 100) / 100,
-      total: Math.round(pts * 100) / 100
-    });
-  }
 
   return pts;
 }

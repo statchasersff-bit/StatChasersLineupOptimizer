@@ -78,10 +78,6 @@ export async function parseProjections(file: File): Promise<Projection[]> {
               }
             }
 
-            // Debug: Log all QB names to find Trevor Lawrence
-            if ((raw.pos || "").toUpperCase() === "QB") {
-              console.log(`QB in CSV: ${name} (proj: ${num(raw.proj ?? raw.PROJ)})`);
-            }
 
             return {
               sleeper_id: sleeperId,
