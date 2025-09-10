@@ -245,6 +245,37 @@ export default function Home() {
 
             waiverSuggestions.sort((a, b) => b.gain - a.gain);
             
+            // DEBUG: Check Baby Got Dak 4.0 waiver logic
+            if (lg.name.includes("Baby Got Dak 4.0")) {
+              console.log(`🔍 WAIVER DEBUG for ${lg.name}:`);
+              console.log("📋 Current starters:", currentSlots.map(s => 
+                `${s.slot}: ${s.player?.name || '[EMPTY]'} (${s.player?.proj?.toFixed(2) || 0} pts)`
+              ));
+              
+              // Check if Juwan Johnson is available
+              const juwan = scoredFAs.TE?.find(fa => fa.name.toLowerCase().includes("juwan"));
+              const juwanInWR = scoredFAs.WR?.find(fa => fa.name.toLowerCase().includes("juwan"));
+              if (juwan) {
+                console.log("✅ Juwan Johnson found in TE:", juwan.name, `${juwan.proj.toFixed(2)} pts`);
+              } else if (juwanInWR) {
+                console.log("✅ Juwan Johnson found in WR:", juwanInWR.name, `${juwanInWR.proj.toFixed(2)} pts`);
+              } else {
+                console.log("❌ Juwan Johnson not found in free agents");
+              }
+              
+              // Check Adam Thielen
+              const adamInCurrent = currentSlots.find(s => s.player?.name.toLowerCase().includes("thielen"));
+              if (adamInCurrent) {
+                console.log("👤 Adam Thielen current slot:", adamInCurrent.slot, `${adamInCurrent.player?.proj?.toFixed(2)} pts`);
+              } else {
+                console.log("❓ Adam Thielen not found in current starters");
+              }
+              
+              console.log("🎯 All waiver suggestions:", waiverSuggestions.map(ws => 
+                `${ws.name} for ${ws.replaceSlot} (+${ws.gain.toFixed(2)})`
+              ));
+            }
+            
             
           }
 
