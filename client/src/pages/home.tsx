@@ -222,6 +222,26 @@ export default function Home() {
                 }
               }
 
+              // DEBUG: Baby Got Dak 4.0 FLEX slot analysis
+              if (lg.name.includes("Baby Got Dak 4.0") && slot === "FLEX") {
+                console.log(`🔍 FLEX slot analysis:`);
+                console.log(`📊 Available positions for FLEX:`, Object.keys(scoredFAs));
+                Object.keys(scoredFAs).forEach(pos => {
+                  const canFillFlex = canFill("FLEX", pos);
+                  console.log(`${pos} can fill FLEX: ${canFillFlex}`);
+                  if (canFillFlex && pos === "TE") {
+                    console.log(`Top 3 ${pos}:`, scoredFAs[pos].slice(0, 3).map(fa => `${fa.name} (${fa.proj.toFixed(2)})`));
+                  }
+                });
+                console.log(`Current FLEX player:`, slotToCurrent[slot]);
+                console.log(`Best FA found for FLEX:`, bestFA ? `${bestFA.name} (${bestFA.proj.toFixed(2)})` : "NONE");
+                if (bestFA) {
+                  const gain = bestFA.proj - slotToCurrent[slot].proj;
+                  console.log(`Potential gain: +${gain.toFixed(2)} pts`);
+                  console.log(`Above threshold (0.2): ${gain > 0.2}`);
+                }
+              }
+
               if (bestFA) {
                 const currentInfo = slotToCurrent[slot];
                 const current = currentInfo.proj;
