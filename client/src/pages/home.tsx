@@ -175,11 +175,15 @@ export default function Home() {
               }).sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
             }
 
-            // For each starting slot, see if the best eligible FA beats your optimal player
-            // 1) map slot → current optimal player/proj
-            const slotToOptimal: Record<string, number> = {};
-            optimalSlots.forEach(s => {
-              slotToOptimal[s.slot] = Math.max(slotToOptimal[s.slot] ?? 0, s.player?.proj ?? 0);
+            // For each starting slot, see if the best eligible FA beats your CURRENT player
+            // 1) map slot → current starter's projection (not optimal)
+            const slotToCurrent: Record<string, { proj: number; name?: string }> = {};
+            currentSlots.forEach(s => {
+              if (s.player) {
+                slotToCurrent[s.slot] = { proj: s.player.proj ?? 0, name: s.player.name };
+              } else {
+                slotToCurrent[s.slot] = { proj: 0, name: "[EMPTY]" };
+              }
             });
 
             // 2) eligibility for flex slots mirrors your optimizer
@@ -202,9 +206,9 @@ export default function Home() {
 
             // 3) For each slot type in your starting lineup, find best FA eligible
             const seen: Record<string, boolean> = {};
-            const optimalIds = new Set(optimalSlots.map(s => s.player?.player_id).filter(Boolean) as string[]);
+            const currentIds = new Set(currentSlots.map(s => s.player?.player_id).filter(Boolean) as string[]);
             
-            for (const slot of Object.keys(slotToOptimal)) {
+            for (const slot of Object.keys(slotToCurrent)) {
               let bestFA: any = null;
 
               // Choose from scoredFAs across positions that can fill this slot
@@ -213,13 +217,14 @@ export default function Home() {
                 for (const cand of scoredFAs[pos]) {
                   const key = cand.player_id; // avoid suggesting same FA for multiple slots
                   if (seen[key]) continue;
-                  if (optimalIds.has(cand.player_id)) continue; // skip suggesting someone already starting optimally
+                  if (currentIds.has(cand.player_id)) continue; // skip suggesting someone already starting
                   bestFA = bestFA && bestFA.proj > cand.proj ? bestFA : cand;
                 }
               }
 
               if (bestFA) {
-                const current = slotToOptimal[slot] ?? 0;
+                const currentInfo = slotToCurrent[slot];
+                const current = currentInfo.proj;
                 const gain = (bestFA.proj ?? 0) - current;
                 if (gain > 0.2) { // small threshold to avoid noise
                   waiverSuggestions.push({
@@ -238,6 +243,20 @@ export default function Home() {
             }
 
             waiverSuggestions.sort((a, b) => b.gain - a.gain);
+            
+            // DEBUG: Check Baby Got Dak 3.0 current vs optimal lineup
+            if (lg.name.includes("Baby Got Dak 3.0")) {
+              console.log("🔍 CURRENT vs OPTIMAL lineup comparison:");
+              console.log("📋 Current starters:", starters.map((pid, i) => {
+                if (!pid) return `${fixedSlots[i]}: [EMPTY]`;
+                const player = starterObjs.find(p => p.player_id === pid);
+                return `${fixedSlots[i]}: ${player?.name || pid} (${player?.proj?.toFixed(2) || 0} pts)`;
+              }));
+              console.log("⭐ Optimal lineup:", optimalSlots.map(s => 
+                `${s.slot}: ${s.player?.name || '[EMPTY]'} (${s.player?.proj?.toFixed(2) || 0} pts)`
+              ));
+              console.log("🎯 Slot-to-current mapping:", slotToCurrent);
+            }
             
           }
 
