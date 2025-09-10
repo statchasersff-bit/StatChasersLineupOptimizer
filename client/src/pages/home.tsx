@@ -56,14 +56,8 @@ export default function Home() {
 
     setIsAnalyzing(true);
     try {
-      console.log("🔍 Looking up username:", username.trim());
       const user = await getUserByName(username.trim());
-      console.log("✅ Found user ID:", user.user_id);
-      
       const lgs = await getUserLeagues(user.user_id, season);
-      console.log("📋 Raw leagues returned from Sleeper API:", lgs.length);
-      console.log("League names:", lgs.map(lg => lg.name));
-      console.log("User ID in each league:", lgs.map(lg => ({ name: lg.name, user_id: lg.user_id })));
 
       // EXCLUDE Best Ball leagues by default and optionally dynasty leagues
       let filteredLeagues = lgs.filter((lg) => !isBestBallLeague(lg));
@@ -89,29 +83,13 @@ export default function Home() {
             getLeagueDetails(lg.league_id),
           ]);
 
-          // Find user's roster - DEBUG VERSION
-          console.log(`🏈 League: ${lg.name}`);
-          console.log(`👤 Your user_id: ${user.user_id}`);
-          console.log(`📋 League user_id: ${lg.user_id}`);
-          console.log(`🎯 League roster_id: ${lg.roster_id}`);
-          
-          const rosterByOwner = rosters.find((r: any) => r.owner_id === user.user_id);
-          const rosterByLeagueUserId = rosters.find((r: any) => r.owner_id === lg.user_id);
-          const rosterByRosterId = rosters.find((r: any) => r.roster_id === lg.roster_id);
-          
-          console.log(`🔍 Roster by owner_id=${user.user_id}:`, rosterByOwner ? "FOUND" : "NOT FOUND");
-          console.log(`🔍 Roster by league user_id=${lg.user_id}:`, rosterByLeagueUserId ? "FOUND" : "NOT FOUND");
-          console.log(`🔍 Roster by roster_id=${lg.roster_id}:`, rosterByRosterId ? "FOUND" : "NOT FOUND");
-          
-          // Use the most reliable method: match by your actual user_id
-          const meRoster = rosterByOwner || rosterByLeagueUserId || rosterByRosterId || rosters[0];
-          
+          // Find user's roster
+          const meRoster = rosters.find((r: any) => r.owner_id === user.user_id) || 
+                          rosters.find((r: any) => r.owner_id === lg.user_id) || 
+                          rosters.find((r: any) => r.roster_id === lg.roster_id) || 
+                          rosters[0];
           const owner = users.find((u: any) => u.user_id === meRoster?.owner_id);
           const display = owner?.metadata?.team_name || owner?.display_name || "Unknown Manager";
-          
-          console.log(`✅ Selected roster belongs to: ${display} (owner_id: ${meRoster?.owner_id})`);
-          console.log(`✅ Is this your roster? ${meRoster?.owner_id === user.user_id ? "YES" : "NO"}`);
-          console.log("---");
 
           const roster_positions: string[] = leagueDetails?.roster_positions || lg.roster_positions || [];
           const slotCounts = buildSlotCounts(roster_positions);
