@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getPlayersIndex } from "@/lib/sleeper";
@@ -8,6 +8,8 @@ import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
 import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
+import { loadBuiltInOrSaved } from "@/lib/builtin";
+import { saveProjections, loadProjections } from "@/lib/storage";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 import LeagueCard from "@/components/LeagueCard";
 import AdminModal from "@/components/AdminModal";
@@ -26,16 +28,32 @@ export default function Home() {
   const [filterDynasty, setFilterDynasty] = useState(false);
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
   const [showOnlyEmptyBench, setShowOnlyEmptyBench] = useState(false);
+  const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
+  const [projections, setProjections] = useState<Projection[]>([]);
   const { toast } = useToast();
 
-  // Fetch projections from our API
-  const { data: projectionsData = [] } = useQuery<Projection[]>({
-    queryKey: ['/api/projections', season, week]
-  });
+  // Built-in projections loader
+  useEffect(() => {
+    (async () => {
+      const got = await loadBuiltInOrSaved({
+        season, week,
+        loadSaved: loadProjections,
+        saveSaved: saveProjections,
+        setProjections,
+        setProjIdx: () => {}, // Will be handled by projIdx useMemo
+        setBanner: setUsingSavedMsg
+      });
+      if (!got) {
+        // no built-in & nothing saved: user can upload manually
+        setProjections([]);
+        setUsingSavedMsg(null);
+      }
+    })();
+  }, [season, week]);
 
   const projIdx = useMemo(() => {
-    return buildProjectionIndex(projectionsData);
-  }, [projectionsData]);
+    return buildProjectionIndex(projections);
+  }, [projections]);
 
   // Re-sort summaries when alphabetical sort preference changes
   const sortedSummaries = useMemo(() => {
@@ -50,7 +68,7 @@ export default function Home() {
       return;
     }
 
-    if (projectionsData.length === 0) {
+    if (projections.length === 0) {
       toast({ title: "Error", description: "No projections available for this week", variant: "destructive" });
       return;
     }
@@ -482,7 +500,7 @@ export default function Home() {
           </div>
           
           <div className="mt-3 text-xs text-muted-foreground">
-            Using StatChasers projections for Week {week}. {projectionsData.length} players available.
+            Using StatChasers projections for Week {week}. {projections.length} players available.
           </div>
         </div>
 
