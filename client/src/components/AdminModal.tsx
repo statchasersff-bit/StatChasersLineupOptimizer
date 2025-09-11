@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Upload, Plus, Save, RotateCcw, Edit, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { parseProjections } from "@/lib/projections";
+import { parseProjections, buildProjectionIndex } from "@/lib/projections";
+import { saveProjections, loadProjections, clearProjections } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import type { Projection } from "@shared/schema";
 
@@ -15,6 +16,7 @@ type Props = {
 
 export default function AdminModal({ isOpen, onClose, currentWeek, currentSeason }: Props) {
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
+  const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
   const [newProjection, setNewProjection] = useState({
     name: "",
     team: "",
@@ -24,6 +26,29 @@ export default function AdminModal({ isOpen, onClose, currentWeek, currentSeason
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Sync selectedWeek with currentWeek prop changes
+  useEffect(() => {
+    setSelectedWeek(currentWeek);
+  }, [currentWeek]);
+
+  // Auto-load saved projections when season/week changes
+  useEffect(() => {
+    const saved = loadProjections(currentSeason, selectedWeek);
+    if (saved?.rows?.length) {
+      // Check if server has data for this week
+      const currentServerData = queryClient.getQueryData(['/api/projections', currentSeason, selectedWeek]) as any[];
+      if (!currentServerData || currentServerData.length === 0) {
+        // Server is empty, auto-apply saved data
+        queryClient.setQueryData(['/api/projections', currentSeason, selectedWeek], saved.rows);
+        setUsingSavedMsg(`Auto-loaded saved projections (updated ${new Date(saved.updatedAt).toLocaleString()}) for Week ${selectedWeek}, ${currentSeason}.`);
+      } else {
+        setUsingSavedMsg(`Saved projections available (updated ${new Date(saved.updatedAt).toLocaleString()}) for Week ${selectedWeek}, ${currentSeason}.`);
+      }
+    } else {
+      setUsingSavedMsg(null);
+    }
+  }, [currentSeason, selectedWeek, queryClient]);
 
   const { data: projections = [], isLoading } = useQuery<Projection[]>({
     queryKey: ['/api/projections', currentSeason, selectedWeek],
@@ -38,6 +63,11 @@ export default function AdminModal({ isOpen, onClose, currentWeek, currentSeason
         season: currentSeason,
         projections: parsed
       });
+      
+      // Save to localStorage for this week
+      saveProjections(currentSeason, selectedWeek, parsed);
+      setUsingSavedMsg(`Saved projections for Week ${selectedWeek}, ${currentSeason}.`);
+      
       return response.json();
     },
     onSuccess: () => {
@@ -218,6 +248,41 @@ export default function AdminModal({ isOpen, onClose, currentWeek, currentSeason
                 data-testid="button-select-csv"
               >
                 {bulkUploadMutation.isPending ? "Uploading..." : "Select CSV File"}
+              </button>
+            </div>
+            
+            {/* Storage Management */}
+            {usingSavedMsg && (
+              <div className="text-xs text-emerald-700 mb-2" data-testid="text-saved-msg">{usingSavedMsg}</div>
+            )}
+            <div className="flex gap-2">
+              <button
+                className="rounded border px-3 py-1 text-sm hover:bg-gray-50"
+                onClick={() => {
+                  const saved = loadProjections(currentSeason, selectedWeek);
+                  if (saved?.rows) {
+                    // Actually inject saved data into React Query cache
+                    queryClient.setQueryData(['/api/projections', currentSeason, selectedWeek], saved.rows);
+                    setUsingSavedMsg(`Using saved projections (updated ${new Date(saved.updatedAt).toLocaleString()}).`);
+                    toast({ title: "Loaded", description: `Loaded ${saved.rows.length} saved projections for Week ${selectedWeek}, ${currentSeason}` });
+                  } else {
+                    toast({ title: "No saved projections", description: `No saved projections found for Week ${selectedWeek}, ${currentSeason}`, variant: "destructive" });
+                  }
+                }}
+                data-testid="button-use-saved"
+              >
+                Use Saved for This Week
+              </button>
+              <button
+                className="rounded border px-3 py-1 text-sm hover:bg-gray-50"
+                onClick={() => {
+                  clearProjections(currentSeason, selectedWeek);
+                  setUsingSavedMsg(null);
+                  toast({ title: "Cleared", description: `Cleared saved projections for Week ${selectedWeek}, ${currentSeason}` });
+                }}
+                data-testid="button-clear-saved"
+              >
+                Clear Saved for This Week
               </button>
             </div>
           </div>

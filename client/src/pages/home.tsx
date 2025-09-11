@@ -14,8 +14,8 @@ import AdminModal from "@/components/AdminModal";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
-  const season = "2025";
-  const week = "2"; // Current NFL week
+  const [season, setSeason] = useState("2025");
+  const [week, setWeek] = useState("2"); // Current NFL week
   const [username, setUsername] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -371,7 +371,22 @@ export default function Home() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-muted-foreground" data-testid="text-current-week">Week {week} • {season} Season</span>
+              <div className="flex items-center gap-2 text-sm">
+                <label className="text-muted-foreground">Season:</label>
+                <input
+                  className="border rounded px-2 py-1 w-16 text-center"
+                  value={season}
+                  onChange={(e) => setSeason(e.target.value)}
+                  data-testid="input-season"
+                />
+                <label className="text-muted-foreground">Week:</label>
+                <input
+                  className="border rounded px-2 py-1 w-12 text-center"
+                  value={week}
+                  onChange={(e) => setWeek(e.target.value)}
+                  data-testid="input-week"
+                />
+              </div>
               <button 
                 className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
                 onClick={() => setShowAdminModal(true)}
