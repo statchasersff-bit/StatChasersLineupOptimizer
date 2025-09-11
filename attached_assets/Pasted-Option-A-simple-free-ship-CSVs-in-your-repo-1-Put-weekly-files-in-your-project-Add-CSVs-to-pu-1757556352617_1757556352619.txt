@@ -1,0 +1,113 @@
+Option A (simple + free): ship CSVs in your repo
+1) Put weekly files in your project
+
+Add CSVs to public/projections/<season>/week<NN>.csv, e.g.
+
+public/
+  projections/
+    2025/
+      week01.csv
+      week02.csv
+      ...
+
+
+These are served statically at:
+
+/projections/2025/week15.csv
+
+
+You can add/update these via GitHub web UI each week and your host (Cloudflare Pages/Vercel/GitHub Pages) redeploys automatically—still free.
+
+2) Loader that prefers built-in, falls back to saved/user upload
+
+Create src/lib/builtin.ts:
+
+import Papa from "papaparse";
+import { buildProjectionIndex } from "./projections";
+
+export async function fetchBuiltInCSV(season: string, week: string | number) {
+  const url = `/projections/${season}/week${String(week).padStart(2,"0")}.csv`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`No built-in projections for ${season} W${week}`);
+  const text = await res.text();
+  return new Promise<any[]>((resolve, reject) => {
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (out) => resolve(out.data as any[]),
+      error: reject
+    });
+  });
+}
+
+export async function loadBuiltInOrSaved({
+  season, week,
+  loadSaved, saveSaved,
+  setProjections, setProjIdx, setBanner
+}: {
+  season: string; week: string | number;
+  loadSaved: (s: string, w: string|number) => { rows?: any[], updatedAt?: string } | null;
+  saveSaved: (s: string, w: string|number, rows: any[]) => void;
+  setProjections: (rows: any[]) => void;
+  setProjIdx: (idx: Record<string, any>) => void;
+  setBanner: (msg: string | null) => void;
+}) {
+  try {
+    const rows = await fetchBuiltInCSV(season, week);
+    setProjections(rows);
+    setProjIdx(buildProjectionIndex(rows));
+    saveSaved(season, week, rows); // cache locally for speed/offline
+    setBanner(`Using StatChasers built-in projections for Week ${week}, ${season}.`);
+    return true;
+  } catch {
+    const saved = loadSaved(season, week);
+    if (saved?.rows?.length) {
+      setProjections(saved.rows);
+      setProjIdx(buildProjectionIndex(saved.rows));
+      setBanner(`Using saved projections (no built-in found) for Week ${week}, ${season}.`);
+      return true;
+    }
+    setBanner(null);
+    return false;
+  }
+}
+
+3) Wire it into App.tsx
+
+At top:
+
+import { loadBuiltInOrSaved } from "./lib/builtin";
+import { saveProjections, loadProjections } from "./lib/storage";
+
+
+When season/week changes, try built-in first:
+
+useEffect(() => {
+  (async () => {
+    const got = await loadBuiltInOrSaved({
+      season, week,
+      loadSaved: loadProjections,
+      saveSaved: saveProjections,
+      setProjections,
+      setProjIdx,
+      setBanner: setUsingSavedMsg
+    });
+    if (!got) {
+      // no built-in & nothing saved: user can upload manually
+      setProjections([]); setProjIdx({});
+    }
+  })();
+}, [season, week]);
+
+
+You can keep your existing Upload button; it will override the built-in for your local session (and save to localStorage).
+
+4) Tiny UI hint
+
+In your upload card:
+
+{usingSavedMsg ? (
+  <div className="text-xs text-emerald-700">{usingSavedMsg}</div>
+) : (
+  <div className="text-xs text-gray-500">No built-in projections found for this week. You can upload a CSV.</div>
+)}
