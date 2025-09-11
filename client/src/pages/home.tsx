@@ -499,8 +499,14 @@ export default function Home() {
             </label>
           </div>
           
-          <div className="mt-3 text-xs text-muted-foreground">
-            Using StatChasers projections for Week {week}. {projections.length} players available.
+          <div className="mt-3 text-xs" data-testid="text-projections-status">
+            {usingSavedMsg ? (
+              <div className="text-emerald-700">{usingSavedMsg}</div>
+            ) : projections.length > 0 ? (
+              <div className="text-muted-foreground">Using StatChasers projections for Week {week}. {projections.length} players available.</div>
+            ) : (
+              <div className="text-gray-500">No built-in projections found for this week. You can upload a CSV via the settings button.</div>
+            )}
           </div>
         </div>
 

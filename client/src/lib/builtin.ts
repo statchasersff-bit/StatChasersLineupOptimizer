@@ -10,7 +10,21 @@ export async function fetchBuiltInCSV(season: string, week: string | number) {
     Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
-      complete: (out) => resolve(out.data as any[]),
+      complete: (out) => {
+        // Parse stats JSON strings to objects for proper league scoring
+        const rows = (out.data as any[]).map(row => {
+          if (row.stats && typeof row.stats === 'string') {
+            try {
+              row.stats = JSON.parse(row.stats);
+            } catch (e) {
+              console.warn('Failed to parse stats JSON for player:', row.name, e);
+              row.stats = {};
+            }
+          }
+          return row;
+        });
+        resolve(rows);
+      },
       error: reject
     });
   });
