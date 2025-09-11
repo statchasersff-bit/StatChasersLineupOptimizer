@@ -8,6 +8,7 @@ import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
 import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
+import { computeRosterHealth } from "@/lib/rosterHealth";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 import LeagueCard from "@/components/LeagueCard";
 import AdminModal from "@/components/AdminModal";
@@ -58,6 +59,10 @@ export default function Home() {
     setIsAnalyzing(true);
     try {
       const user = await getUserByName(username.trim());
+      if (!user) {
+        toast({ title: "Error", description: `Username "${username.trim()}" not found on Sleeper. Please check the spelling and try again.`, variant: "destructive" });
+        return;
+      }
       const lgs = await getUserLeagues(user.user_id, season);
 
       // EXCLUDE Best Ball leagues by default and optionally dynasty leagues
@@ -255,9 +260,6 @@ export default function Home() {
             }
 
             waiverSuggestions.sort((a, b) => b.gain - a.gain);
-            
-            
-            
           }
 
           // Calculate bench capacity and empty spots
@@ -282,6 +284,53 @@ export default function Home() {
           // Empty bench slots (never negative)
           const benchEmpty = Math.max(0, benchCapacity - benchCount);
 
+          // Provide bench detail for roster health analysis
+          const benchDetail = benchObjs.map(b => ({
+            player_id: b.player_id, 
+            name: b.name, 
+            pos: b.pos, 
+            proj: b.proj ?? 0
+          }));
+
+          // Build FA index for roster health analysis (if waiver analysis was done)
+          let faIndex: Record<string, { name: string; proj: number }[]> | null = null;
+          if (considerWaivers) {
+            // scoredFAs is only available in the waiver analysis scope
+            const scopedScoredFAs = waiverSuggestions.length > 0 ? 
+              // Build from waiver suggestions as a fallback
+              waiverSuggestions.reduce<Record<string, { name: string; proj: number }[]>>((acc, ws) => {
+                const pos = normalizePos(ws.pos);
+                if (!acc[pos]) acc[pos] = [];
+                acc[pos].push({ name: ws.name, proj: ws.proj });
+                return acc;
+              }, {}) : 
+              null;
+            faIndex = scopedScoredFAs;
+          }
+
+          // Compute roster health analysis
+          const tempLeague: LeagueSummary = {
+            league_id: lg.league_id,
+            name: lg.name,
+            roster_positions: fixedSlots,
+            starters,
+            bench,
+            rosterUserDisplay: display,
+            optimalSlots,
+            optimalTotal,
+            currentTotal,
+            delta: optimalTotal - currentTotal,
+            benchCapacity,
+            benchCount,
+            benchEmpty,
+            benchDetail
+          } as LeagueSummary;
+
+          const rosterHealth = computeRosterHealth({
+            lg: tempLeague,
+            faByPos: faIndex
+          });
+
           out.push({
             league_id: lg.league_id,
             name: lg.name,
@@ -299,6 +348,8 @@ export default function Home() {
             benchCapacity,
             benchCount,
             benchEmpty,
+            benchDetail, // Compact bench for health module
+            rosterHealth, // Roster strength analysis
           });
         } catch (err) {
           console.warn("League failed", lg?.name, err);
