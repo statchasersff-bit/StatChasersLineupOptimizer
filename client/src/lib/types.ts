@@ -34,25 +34,6 @@ export type WaiverSuggestion = {
   currentPlayerName?: string; // name of player currently in that slot
 };
 
-export type PosStrength = {
-  pos: string;
-  demand: number;          // how many of this pos you actually start (from optimal lineup)
-  startersProj: number;    // sum of projections for starters at this pos
-  depthProjWeighted: number; // weighted bench quality (diminishing returns)
-  replacementBaseline: number; // baseline per-starter from FA pool
-  surplus: number;         // startersProj - demand * replacementBaseline
-  shortage: number;        // max(0, demand*replacementBaseline - startersProj)
-  tiers: { label: string; name: string; proj: number }[]; // elite/starter/flex/depth/repl
-};
-
-export type RosterHealth = {
-  byPos: PosStrength[];
-  strongest: string[];
-  weakest: string[];
-  tradeIdeas: { give: string; forNeed: string; rationale: string }[];
-  addDropIdeas: { pos: string; addName: string; gain: number; dropName?: string }[];
-};
-
 export type LeagueSummary = {
   league_id: string;
   name: string;
@@ -70,6 +51,4 @@ export type LeagueSummary = {
   benchCapacity: number;   // how many BN slots the league has
   benchCount: number;      // how many players currently on BN (excl. IR/Taxi)
   benchEmpty: number;      // benchCapacity - benchCount (min 0)
-  benchDetail?: { player_id: string; name: string; pos: string; proj: number }[]; // compact bench for health module
-  rosterHealth?: RosterHealth; // roster strength analysis
 };

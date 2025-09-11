@@ -31,20 +31,9 @@ export function buildFreeAgentPool(opts: {
   > = {};
 
   const push = (p: any, pr: Projection, pid: string, pos: string) => {
-    const playerName = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.full_name || String(pid);
-    
-    // Block suspicious/fake player names
-    if (playerName.toLowerCase().includes("ernsberger") || 
-        playerName.toLowerCase().includes("test") ||
-        playerName.toLowerCase() === "donnie ernsberger" ||
-        (!p.first_name && !p.last_name && !p.full_name)) {
-      console.warn(`🚨 Blocked suspicious player: ${playerName} (ID: ${pid})`);
-      return;
-    }
-    
     (byPos[pos] ||= []).push({
       player_id: pid,
-      name: playerName,
+      name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.full_name || String(pid),
       team: p.team,
       pos,
       proj: pr.proj,
