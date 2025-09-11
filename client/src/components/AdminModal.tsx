@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { parseProjections, buildProjectionIndex } from "@/lib/projections";
 import { saveProjections, loadProjections, clearProjections } from "@/lib/storage";
+import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { useToast } from "@/hooks/use-toast";
 import type { Projection } from "@shared/schema";
 
@@ -34,20 +35,49 @@ export default function AdminModal({ isOpen, onClose, currentWeek, currentSeason
 
   // Auto-load saved projections when season/week changes
   useEffect(() => {
-    const saved = loadProjections(currentSeason, selectedWeek);
-    if (saved?.rows?.length) {
-      // Check if server has data for this week
-      const currentServerData = queryClient.getQueryData(['/api/projections', currentSeason, selectedWeek]) as any[];
-      if (!currentServerData || currentServerData.length === 0) {
-        // Server is empty, auto-apply saved data
-        queryClient.setQueryData(['/api/projections', currentSeason, selectedWeek], saved.rows);
-        setUsingSavedMsg(`Auto-loaded saved projections (updated ${new Date(saved.updatedAt).toLocaleString()}) for Week ${selectedWeek}, ${currentSeason}.`);
+    (async () => {
+      const saved = loadProjections(currentSeason, selectedWeek);
+      if (saved?.rows?.length) {
+        // Check if server has data for this week
+        const currentServerData = queryClient.getQueryData(['/api/projections', currentSeason, selectedWeek]) as any[];
+        if (!currentServerData || currentServerData.length === 0) {
+          // Server is empty, auto-apply saved data
+          queryClient.setQueryData(['/api/projections', currentSeason, selectedWeek], saved.rows);
+          setUsingSavedMsg(`Auto-loaded saved projections (updated ${new Date(saved.updatedAt).toLocaleString()}) for Week ${selectedWeek}, ${currentSeason}.`);
+        } else {
+          setUsingSavedMsg(`Saved projections available (updated ${new Date(saved.updatedAt).toLocaleString()}) for Week ${selectedWeek}, ${currentSeason}.`);
+        }
       } else {
-        setUsingSavedMsg(`Saved projections available (updated ${new Date(saved.updatedAt).toLocaleString()}) for Week ${selectedWeek}, ${currentSeason}.`);
+        // Try to load built-in projections if no saved data
+        const currentServerData = queryClient.getQueryData(['/api/projections', currentSeason, selectedWeek]) as any[];
+        if (!currentServerData || currentServerData.length === 0) {
+          try {
+            console.log(`[AdminModal] Attempting to load built-in projections for ${currentSeason} W${selectedWeek}`);
+            const got = await loadBuiltInOrSaved({
+              season: currentSeason,
+              week: selectedWeek,
+              loadSaved: loadProjections,
+              saveSaved: saveProjections,
+              setProjections: (rows: any[]) => {
+                console.log(`[AdminModal] Got ${rows.length} built-in projections, setting in query cache`);
+                queryClient.setQueryData(['/api/projections', currentSeason, selectedWeek], rows);
+              },
+              setProjIdx: () => {},
+              setBanner: (msg: string | null) => {
+                setUsingSavedMsg(msg);
+                console.log(`[AdminModal] Built-in loader message: ${msg}`);
+              }
+            });
+            if (!got) {
+              setUsingSavedMsg(null);
+            }
+          } catch (error) {
+            console.log(`[AdminModal] Failed to load built-in projections:`, error);
+            setUsingSavedMsg(null);
+          }
+        }
       }
-    } else {
-      setUsingSavedMsg(null);
-    }
+    })();
   }, [currentSeason, selectedWeek, queryClient]);
 
   const { data: projections = [], isLoading } = useQuery<Projection[]>({
@@ -199,7 +229,7 @@ export default function AdminModal({ isOpen, onClose, currentWeek, currentSeason
                           <td className="px-4 py-3 font-medium">{proj.name}</td>
                           <td className="px-4 py-3">{proj.team || '-'}</td>
                           <td className="px-4 py-3">{proj.pos}</td>
-                          <td className="px-4 py-3 text-right">{proj.proj.toFixed(1)}</td>
+                          <td className="px-4 py-3 text-right">{Number(proj.proj).toFixed(1)}</td>
                           <td className="px-4 py-3">{proj.opp || '-'}</td>
                           <td className="px-4 py-3 text-center">
                             <button 

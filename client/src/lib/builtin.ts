@@ -3,26 +3,41 @@ import { buildProjectionIndex } from "./projections";
 
 export async function fetchBuiltInCSV(season: string, week: string | number) {
   const url = `/projections/${season}/week${String(week).padStart(2,"0")}.csv`;
+  console.log(`[builtin] Fetching CSV from: ${url}`);
   const res = await fetch(url, { cache: "no-store" });
+  console.log(`[builtin] Fetch response:`, res.status, res.statusText);
   if (!res.ok) throw new Error(`No built-in projections for ${season} W${week}`);
   const text = await res.text();
+  console.log(`[builtin] CSV text length:`, text.length);
   return new Promise<any[]>((resolve, reject) => {
     Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
       complete: (out) => {
+        console.log(`[builtin] Papa parse complete, raw data length: ${(out.data as any[]).length}`);
+        if (out.data.length > 0) {
+          console.log(`[builtin] Sample row:`, out.data[0]);
+        }
+        
         // Parse stats JSON strings to objects for proper league scoring
-        const rows = (out.data as any[]).map(row => {
+        const rows = (out.data as any[]).map((row, index) => {
+          // Convert proj to number
+          if (typeof row.proj === 'string') {
+            row.proj = parseFloat(row.proj) || 0;
+          }
+          
+          // Parse stats JSON strings to objects
           if (row.stats && typeof row.stats === 'string') {
             try {
               row.stats = JSON.parse(row.stats);
             } catch (e) {
-              console.warn('Failed to parse stats JSON for player:', row.name, e);
+              console.warn(`[builtin] Failed to parse stats JSON for player ${row.name} (row ${index}):`, e);
               row.stats = {};
             }
           }
           return row;
         });
+        console.log(`[builtin] Processed rows length: ${rows.length}, sample processed:`, rows[0]);
         resolve(rows);
       },
       error: reject

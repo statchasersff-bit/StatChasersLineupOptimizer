@@ -35,6 +35,7 @@ export default function Home() {
   // Built-in projections loader
   useEffect(() => {
     (async () => {
+      console.log(`[Home] Loading projections for season=${season}, week=${week}`);
       const got = await loadBuiltInOrSaved({
         season, week,
         loadSaved: loadProjections,
@@ -43,10 +44,12 @@ export default function Home() {
         setProjIdx: () => {}, // Will be handled by projIdx useMemo
         setBanner: setUsingSavedMsg
       });
+      console.log(`[Home] loadBuiltInOrSaved returned: ${got}, projections length:`, projections.length);
       if (!got) {
         // no built-in & nothing saved: user can upload manually
         setProjections([]);
         setUsingSavedMsg(null);
+        console.log(`[Home] No projections found, setting empty state`);
       }
     })();
   }, [season, week]);
