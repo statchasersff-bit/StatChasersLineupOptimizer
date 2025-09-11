@@ -1,0 +1,111 @@
+1) Add a tiny storage helper
+
+src/lib/storage.ts
+
+const KEY = (season: string, week: string | number) => `stc_proj_${season}_w${week}`;
+
+type StoredProjections = {
+  schema: 1;
+  updatedAt: string;          // ISO
+  rows: any[];                // parsed Projection rows (what you already use)
+};
+
+export function saveProjections(season: string, week: string | number, rows: any[]) {
+  const payload: StoredProjections = { schema: 1, updatedAt: new Date().toISOString(), rows };
+  localStorage.setItem(KEY(season, week), JSON.stringify(payload));
+}
+
+export function loadProjections(season: string, week: string | number): StoredProjections | null {
+  const raw = localStorage.getItem(KEY(season, week));
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+export function clearProjections(season: string, week: string | number) {
+  localStorage.removeItem(KEY(season, week));
+}
+
+2) Track week in App state (if you don’t already)
+
+In App.tsx:
+
+const [season, setSeason] = useState("2025");
+const [week, setWeek] = useState("15");        // <-- add week if not present
+const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
+
+
+Add a Week input/select near Season:
+
+<div>
+  <label className="text-sm font-medium">Week</label>
+  <input
+    className="mt-1 w-full border rounded px-3 py-2"
+    value={week}
+    onChange={(e) => setWeek(e.target.value)}
+  />
+</div>
+
+3) On upload: save per (season, week)
+
+In your existing upload handler:
+
+import { saveProjections, loadProjections, clearProjections } from "./lib/storage";
+import { buildProjectionIndex } from "./lib/projections";
+
+// ...
+async function handleUpload(file: File) {
+  const parsed = await parseProjections(file);
+  setProjections(parsed);
+  setProjIdx(buildProjectionIndex(parsed));
+  saveProjections(season, week, parsed);               // <-- persist for this week
+  setUsingSavedMsg(`Saved projections for Week ${week}, ${season}.`);
+}
+
+4) Auto-load saved projections when Season/Week changes
+
+Add an effect:
+
+useEffect(() => {
+  const saved = loadProjections(season, week);
+  if (saved?.rows?.length) {
+    setProjections(saved.rows);
+    setProjIdx(buildProjectionIndex(saved.rows));
+    setUsingSavedMsg(`Using saved projections (updated ${new Date(saved.updatedAt).toLocaleString()}) for Week ${week}, ${season}.`);
+  } else {
+    // no saved; clear current if you want a strict per-week mode
+    // setProjections([]); setProjIdx({});
+    setUsingSavedMsg(null);
+  }
+}, [season, week]);
+
+5) Small UI affordances in the admin panel
+
+Under your projections upload section:
+
+{usingSavedMsg && (
+  <div className="text-xs text-emerald-700">{usingSavedMsg}</div>
+)}
+<div className="flex gap-2">
+  <button
+    className="mt-2 rounded border px-3 py-1 text-sm"
+    onClick={() => {
+      const saved = loadProjections(season, week);
+      if (saved?.rows) {
+        setProjections(saved.rows);
+        setProjIdx(buildProjectionIndex(saved.rows));
+        setUsingSavedMsg(`Using saved projections (updated ${new Date(saved.updatedAt).toLocaleString()}).`);
+      }
+    }}
+  >
+    Use Saved for This Week
+  </button>
+  <button
+    className="mt-2 rounded border px-3 py-1 text-sm"
+    onClick={() => {
+      clearProjections(season, week);
+      setUsingSavedMsg(null);
+    }}
+  >
+    Clear Saved for This Week
+  </button>
+</div>
