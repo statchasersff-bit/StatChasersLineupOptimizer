@@ -153,7 +153,12 @@ export default function Home() {
               adj = 0; // no projection found
             }
 
-            return { ...lite, proj: adj, opp: pr?.opp };
+            // Check if player is OUT and set projection to 0
+            const flags = statusFlags({ ...lite, proj: adj, opp: pr?.opp });
+            const isOut = flags.includes("OUT");
+            const finalProj = isOut ? 0 : adj;
+            
+            return { ...lite, proj: finalProj, opp: pr?.opp };
           };
 
           const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];
