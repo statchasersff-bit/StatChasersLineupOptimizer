@@ -4,6 +4,7 @@ import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpre
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getPlayersIndex } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
+import { isPlayerLocked } from "@/lib/gameLocking";
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
@@ -27,7 +28,6 @@ export default function Home() {
   const [considerWaivers, setConsiderWaivers] = useState(true);
   const [filterDynasty, setFilterDynasty] = useState(false);
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
-  const [showOnlyEmptyBench, setShowOnlyEmptyBench] = useState(false);
   const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
   const { toast } = useToast();
@@ -158,14 +158,17 @@ export default function Home() {
             const isOut = flags.includes("OUT");
             const finalProj = isOut ? 0 : adj;
             
-            return { ...lite, proj: finalProj, opp: pr?.opp };
+            // Check if player is locked (team already played)
+            const locked = isPlayerLocked(lite, season, week);
+            
+            return { ...lite, proj: finalProj, opp: pr?.opp, locked };
           };
 
           const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];
           const benchObjs = bench.map(addWithProj).filter(Boolean) as any[];
           const allEligible = [...starterObjs, ...benchObjs];
 
-          const optimalSlots = optimizeLineup(slotCounts, allEligible);
+          const optimalSlots = optimizeLineup(slotCounts, allEligible, season, week, starters);
           const optimalTotal = sumProj(optimalSlots);
 
           // Calculate current total
@@ -190,16 +193,18 @@ export default function Home() {
               projIdx,
             });
 
-            // Score the FA pool using league scoring
+            // Score the FA pool using league scoring and filter out locked players
             const scoredFAs: Record<string, { player_id: string; name: string; team?: string; pos: string; proj: number; opp?: string }[]> = {};
             for (const pos of Object.keys(faByPos)) {
-              scoredFAs[pos] = faByPos[pos].map((fa) => {
-                // look up full projection row by id (for stat-level)
-                const pr = projIdx[fa.player_id];
-                const stats = (pr as any)?.stats || {};
-                const adj = scoreByLeague(pos, stats, scoring, pr?.proj ?? fa.proj);
-                return { ...fa, proj: adj };
-              }).sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
+              scoredFAs[pos] = faByPos[pos]
+                .filter(fa => !isPlayerLocked(fa, season, week)) // Filter out locked free agents
+                .map((fa) => {
+                  // look up full projection row by id (for stat-level)
+                  const pr = projIdx[fa.player_id];
+                  const stats = (pr as any)?.stats || {};
+                  const adj = scoreByLeague(pos, stats, scoring, pr?.proj ?? fa.proj);
+                  return { ...fa, proj: adj };
+                }).sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
             }
 
             // For each starting slot, see if the best eligible FA beats your CURRENT player
@@ -496,15 +501,6 @@ export default function Home() {
               Sort Alphabetically
             </label>
 
-            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-empty-bench">
-              <input
-                type="checkbox"
-                checked={showOnlyEmptyBench}
-                onChange={(e) => setShowOnlyEmptyBench(e.target.checked)}
-                className="rounded border-input"
-              />
-              Show leagues with empty bench spots
-            </label>
           </div>
           
           <div className="mt-3 text-xs" data-testid="text-projections-status">
@@ -542,15 +538,7 @@ export default function Home() {
         <section className="space-y-3">
           {sortedSummaries.length > 0 ? (
             <>
-              {showOnlyEmptyBench && (
-                <div className="text-xs text-gray-500 mb-2">
-                  Showing {
-                    sortedSummaries.filter(s => (s.benchEmpty ?? 0) > 0).length
-                  } of {sortedSummaries.length} leagues with empty bench spots
-                </div>
-              )}
-              {(showOnlyEmptyBench ? sortedSummaries.filter(s => (s.benchEmpty ?? 0) > 0) : sortedSummaries)
-                .map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)}
+              {sortedSummaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)}
             </>
           ) : (
             <div className="text-center text-muted-foreground py-12">

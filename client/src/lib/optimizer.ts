@@ -1,5 +1,6 @@
 import type { Projection, PlayerLite, RosterSlot } from "./types";
 import { normalizePos } from "./projections";
+import { filterUnlockedPlayers } from "./gameLocking";
 
 const FLEX_ELIGIBILITY: Record<string, string[]> = {
   FLEX: ["RB","WR","TE"],
@@ -40,7 +41,7 @@ export function toPlayerLite(playersIndex: Record<string, any>, player_id: strin
   };
 }
 
-export function statusFlags(p?: PlayerLite & { proj?: number; opp?: string }) {
+export function statusFlags(p?: PlayerLite & { proj?: number; opp?: string; locked?: boolean }) {
   const flags: string[] = [];
   if (!p) return flags;
   const s = (p.injury_status || "").toUpperCase();
@@ -49,6 +50,7 @@ export function statusFlags(p?: PlayerLite & { proj?: number; opp?: string }) {
   if (s.includes("SUS")) flags.push("SUS");
   if (s.includes("QUE")) flags.push("Q"); // Questionable
   if ((p.opp || "").toUpperCase() === "BYE") flags.push("BYE");
+  if (p.locked) flags.push("LOCKED");
   return flags;
 }
 
@@ -56,17 +58,39 @@ function byProjDesc(a: any, b: any) { return (b.proj ?? 0) - (a.proj ?? 0); }
 
 export function optimizeLineup(
   slotsMap: Record<string, number>,
-  players: (PlayerLite & { proj?: number; opp?: string })[]
+  players: (PlayerLite & { proj?: number; opp?: string })[],
+  season?: string,
+  week?: string,
+  currentStarters?: (string | null)[]
 ): RosterSlot[] {
   const slotList: string[] = [];
   Object.entries(slotsMap).forEach(([slot, n]) => { for (let i=0;i<n;i++) slotList.push(slot); });
 
-  const sorted = [...players].sort(byProjDesc);
   const filled: RosterSlot[] = slotList.map((s) => ({ slot: s }));
   const used = new Set<string>();
 
-  // fill fixed positions first
+  // Step 1: If we have current starters, preserve any locked players in their current positions
+  if (currentStarters && season && week) {
+    for (let i = 0; i < Math.min(currentStarters.length, filled.length); i++) {
+      const starterId = currentStarters[i];
+      if (!starterId || starterId === "0" || starterId === "") continue;
+      
+      const player = players.find(p => p.player_id === starterId);
+      if (player && (player as any).locked) {
+        // Keep locked player in their current position
+        filled[i].player = player;
+        used.add(player.player_id);
+      }
+    }
+  }
+
+  // Step 2: For remaining slots, optimize using only unlocked players
+  const availablePlayers = season && week ? filterUnlockedPlayers(players, season, week) : players;
+  const sorted = [...availablePlayers].sort(byProjDesc);
+
+  // fill fixed positions first (skip already filled locked positions)
   for (let i=0;i<filled.length;i++){
+    if (filled[i].player) continue; // Skip locked positions
     const slot = filled[i].slot;
     if (isFlex(slot)) continue;
     const idx = sorted.findIndex(p =>
@@ -75,10 +99,11 @@ export function optimizeLineup(
     );
     if (idx !== -1) { filled[i].player = sorted[idx]; used.add(sorted[idx].player_id); }
   }
-  // then flex
+  // then flex (skip already filled locked positions)
   for (let i=0;i<filled.length;i++){
+    if (filled[i].player) continue; // Skip locked positions
     const slot = filled[i].slot;
-    if (!isFlex(slot) && filled[i].player) continue;
+    if (!isFlex(slot)) continue;
     const elig = FLEX_ELIGIBILITY[slot.toUpperCase()] || [];
     const idx = sorted.findIndex(p => {
       if (used.has(p.player_id)) return false;
