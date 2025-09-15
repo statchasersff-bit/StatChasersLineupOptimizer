@@ -13,6 +13,7 @@ import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 import LeagueCard from "@/components/LeagueCard";
+import { LeagueListSkeleton } from "@/components/ui/league-skeleton";
 import AdminModal from "@/components/AdminModal";
 import { useToast } from "@/hooks/use-toast";
 
@@ -536,7 +537,9 @@ export default function Home() {
 
         {/* Leagues Analysis Section */}
         <section className="space-y-3">
-          {sortedSummaries.length > 0 ? (
+          {isAnalyzing ? (
+            <LeagueListSkeleton />
+          ) : sortedSummaries.length > 0 ? (
             <>
               {sortedSummaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)}
             </>
@@ -571,10 +574,6 @@ export default function Home() {
                 <Share className="w-4 h-4" />
                 Share Analysis Link
               </button>
-              <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:bg-primary/90 transition-colors flex items-center gap-2" data-testid="button-embed">
-                <Code className="w-4 h-4" />
-                Embed on WordPress
-              </button>
             </div>
           </div>
         )}
@@ -600,17 +599,17 @@ export default function Home() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold mb-3">WordPress Ready</h3>
-              <p className="text-sm text-muted-foreground">
-                Embed this tool on your WordPress site using iframe or direct integration.
+              <h3 className="font-semibold mb-3">Version Info</h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                Model v0.3 • Updated Sep 14, 2025
               </p>
-              <button className="mt-2 text-primary hover:text-primary/80 text-sm font-medium">
-                Get Embed Code →
-              </button>
+              <p className="text-xs text-muted-foreground">
+                Always using the latest projections and optimizations.
+              </p>
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-            © 2024 StatChasers Lineup Checker. Powered by Sleeper API.
+            © 2025 StatChasers Lineup Checker. Powered by Sleeper API.
           </div>
         </div>
       </footer>
