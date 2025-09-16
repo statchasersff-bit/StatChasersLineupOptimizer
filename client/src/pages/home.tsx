@@ -357,7 +357,13 @@ export default function Home() {
             autoSubConfig
           });
         } catch (err) {
-          console.warn("League failed", lg?.name, err);
+          console.warn("League failed", lg?.name, {
+            error: err,
+            message: err instanceof Error ? err.message : 'Unknown error',
+            stack: err instanceof Error ? err.stack : undefined,
+            leagueId: lg?.league_id,
+            name: lg?.name
+          });
         }
       }
 
