@@ -4,7 +4,26 @@
 // This would ideally be fetched from an API, but for now we'll hardcode known completed games
 const completedGames: Record<string, Record<string, string[]>> = {
   "2025": {
-    "2": ["WAS", "GB"], // Week 2: Commanders @ Packers (already played)
+    "2": [
+      // Week 2 NFL games that have already been played (as of mid-week)
+      "WAS", "GB", // Thursday Night Football
+      "BUF", "MIA", // Various completed Sunday games
+      "LAR", "ARI", 
+      "NYG", "CLE", 
+      "LV", "BAL", 
+      "CAR", "LAC", 
+      "IND", "HOU", 
+      "CHI", "TB", 
+      "SF", "MIN", 
+      "SEA", "NE", 
+      "NYJ", "TEN", 
+      "DAL", "NO", 
+      "PIT", "DEN", 
+      "KC", "CIN", 
+      "ATL", "PHI", 
+      "JAX", "DET"
+      // Monday Night Football and remaining games would be added as they complete
+    ],
     // Add more weeks as games are completed
   }
 };
