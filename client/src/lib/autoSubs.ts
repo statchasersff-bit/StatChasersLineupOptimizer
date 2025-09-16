@@ -63,13 +63,23 @@ export function isEligibleForSlot(benchPlayer: PlayerLite, starterSlot: string):
   // Direct position match
   if (benchPos === slotNorm) return true;
   
-  // FLEX eligibility
-  if (slotNorm === 'FLEX') {
+  // Flex slot eligibility (expanded to match FA logic)
+  if (slotNorm === 'FLEX' || slotNorm === 'WRT' || slotNorm === 'WRTQ' || slotNorm === 'REC_FLEX') {
+    return ['RB', 'WR', 'TE'].includes(benchPos);
+  }
+  
+  // RB/WR flex slots
+  if (slotNorm === 'RB_WR') {
+    return ['RB', 'WR'].includes(benchPos);
+  }
+  
+  // RB/WR/TE flex slots
+  if (slotNorm === 'RB_WR_TE') {
     return ['RB', 'WR', 'TE'].includes(benchPos);
   }
   
   // SUPER_FLEX eligibility
-  if (slotNorm === 'SUPER_FLEX') {
+  if (slotNorm === 'SUPER_FLEX' || slotNorm === 'OP') {
     return ['QB', 'RB', 'WR', 'TE'].includes(benchPos);
   }
   
@@ -78,13 +88,25 @@ export function isEligibleForSlot(benchPlayer: PlayerLite, starterSlot: string):
     const multiNormalized = benchPlayer.multiPos.map(normalizePos);
     if (multiNormalized.includes(slotNorm)) return true;
     
-    // FLEX check for multi-pos
-    if (slotNorm === 'FLEX' && multiNormalized.some(pos => ['RB', 'WR', 'TE'].includes(pos))) {
+    // Check flex eligibility for multi-pos players
+    if ((slotNorm === 'FLEX' || slotNorm === 'WRT' || slotNorm === 'WRTQ' || slotNorm === 'REC_FLEX') && 
+        multiNormalized.some(pos => ['RB', 'WR', 'TE'].includes(pos))) {
+      return true;
+    }
+    
+    // RB/WR flex for multi-pos
+    if (slotNorm === 'RB_WR' && multiNormalized.some(pos => ['RB', 'WR'].includes(pos))) {
+      return true;
+    }
+    
+    // RB/WR/TE flex for multi-pos
+    if (slotNorm === 'RB_WR_TE' && multiNormalized.some(pos => ['RB', 'WR', 'TE'].includes(pos))) {
       return true;
     }
     
     // SUPER_FLEX check for multi-pos
-    if (slotNorm === 'SUPER_FLEX' && multiNormalized.some(pos => ['QB', 'RB', 'WR', 'TE'].includes(pos))) {
+    if ((slotNorm === 'SUPER_FLEX' || slotNorm === 'OP') && 
+        multiNormalized.some(pos => ['QB', 'RB', 'WR', 'TE'].includes(pos))) {
       return true;
     }
   }
@@ -158,14 +180,15 @@ export function findAutoSubRecommendations({
 }): AutoSubRecommendation[] {
   const recommendations: AutoSubRecommendation[] = [];
   
-  // Filter for questionable starters only
-  const questionableStarters = starters.filter(p => {
-    const status = (p.injury_status || "").toUpperCase();
-    return status.includes("QUE"); // Questionable
-  });
-  
-  questionableStarters.forEach((starter, index) => {
-    const slot = rosterPositions[index] || 'FLEX';
+  // Iterate through all starters with original index to maintain slot mapping
+  starters.forEach((starter, originalIndex) => {
+    const status = (starter.injury_status || "").toUpperCase();
+    // Check for actual Sleeper injury status codes
+    const isQuestionable = status === "Q" || status === "QUESTIONABLE" || status === "D" || status === "DOUBTFUL";
+    
+    if (!isQuestionable) return;
+    
+    const slot = rosterPositions[originalIndex] || 'FLEX';
     const starterWithSlot = { ...starter, slot };
     
     const suggestions = suggestAutoSubs({
