@@ -11,9 +11,11 @@ import { scoreByLeague } from "@/lib/scoring";
 import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
 import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
+import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 import LeagueCard from "@/components/LeagueCard";
 import { LeagueListSkeleton } from "@/components/ui/league-skeleton";
+import { AutoSubBanner } from "@/components/ui/auto-sub-chip";
 import AdminModal from "@/components/AdminModal";
 import { useToast } from "@/hooks/use-toast";
 

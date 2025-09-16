@@ -15,6 +15,7 @@ export type PlayerLite = {
   pos: string;         // primary fantasy position
   multiPos: string[];  // fantasy_positions array
   injury_status?: string; // OUT/DOUBTFUL/SUSPENDED/etc
+  gameStart?: number;  // Game start time for auto-sub timing
 };
 
 export type RosterSlot = {
@@ -51,4 +52,6 @@ export type LeagueSummary = {
   benchCapacity: number;   // how many BN slots the league has
   benchCount: number;      // how many players currently on BN (excl. IR/Taxi)
   benchEmpty: number;      // benchCapacity - benchCount (min 0)
+  autoSubRecommendations?: import('./autoSubs').AutoSubRecommendation[]; // auto-sub suggestions for Q starters
+  autoSubConfig?: import('./autoSubs').AutoSubConfig; // league auto-sub configuration
 };

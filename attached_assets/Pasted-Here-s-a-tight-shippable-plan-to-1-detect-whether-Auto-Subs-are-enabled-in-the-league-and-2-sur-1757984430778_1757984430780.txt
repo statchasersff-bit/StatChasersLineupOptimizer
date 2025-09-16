@@ -1,0 +1,161 @@
+Here’s a tight, shippable plan to (1) detect whether Auto-Subs are enabled in the league and (2) surface smart, legal “pre-designations” for any Q starters so managers can tap once to set a backup in Sleeper.
+
+What Auto-Subs actually do (so we recommend the right thing)
+
+Mechanic: Commissioners can enable Player Auto-Subs; managers then designate a bench sub per starter. If the starter is inactive at kickoff, the sub is placed in the lineup automatically. It does not trigger just because the player is Questionable; they must be ruled Out by kickoff. 
+Sleeper Support Center
++1
+
+Optional rule: leagues can require the sub’s game to start at the same time or later than the starter’s game. 
+Sleeper Support Center
+
+1) Detect if the league uses Auto-Subs
+
+The Sleeper API returns league settings at:
+
+GET https://api.sleeper.app/v1/league/{league_id}
+
+
+You’ll get a settings object. Sleeper’s docs are sparse on exact key names, so code defensively: look for a numeric flag that represents allowed subs/week (e.g., player_autosubs, auto_subs, autosubs). If it’s > 0, the feature is on. Also look for a boolean like player_autosubs_require_later_start (name may vary) to respect the “later start” rule.
+
+async function getLeagueAutoSubConfig(leagueId){
+  const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}`);
+  const league = await res.json();
+  const s = league.settings || {};
+
+  // Heuristic detection (be resilient to key naming)
+  const subKeys = Object.keys(s).filter(k => k.toLowerCase().includes('sub'));
+  const allowedPerWeek = subKeys
+    .map(k => Number(s[k]))
+    .find(v => !Number.isNaN(v) && v > 0) || 0;
+
+  const requireLaterStart = !!(
+    s.player_autosubs_require_later_start ||
+    s.autosubs_require_later_start ||
+    s.auto_subs_require_later_start
+  );
+
+  return { enabled: allowedPerWeek > 0, allowedPerWeek, requireLaterStart, raw: s };
+}
+
+
+Why this works: Sleeper confirms Auto-Subs is a league setting that commissioners toggle; reading the league object is the canonical way. 
+docs.sleeper.com
++1
+
+2) Find Q starters and propose legal Auto-Subs
+
+Goal: For every Questionable starter, propose one or two eligible bench subs that (a) meet position rules, (b) meet the “later-start” constraint if enabled, and (c) maximize projected fantasy points for your league’s scoring.
+
+Data you’ll need (all Sleeper):
+
+Rosters + player IDs to know starters vs bench. GET /v1/league/{league_id}/rosters 
+Go Packages
+
+Player statuses to know who is Q / D / O. (Sleeper tracks gameday designations; statuses can flip week-to-week.) 
+Sleeper Support Center
+
+Game start times per player to enforce the later-start rule if your league requires it (often available in projections/research payloads). If not present, display a small disclaimer and skip the constraint; you’re still helpful. 
+Go Packages
+
+Projections for the current week (you can already blend yours with Sleeper’s). GET /projections/nfl/{season}/{week} 
+Go Packages
+
+Selection algorithm (per Q starter)
+
+Eligible pool: bench players whose position qualifies for the starter’s slot (RB→RB; FLEX→RB/WR/TE; etc.).
+
+Time gate (optional): if requireLaterStart is true, keep only subs whose kickoff ≥ starter’s kickoff. 
+Sleeper Support Center
+
+Rank by projected points (your scoring).
+
+Ties/breakers: prefer higher snap share, larger target share (WR/TE), or rush attempts (RB).
+
+Output: “Set ___ as Auto-Sub for ___” with a short reason (e.g., “Proj +2.1; plays later; soft CB matchup”).
+
+function suggestAutoSubs({starter, bench, projections, requireLaterStart}) {
+  const starterKick = starter.gameStart ?? 0;
+  const eligible = bench.filter(p => isEligibleForSlot(p, starter.slot))
+    .filter(p => !requireLaterStart || (p.gameStart ?? Infinity) >= starterKick)
+    .map(p => ({
+      player: p,
+      proj: projections[p.id] ?? 0,
+      floor: projections[p.id + ':floor'] ?? null // if you compute one
+    }))
+    .sort((a,b) => (b.proj - a.proj) || ((b.floor ?? -1) - (a.floor ?? -1)));
+
+  return eligible.slice(0, 2); // top 1–2 subs
+}
+
+3) UX: make it obvious & trustworthy
+
+Inline chips: Tag Q starters with a small gold “Auto-Sub?” chip. Clicking opens a side panel with your top 1–2 suggestions and the “why.”
+
+Explain the rule: “Auto-Subs only fire if this player is INACTIVE at kickoff. If they’re active, your starter remains.” (link to “How Auto-Subs work”). 
+Sleeper Support Center
+
+Respect league config: If disabled, show a muted banner: “Your league doesn’t have Auto-Subs enabled. Ask your commish to turn it on in Settings.” 
+Sleeper Support Center
+
+Later-start notice: If the league requires later starts, show a tiny lock icon + tooltip: “Sub must start at or after your starter’s game.” 
+Sleeper Support Center
+
+Copy-paste helper: Because the Sleeper public API is read-only, include a “Copy instructions” button that pastes a step-by-step to the clipboard (how to set the Auto-Sub in the app).
+
+Example helper text (1-click copy):
+
+In Sleeper: open your lineup → tap the bench player → Set AutoSub → choose {Starter} in the {Slot}. Make sure both games haven’t started yet, and that the sub’s game is not earlier than the starter’s (your league requires this).
+
+4) Edge cases you should guard
+
+Thursday vs Sunday: If the likely sub plays before a late-window Q starter and the league enforces later-start, flag this early and recommend a different sub (or warn that no legal subs exist).
+
+Multi-FLEX leagues: When the starter is in FLEX, ensure your eligibility check mirrors Sleeper’s exact rules (RB/WR/TE; K/DEF never).
+
+K/DEF: Don’t propose Auto-Subs for these unless your league explicitly allows it (rare).
+
+Rate limiting: Cache league settings and kickoff times for 5–10 minutes to avoid hammering Sleeper endpoints. 
+docs.sleeper.com
+
+5) Quick drop-ins you can paste now
+
+Detect + surface a banner
+
+const { enabled, requireLaterStart } = await getLeagueAutoSubConfig(leagueId);
+renderBanner(enabled
+  ? (requireLaterStart
+      ? "Auto-Subs: ON • Sub must start at/after the starter’s game."
+      : "Auto-Subs: ON • No later-start restriction.")
+  : "Auto-Subs: OFF • Ask your commish to enable in League Settings.");
+
+
+Mark Q starters & attach suggestions
+
+starters.filter(p => p.status === 'Q').forEach(qp => {
+  const picks = suggestAutoSubs({
+    starter: qp,
+    bench,
+    projections,
+    requireLaterStart
+  });
+  ui.attachAutoSubChip(qp.id, picks); // Your UI hook
+});
+
+
+Nice-to-have (copyable instructions)
+
+function subInstructions(starterName, slot){
+  return `Sleeper › Lineup › tap your bench player › "Set AutoSub" › choose ${starterName} (${slot}). ` +
+    `Needs both games unstarted${requireLaterStart ? " and sub cannot be earlier" : ""}.`;
+}
+
+6) Why this is worth it
+
+It’s league-aware (doesn’t nag when the feature is off).
+
+It’s actionable (top 1–2 subs, with context).
+
+It teaches without walls of text (chips + tooltips).
+
+It builds brand trust: you align perfectly with how Sleeper documents the feature and its constraints
