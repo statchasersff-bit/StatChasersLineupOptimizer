@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import type { LeagueSummary } from "../lib/types";
 import { statusFlags } from "../lib/optimizer";
 import { buildLineupDiff } from "../lib/diff";
+import { AutoSubChip, AutoSubBanner } from "./ui/auto-sub-chip";
 
 export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
   const [open, setOpen] = useState(false);
@@ -12,6 +13,15 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
 
   return (
     <div className="rounded-2xl shadow border" data-testid={`card-league-${lg.league_id}`}>
+      {/* Auto-Sub Banner */}
+      {lg.autoSubConfig && (
+        <AutoSubBanner 
+          enabled={lg.autoSubConfig.enabled}
+          requireLaterStart={lg.autoSubConfig.requireLaterStart}
+          allowedPerWeek={lg.autoSubConfig.allowedPerWeek}
+        />
+      )}
+      
       {/* Header Row (always visible) */}
       <button
         className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 rounded-2xl transition-colors"
@@ -70,11 +80,24 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                   // Only highlight if player is truly being removed from lineup (not in optimal at all)
                   const optimalIds = new Set(lg.optimalSlots.map(s => s.player?.player_id).filter(Boolean));
                   const isBeingBenched = !optimalIds.has(pid);
+                  // Find auto-sub recommendation for this starter
+                  const autoSubRec = lg.autoSubRecommendations?.find(rec => rec.starter.player_id === pid);
+                  
                   return (
                     <li key={i} className={`text-sm p-1 rounded ${isBeingBenched ? 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300' : ''}`} data-testid={`row-current-${i}`}>
-                      <span className="inline-block w-28 font-mono">{slot}</span>
-                      {cur ? `${cur.name} (${cur.pos}) — ${cur.proj?.toFixed(2) ?? "0.00"}` : `player_id ${pid}`}
-                      {flags.length > 0 && <span className="ml-2 text-xs text-amber-600">[{flags.join(", ")}]</span>}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="inline-block w-28 font-mono">{slot}</span>
+                          {cur ? `${cur.name} (${cur.pos}) — ${cur.proj?.toFixed(2) ?? "0.00"}` : `player_id ${pid}`}
+                          {flags.length > 0 && <span className="ml-2 text-xs text-amber-600">[{flags.join(", ")}]</span>}
+                        </div>
+                        {autoSubRec && (
+                          <AutoSubChip 
+                            recommendation={autoSubRec}
+                            requireLaterStart={lg.autoSubConfig?.requireLaterStart || false}
+                          />
+                        )}
+                      </div>
                     </li>
                   );
                 })}

@@ -82,6 +82,11 @@ export default function Home() {
     setIsAnalyzing(true);
     try {
       const user = await getUserByName(username.trim());
+      if (!user || !user.user_id) {
+        toast({ title: "Error", description: `User "${username.trim()}" not found on Sleeper`, variant: "destructive" });
+        setIsAnalyzing(false);
+        return;
+      }
       const lgs = await getUserLeagues(user.user_id, season);
 
       // EXCLUDE Best Ball leagues by default and optionally dynasty leagues
@@ -316,6 +321,21 @@ export default function Home() {
           // Empty bench slots (never negative)
           const benchEmpty = Math.max(0, benchCapacity - benchCount);
 
+          // Get auto-sub configuration for this league
+          const autoSubConfig = await getLeagueAutoSubConfig(lg.league_id);
+          
+          // Generate auto-sub recommendations for questionable starters
+          let autoSubRecommendations: any[] = [];
+          if (autoSubConfig.enabled) {
+            autoSubRecommendations = findAutoSubRecommendations({
+              starters: starterObjs,
+              bench: benchObjs,
+              rosterPositions: fixedSlots.filter((s: string) => !["BN","IR","TAXI"].includes(s)),
+              projections: projIdx,
+              requireLaterStart: autoSubConfig.requireLaterStart
+            });
+          }
+
           out.push({
             league_id: lg.league_id,
             name: lg.name,
@@ -333,6 +353,8 @@ export default function Home() {
             benchCapacity,
             benchCount,
             benchEmpty,
+            autoSubRecommendations,
+            autoSubConfig
           });
         } catch (err) {
           console.warn("League failed", lg?.name, err);
