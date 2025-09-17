@@ -271,15 +271,24 @@ export default function Home() {
             for (const slot of Object.keys(slotToCurrent)) {
               let bestFA: any = null;
 
-              // Choose from scoredFAs across positions that can fill this slot
+              // Collect ALL eligible candidates across all positions first, then pick highest projected
+              const eligibleCandidates: any[] = [];
+              
               for (const pos of Object.keys(scoredFAs)) {
                 if (!canFill(slot, pos)) continue;
                 for (const cand of scoredFAs[pos]) {
-                  const key = cand.player_id; // avoid suggesting same FA for multiple slots
+                  const key = cand.player_id;
                   if (seen[key]) continue;
-                  if (currentIds.has(cand.player_id)) continue; // skip suggesting someone already starting
-                  bestFA = bestFA && bestFA.proj > cand.proj ? bestFA : cand;
+                  if (currentIds.has(cand.player_id)) continue;
+                  eligibleCandidates.push(cand);
                 }
+              }
+              
+              // Now pick the candidate with the highest projection
+              if (eligibleCandidates.length > 0) {
+                bestFA = eligibleCandidates.reduce((best, current) => 
+                  (current.proj ?? 0) > (best.proj ?? 0) ? current : best
+                );
               }
 
 
@@ -340,11 +349,17 @@ export default function Home() {
           // Generate auto-sub recommendations for questionable starters
           let autoSubRecommendations: any[] = [];
           if (autoSubConfig.enabled) {
+            // Create simplified projections map for auto-sub function
+            const simpleProjections: Record<string, number> = {};
+            for (const [key, proj] of Object.entries(projIdx)) {
+              simpleProjections[key] = proj.proj || 0;
+            }
+            
             autoSubRecommendations = findAutoSubRecommendations({
               starters: starterObjs,
               bench: benchObjs,
               rosterPositions: fixedSlots.filter((s: string) => !["BN","IR","TAXI"].includes(s)),
-              projections: projIdx,
+              projections: simpleProjections,
               requireLaterStart: autoSubConfig.requireLaterStart
             });
           }
