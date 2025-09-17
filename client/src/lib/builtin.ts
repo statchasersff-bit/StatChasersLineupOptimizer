@@ -19,22 +19,49 @@ export async function fetchBuiltInCSV(season: string, week: string | number) {
           console.log(`[builtin] Sample row:`, out.data[0]);
         }
         
-        // Parse stats JSON strings to objects for proper league scoring
+        // Handle both old format (JSON stats) and new format (individual stat columns)
         const rows = (out.data as any[]).map((row, index) => {
           // Convert proj to number
           if (typeof row.proj === 'string') {
             row.proj = parseFloat(row.proj) || 0;
           }
           
-          // Parse stats JSON strings to objects
+          // Check if this is old format (has stats column) or new format (individual columns)
           if (row.stats && typeof row.stats === 'string') {
+            // Old format: Parse stats JSON strings to objects
             try {
               row.stats = JSON.parse(row.stats);
             } catch (e) {
               console.warn(`[builtin] Failed to parse stats JSON for player ${row.name} (row ${index}):`, e);
               row.stats = {};
             }
+          } else {
+            // New format: Collect individual stat columns into stats object
+            const stats: Record<string, number> = {};
+            const statColumns = [
+              "pass_att", "pass_comp", "pass_yd", "pass_td", "pass_int",
+              "rush_att", "rush_yd", "rush_td",
+              "rec", "rec_yd", "rec_td",
+              "fum_lost", "two_pt",
+              "xpm", "xpa", "fgm_0_19", "fgm_20_29", "fgm_30_39", "fgm_40_49", "fgm_50p",
+              "sacks", "defs_int", "defs_fum_rec", "defs_td", "safety", "blk_kick", "ret_td", "pts_allowed"
+            ];
+            
+            for (const column of statColumns) {
+              if (row[column] !== undefined && row[column] !== null && row[column] !== '') {
+                const val = parseFloat(row[column]);
+                if (!isNaN(val)) {
+                  stats[column] = val;
+                }
+              }
+            }
+            row.stats = stats;
+            
+            // Add missing week/season for new format
+            if (!row.week) row.week = week;
+            if (!row.season) row.season = season;
           }
+          
           return row;
         });
         console.log(`[builtin] Processed rows length: ${rows.length}, sample processed:`, rows[0]);
