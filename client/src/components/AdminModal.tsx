@@ -225,7 +225,7 @@ export default function AdminModal({ isOpen, onClose, currentWeek, currentSeason
                       </tr>
                     ) : (
                       projections.map((proj, index) => (
-                        <tr key={proj.id} className="projection-row" data-testid={`row-projection-${index}`}>
+                        <tr key={proj.id || `${proj.name}-${proj.pos}-${index}`} className="projection-row" data-testid={`row-projection-${index}`}>
                           <td className="px-4 py-3 font-medium">{proj.name}</td>
                           <td className="px-4 py-3">{proj.team || '-'}</td>
                           <td className="px-4 py-3">{proj.pos}</td>
