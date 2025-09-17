@@ -1,75 +1,69 @@
 import Papa from "papaparse";
 import { buildProjectionIndex } from "./projections";
+import { parseProjectionsFile, coerceProjectionRow } from "./csv-utils";
 
 export async function fetchBuiltInCSV(season: string, week: string | number) {
-  const url = `/projections/${season}/week${String(week).padStart(2,"0")}.csv`;
+  const url = `/projections/${season}/week${String(week).padStart(2,"0")}.csv?v=${Date.now()}`;
   console.log(`[builtin] Fetching CSV from: ${url}`);
   const res = await fetch(url, { cache: "no-store" });
   console.log(`[builtin] Fetch response:`, res.status, res.statusText);
   if (!res.ok) throw new Error(`No built-in projections for ${season} W${week}`);
   const text = await res.text();
   console.log(`[builtin] CSV text length:`, text.length);
-  return new Promise<any[]>((resolve, reject) => {
-    Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (out) => {
-        console.log(`[builtin] Papa parse complete, raw data length: ${(out.data as any[]).length}`);
-        if (out.data.length > 0) {
-          console.log(`[builtin] Sample row:`, out.data[0]);
+  
+  try {
+    const rawRows = await parseProjectionsFile(text);
+    console.log(`[builtin] Bullet-proof parse complete, raw data length: ${rawRows.length}`);
+    if (rawRows.length > 0) {
+      console.log(`[builtin] Sample raw row:`, rawRows[0]);
+    }
+    
+    // Handle both old format (JSON stats) and new format (individual stat columns)
+    const rows = rawRows.map((row, index) => {
+      // Apply robust number coercion
+      const processed = coerceProjectionRow(row);
+      
+      // Check if this is old format (has stats column) or new format (individual columns)
+      if (processed.stats && typeof processed.stats === 'string') {
+        // Old format: Parse stats JSON strings to objects
+        try {
+          processed.stats = JSON.parse(processed.stats);
+        } catch (e) {
+          console.warn(`[builtin] Failed to parse stats JSON for player ${processed.name} (row ${index}):`, e);
+          processed.stats = {};
         }
+      } else {
+        // New format: Collect individual stat columns into stats object
+        const stats: Record<string, number> = {};
+        const statColumns = [
+          "pass_att", "pass_comp", "pass_yd", "pass_td", "pass_int",
+          "rush_att", "rush_yd", "rush_td",
+          "rec", "rec_yd", "rec_td",
+          "fum_lost", "two_pt",
+          "xpm", "xpa", "fgm_0_19", "fgm_20_29", "fgm_30_39", "fgm_40_49", "fgm_50p",
+          "sacks", "defs_int", "defs_fum_rec", "defs_td", "safety", "blk_kick", "ret_td", "pts_allowed"
+        ];
         
-        // Handle both old format (JSON stats) and new format (individual stat columns)
-        const rows = (out.data as any[]).map((row, index) => {
-          // Convert proj to number
-          if (typeof row.proj === 'string') {
-            row.proj = parseFloat(row.proj) || 0;
+        for (const column of statColumns) {
+          if (processed[column] !== undefined && processed[column] !== null) {
+            stats[column] = processed[column];
           }
-          
-          // Check if this is old format (has stats column) or new format (individual columns)
-          if (row.stats && typeof row.stats === 'string') {
-            // Old format: Parse stats JSON strings to objects
-            try {
-              row.stats = JSON.parse(row.stats);
-            } catch (e) {
-              console.warn(`[builtin] Failed to parse stats JSON for player ${row.name} (row ${index}):`, e);
-              row.stats = {};
-            }
-          } else {
-            // New format: Collect individual stat columns into stats object
-            const stats: Record<string, number> = {};
-            const statColumns = [
-              "pass_att", "pass_comp", "pass_yd", "pass_td", "pass_int",
-              "rush_att", "rush_yd", "rush_td",
-              "rec", "rec_yd", "rec_td",
-              "fum_lost", "two_pt",
-              "xpm", "xpa", "fgm_0_19", "fgm_20_29", "fgm_30_39", "fgm_40_49", "fgm_50p",
-              "sacks", "defs_int", "defs_fum_rec", "defs_td", "safety", "blk_kick", "ret_td", "pts_allowed"
-            ];
-            
-            for (const column of statColumns) {
-              if (row[column] !== undefined && row[column] !== null && row[column] !== '') {
-                const val = parseFloat(row[column]);
-                if (!isNaN(val)) {
-                  stats[column] = val;
-                }
-              }
-            }
-            row.stats = stats;
-            
-            // Add missing week/season for new format
-            if (!row.week) row.week = week;
-            if (!row.season) row.season = season;
-          }
-          
-          return row;
-        });
-        console.log(`[builtin] Processed rows length: ${rows.length}, sample processed:`, rows[0]);
-        resolve(rows);
-      },
-      error: reject
+        }
+        processed.stats = stats;
+        
+        // Add missing week/season for new format
+        if (!processed.week) processed.week = week;
+        if (!processed.season) processed.season = season;
+      }
+      
+      return processed;
     });
-  });
+    console.log(`[builtin] Processed rows length: ${rows.length}, sample processed:`, rows[0]);
+    return rows;
+  } catch (error) {
+    console.error(`[builtin] Bullet-proof CSV parsing failed:`, error);
+    throw error;
+  }
 }
 
 export async function loadBuiltInOrSaved({
