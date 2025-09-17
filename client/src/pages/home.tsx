@@ -88,12 +88,25 @@ export default function Home() {
         return;
       }
       const lgs = await getUserLeagues(user.user_id, season);
+      console.log(`[Home] Found ${lgs.length} total leagues from Sleeper API`);
 
       // EXCLUDE Best Ball leagues by default and optionally dynasty leagues
       let filteredLeagues = lgs.filter((lg) => !isBestBallLeague(lg));
-      if (filterDynasty) {
-        filteredLeagues = filteredLeagues.filter((lg) => !isDynastyLeague(lg));
+      const bestBallCount = lgs.length - filteredLeagues.length;
+      if (bestBallCount > 0) {
+        console.log(`[Home] Filtered out ${bestBallCount} Best Ball leagues`);
       }
+      
+      if (filterDynasty) {
+        const beforeDynastyFilter = filteredLeagues.length;
+        filteredLeagues = filteredLeagues.filter((lg) => !isDynastyLeague(lg));
+        const dynastyCount = beforeDynastyFilter - filteredLeagues.length;
+        if (dynastyCount > 0) {
+          console.log(`[Home] Filtered out ${dynastyCount} Dynasty leagues`);
+        }
+      }
+      
+      console.log(`[Home] Processing ${filteredLeagues.length} leagues after filtering`);
       setLeagues(filteredLeagues);
       
       if (!playersIndex) {
@@ -364,11 +377,25 @@ export default function Home() {
             leagueId: lg?.league_id,
             name: lg?.name
           });
+          // Track failed leagues for user feedback
+          if (lg?.name) {
+            console.error(`❌ League "${lg.name}" failed processing and was dropped from results`);
+          }
         }
       }
 
       setSummaries(out);
-      toast({ title: "Success", description: `Analyzed ${out.length} leagues successfully` });
+      const failedCount = filteredLeagues.length - out.length;
+      if (failedCount > 0) {
+        console.warn(`⚠️  ${failedCount} leagues failed processing and were dropped from results`);
+        toast({ 
+          title: "Partial Success", 
+          description: `Analyzed ${out.length} leagues successfully. ${failedCount} leagues failed processing (check console for details).`,
+          variant: "default"
+        });
+      } else {
+        toast({ title: "Success", description: `Analyzed ${out.length} leagues successfully` });
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to analyze lineups", variant: "destructive" });
     } finally {
