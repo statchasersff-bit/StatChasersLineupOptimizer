@@ -102,14 +102,23 @@ export default function Home() {
 
     setIsAnalyzing(true);
     try {
+      console.log(`[Home] Looking up user: "${username.trim()}"`);
       const user = await getUserByName(username.trim());
+      console.log(`[Home] getUserByName result:`, user);
+      
       if (!user || !user.user_id) {
+        console.log(`[Home] User not found or missing user_id`);
         toast({ title: "Error", description: `User "${username.trim()}" not found on Sleeper`, variant: "destructive" });
         setIsAnalyzing(false);
         return;
       }
+      
+      console.log(`[Home] Valid user found with ID: ${user.user_id}`);
       const lgs = await getUserLeagues(user.user_id, season);
       console.log(`[Home] Found ${lgs.length} total leagues from Sleeper API`);
+      
+      // Additional check: if user exists but has 0 leagues, this might be normal
+      // However, for completely fake usernames, we should catch this earlier
 
       // EXCLUDE Best Ball leagues by default and optionally dynasty leagues
       let filteredLeagues = lgs.filter((lg) => !isBestBallLeague(lg));

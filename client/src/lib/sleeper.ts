@@ -5,7 +5,15 @@ export async function fetchJSON<T>(url: string): Promise<T> {
 }
 
 export async function getUserByName(username: string) {
-  return fetchJSON<{ user_id: string }>(`https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`);
+  try {
+    return await fetchJSON<{ user_id: string }>(`https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`);
+  } catch (error: any) {
+    // Sleeper API returns 404 for non-existent users, return null instead of throwing
+    if (error.message?.includes('404')) {
+      return null;
+    }
+    throw error; // Re-throw other errors
+  }
 }
 
 export async function getUserLeagues(userId: string, season: string) {
