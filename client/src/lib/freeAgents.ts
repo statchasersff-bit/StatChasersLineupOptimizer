@@ -1,6 +1,30 @@
 import type { Projection } from "./types";
 import { normalizePos } from "./projections";
 
+/**
+ * Players that should never appear in waiver recommendations
+ * (non-active offensive players, etc.)
+ */
+const WAIVER_BLOCKLIST = new Set([
+  "Donnie Ernsberger",
+  // Add other non-active players here as needed
+]);
+
+/**
+ * Check if a player should be excluded from waiver recommendations
+ */
+function shouldExcludeFromWaivers(playerName: string, playerData: any): boolean {
+  // Check against blocklist
+  if (WAIVER_BLOCKLIST.has(playerName)) {
+    return true;
+  }
+  
+  // Additional filters can be added here
+  // e.g., exclude retired players, practice squad players, etc.
+  
+  return false;
+}
+
 export function getOwnedPlayerIds(allRosters: any[]): Set<string> {
   const owned = new Set<string>();
   for (const r of allRosters) {
@@ -31,9 +55,16 @@ export function buildFreeAgentPool(opts: {
   > = {};
 
   const push = (p: any, pr: Projection, pid: string, pos: string) => {
+    const playerName = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.full_name || String(pid);
+    
+    // Skip players that should be excluded from waiver recommendations
+    if (shouldExcludeFromWaivers(playerName, p)) {
+      return;
+    }
+    
     (byPos[pos] ||= []).push({
       player_id: pid,
-      name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.full_name || String(pid),
+      name: playerName,
       team: p.team,
       pos,
       proj: pr.proj,
