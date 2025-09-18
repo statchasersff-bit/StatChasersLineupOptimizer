@@ -47,7 +47,6 @@ export default function Home() {
         setProjIdx: () => {}, // Will be handled by projIdx useMemo
         setBanner: setUsingSavedMsg
       });
-      console.log(`[Home] loadBuiltInOrSaved returned: ${got}, projections length:`, projections.length);
       if (!got) {
         // no built-in & nothing saved: user can upload manually
         setProjections([]);
@@ -56,6 +55,14 @@ export default function Home() {
       }
     })();
   }, [season, week]);
+
+  // Debug projections state changes
+  useEffect(() => {
+    console.log(`[Home] Projections state updated: ${projections.length} projections available`);
+    if (projections.length > 0) {
+      console.log(`[Home] Sample projection:`, projections[0]);
+    }
+  }, [projections]);
 
   const projIdx = useMemo(() => {
     return buildProjectionIndex(projections);
@@ -77,6 +84,20 @@ export default function Home() {
     if (projections.length === 0) {
       toast({ title: "Error", description: "No projections available for this week", variant: "destructive" });
       return;
+    }
+
+    // Additional validation to ensure projections have valid numbers
+    const validProjections = projections.filter(p => 
+      p && typeof p.proj === 'number' && isFinite(p.proj) && p.proj >= 0
+    );
+    
+    if (validProjections.length === 0) {
+      toast({ title: "Error", description: "No valid projections found (all projections are NaN or invalid)", variant: "destructive" });
+      return;
+    }
+
+    if (validProjections.length < projections.length) {
+      console.warn(`[Home] Found ${projections.length - validProjections.length} invalid projections out of ${projections.length} total`);
     }
 
     setIsAnalyzing(true);
