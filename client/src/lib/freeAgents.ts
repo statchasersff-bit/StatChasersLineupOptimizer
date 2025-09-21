@@ -1,5 +1,6 @@
 import type { Projection } from "./types";
 import { normalizePos } from "./projections";
+import { isPlayerLocked, type GameSchedule } from "./gameLocking";
 
 /**
  * Players that should never appear in waiver recommendations
@@ -13,9 +14,14 @@ const WAIVER_BLOCKLIST = new Set([
 /**
  * Check if a player should be excluded from waiver recommendations
  */
-function shouldExcludeFromWaivers(playerName: string, playerData: any): boolean {
+function shouldExcludeFromWaivers(playerName: string, playerData: any, schedule?: GameSchedule): boolean {
   // Check against blocklist
   if (WAIVER_BLOCKLIST.has(playerName)) {
+    return true;
+  }
+  
+  // Check if player's team has already played or is on bye
+  if (schedule && isPlayerLocked(playerData, schedule)) {
     return true;
   }
   
@@ -39,14 +45,16 @@ export function getOwnedPlayerIds(allRosters: any[]): Set<string> {
 /**
  * From projections + players index, create a lightweight pool of FAs.
  * Only keep players that have a projection and are NOT owned in the league.
+ * Filters out players whose teams have already played or are on bye.
  * Optionally limit number per position for performance.
  */
 export function buildFreeAgentPool(opts: {
   playersIndex: Record<string, any>;
   owned: Set<string>;
   projIdx: Record<string, Projection>;
+  schedule?: GameSchedule;
 }) {
-  const { playersIndex, owned, projIdx } = opts;
+  const { playersIndex, owned, projIdx, schedule } = opts;
   const perPosCap = 125; // hard-coded cap for all positions
 
   const byPos: Record<
@@ -58,7 +66,7 @@ export function buildFreeAgentPool(opts: {
     const playerName = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.full_name || String(pid);
     
     // Skip players that should be excluded from waiver recommendations
-    if (shouldExcludeFromWaivers(playerName, p)) {
+    if (shouldExcludeFromWaivers(playerName, p, schedule)) {
       return;
     }
     

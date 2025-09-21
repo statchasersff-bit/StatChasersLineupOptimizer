@@ -4,7 +4,7 @@ import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpre
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getPlayersIndex } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
-import { isPlayerLocked } from "@/lib/gameLocking";
+import { isPlayerLocked, getWeekSchedule, type GameSchedule } from "@/lib/gameLocking";
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
@@ -186,6 +186,9 @@ export default function Home() {
             });
           }
 
+          // Fetch current week's game schedule for player locking
+          const schedule = await getWeekSchedule(season, week);
+
           // Build enriched player list with league-adjusted projections
           const addWithProj = (pid: string) => {
             const lite = toPlayerLite(currentPlayersIndex, pid);
@@ -210,7 +213,7 @@ export default function Home() {
             const finalProj = isOut ? 0 : adj;
             
             // Check if player is locked (team already played)
-            const locked = isPlayerLocked(lite, season, week);
+            const locked = isPlayerLocked(lite, schedule);
             
             return { ...lite, proj: finalProj, opp: pr?.opp, locked };
           };
@@ -242,13 +245,13 @@ export default function Home() {
               playersIndex: currentPlayersIndex,
               owned,
               projIdx,
+              schedule,
             });
 
-            // Score the FA pool using league scoring and filter out locked players
+            // Score the FA pool using league scoring (teams that have played are already filtered out)
             const scoredFAs: Record<string, { player_id: string; name: string; team?: string; pos: string; proj: number; opp?: string }[]> = {};
             for (const pos of Object.keys(faByPos)) {
               scoredFAs[pos] = faByPos[pos]
-                .filter(fa => !isPlayerLocked(fa, season, week)) // Filter out locked free agents
                 .map((fa) => {
                   // look up full projection row by id (for stat-level)
                   const pr = projIdx[fa.player_id];
