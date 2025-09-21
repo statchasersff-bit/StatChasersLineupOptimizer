@@ -1,53 +1,50 @@
 // Game locking logic to prevent lineup changes for teams that have already played
 
-// Teams that have already played their games for the current week
-// This would ideally be fetched from an API, but for now we'll hardcode known completed games
-const completedGames: Record<string, Record<string, string[]>> = {
-  "2025": {
-    "2": [
-      // Week 2 NFL games that have already been played (as of mid-week)
-      "WAS", "GB", // Thursday Night Football
-      "BUF", "MIA", // Various completed Sunday games
-      "LAR", "ARI", 
-      "NYG", "CLE", 
-      "LV", "BAL", 
-      "CAR", "LAC", 
-      "IND", "HOU", 
-      "CHI", "TB", 
-      "SF", "MIN", 
-      "SEA", "NE", 
-      "NYJ", "TEN", 
-      "DAL", "NO", 
-      "PIT", "DEN", 
-      "KC", "CIN", 
-      "ATL", "PHI", 
-      "JAX", "DET"
-      // Monday Night Football and remaining games would be added as they complete
-    ],
-    // Add more weeks as games are completed
-  }
-};
+export type GameSchedule = Record<string, { start: number; state: 'pre' | 'in' | 'post' }>;
 
 /**
- * Check if a team has already played their game for the specified week
+ * Fetch week schedule from the backend API
  */
-export function hasTeamPlayed(team: string | undefined, season: string, week: string): boolean {
-  if (!team) return false;
-  
-  const seasonGames = completedGames[season];
-  if (!seasonGames) return false;
-  
-  const weekGames = seasonGames[week];
-  if (!weekGames) return false;
-  
-  return weekGames.includes(team.toUpperCase());
+export async function getWeekSchedule(season: string, week: string): Promise<GameSchedule> {
+  try {
+    const response = await fetch(`/api/schedule?season=${season}&week=${week}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch schedule: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch week schedule:', error);
+    return {};
+  }
 }
 
 /**
- * Check if a player is locked (their team has already played)
+ * Check if a team's game has started or finished
  */
-export function isPlayerLocked(player: { team?: string }, season: string, week: string): boolean {
-  return hasTeamPlayed(player.team, season, week);
+export function hasGameStarted(team: string | undefined, schedule: GameSchedule, now: number = Date.now()): boolean {
+  if (!team) return false;
+  
+  const teamData = schedule[team.toUpperCase()];
+  if (!teamData) return false;
+  
+  // Game has started if it's not in 'pre' state or if current time is past kickoff
+  return teamData.state !== 'pre' || now >= teamData.start;
+}
+
+/**
+ * Check if a team is on bye (not in the schedule)
+ */
+export function isTeamOnBye(team: string | undefined, schedule: GameSchedule): boolean {
+  if (!team) return true;
+  return !schedule[team.toUpperCase()];
+}
+
+/**
+ * Check if a player should be excluded from waiver recommendations
+ * (their team has already played or is on bye)
+ */
+export function isPlayerLocked(player: { team?: string }, schedule: GameSchedule, now: number = Date.now()): boolean {
+  return hasGameStarted(player.team, schedule, now) || isTeamOnBye(player.team, schedule);
 }
 
 /**
@@ -55,18 +52,33 @@ export function isPlayerLocked(player: { team?: string }, season: string, week: 
  */
 export function filterUnlockedPlayers<T extends { team?: string }>(
   players: T[], 
-  season: string, 
-  week: string
+  schedule: GameSchedule,
+  now: number = Date.now()
 ): T[] {
-  return players.filter(player => !isPlayerLocked(player, season, week));
+  return players.filter(player => !isPlayerLocked(player, schedule, now));
 }
 
 /**
  * Get all locked teams for a given week
  */
-export function getLockedTeams(season: string, week: string): string[] {
-  const seasonGames = completedGames[season];
-  if (!seasonGames) return [];
+export function getLockedTeams(schedule: GameSchedule, now: number = Date.now()): string[] {
+  const lockedTeams: string[] = [];
   
-  return seasonGames[week] || [];
+  for (const [team, gameData] of Object.entries(schedule)) {
+    if (hasGameStarted(team, schedule, now)) {
+      lockedTeams.push(team);
+    }
+  }
+  
+  return lockedTeams;
+}
+
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use hasGameStarted with schedule instead
+ */
+export function hasTeamPlayed(team: string | undefined, season: string, week: string): boolean {
+  // For backward compatibility, assume team has played if no schedule available
+  console.warn('hasTeamPlayed is deprecated, use hasGameStarted with schedule instead');
+  return false;
 }
