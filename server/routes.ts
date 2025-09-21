@@ -4,7 +4,122 @@ import { storage } from "./storage";
 import { insertProjectionSchema } from "@shared/schema";
 import { z } from "zod";
 
+// In-memory cache for game schedules (5-minute TTL)
+interface GameScheduleCache {
+  data: Record<string, { start: number; state: 'pre' | 'in' | 'post' }>;
+  expiry: number;
+}
+
+const scheduleCache = new Map<string, GameScheduleCache>();
+
+// ESPN team abbreviation mapping to standardize team names
+const ESPN_TEAM_MAP: Record<string, string> = {
+  'ARI': 'ARI', 'ATL': 'ATL', 'BAL': 'BAL', 'BUF': 'BUF', 'CAR': 'CAR', 'CHI': 'CHI',
+  'CIN': 'CIN', 'CLE': 'CLE', 'DAL': 'DAL', 'DEN': 'DEN', 'DET': 'DET', 'GB': 'GB',
+  'HOU': 'HOU', 'IND': 'IND', 'JAX': 'JAX', 'KC': 'KC', 'LV': 'LV', 'LAC': 'LAC',
+  'LAR': 'LAR', 'MIA': 'MIA', 'MIN': 'MIN', 'NE': 'NE', 'NO': 'NO', 'NYG': 'NYG',
+  'NYJ': 'NYJ', 'PHI': 'PHI', 'PIT': 'PIT', 'SF': 'SF', 'SEA': 'SEA', 'TB': 'TB',
+  'TEN': 'TEN', 'WAS': 'WAS'
+};
+
+async function fetchESPNSchedule(season: string, week: string): Promise<Record<string, { start: number; state: 'pre' | 'in' | 'post' }>> {
+  const cacheKey = `${season}-${week}`;
+  const cached = scheduleCache.get(cacheKey);
+  
+  // Return cached data if still valid
+  if (cached && Date.now() < cached.expiry) {
+    return cached.data;
+  }
+
+  try {
+    const url = `https://site.api.espn.com/apis/fantasy/v2/games/ffl/scoreboard?seasonId=${season}&matchupPeriodId=${week}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`ESPN API returned ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const schedule: Record<string, { start: number; state: 'pre' | 'in' | 'post' }> = {};
+    
+    // Parse ESPN scoreboard data
+    if (data.events && Array.isArray(data.events)) {
+      for (const event of data.events) {
+        if (event.competitions && event.competitions[0]) {
+          const competition = event.competitions[0];
+          const status = competition.status;
+          const startDate = new Date(competition.date).getTime();
+          
+          // Map ESPN status to our states
+          let state: 'pre' | 'in' | 'post' = 'pre';
+          if (status.type.state === 'in') {
+            state = 'in';
+          } else if (status.type.state === 'post') {
+            state = 'post';
+          }
+          
+          // Add both teams to schedule
+          if (competition.competitors) {
+            for (const competitor of competition.competitors) {
+              const teamAbbrev = competitor.team?.abbreviation;
+              if (teamAbbrev && ESPN_TEAM_MAP[teamAbbrev]) {
+                schedule[ESPN_TEAM_MAP[teamAbbrev]] = {
+                  start: startDate,
+                  state: state
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Cache for 5 minutes
+    scheduleCache.set(cacheKey, {
+      data: schedule,
+      expiry: Date.now() + 5 * 60 * 1000
+    });
+    
+    return schedule;
+  } catch (error) {
+    console.error('Failed to fetch ESPN schedule:', error);
+    
+    // Return cached data even if expired as fallback
+    if (cached) {
+      return cached.data;
+    }
+    
+    // Return empty schedule as last resort
+    return {};
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Get game schedule and status for a specific week/season
+  app.get("/api/schedule", async (req, res) => {
+    try {
+      const { season, week } = req.query;
+      
+      // Validate parameters
+      if (!season || !week) {
+        return res.status(400).json({ message: "Season and week parameters are required" });
+      }
+      
+      const seasonNum = parseInt(season as string, 10);
+      const weekNum = parseInt(week as string, 10);
+      
+      if (isNaN(seasonNum) || isNaN(weekNum) || seasonNum < 2020 || seasonNum > 2030 || weekNum < 1 || weekNum > 18) {
+        return res.status(400).json({ message: "Invalid season or week parameter" });
+      }
+      
+      const schedule = await fetchESPNSchedule(season as string, week as string);
+      res.json(schedule);
+    } catch (error) {
+      console.error('Schedule API error:', error);
+      res.status(500).json({ message: "Failed to fetch schedule" });
+    }
+  });
   
   // Get projections for a specific week/season
   app.get("/api/projections/:season/:week", async (req, res) => {
