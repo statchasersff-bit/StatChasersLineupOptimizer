@@ -33,9 +33,17 @@ export function hasGameStarted(team: string | undefined, schedule: GameSchedule,
 
 /**
  * Check if a team is on bye (not in the schedule)
+ * Returns false if schedule data is missing to avoid false positives
  */
 export function isTeamOnBye(team: string | undefined, schedule: GameSchedule): boolean {
   if (!team) return true;
+  
+  // If schedule is empty or missing (e.g., ESPN API failed), fail open
+  // This prevents all players from being marked as locked due to missing data
+  if (!schedule || Object.keys(schedule).length === 0) {
+    return false;
+  }
+  
   return !schedule[team.toUpperCase()];
 }
 
