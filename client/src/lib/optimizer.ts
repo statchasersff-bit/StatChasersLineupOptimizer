@@ -1,6 +1,5 @@
 import type { Projection, PlayerLite, RosterSlot } from "./types";
 import { normalizePos } from "./projections";
-import { filterUnlockedPlayers } from "./gameLocking";
 
 const FLEX_ELIGIBILITY: Record<string, string[]> = {
   FLEX: ["RB","WR","TE"],
@@ -84,9 +83,9 @@ export function optimizeLineup(
     }
   }
 
-  // Step 2: For remaining slots, optimize using only unlocked players
-  const availablePlayers = season && week ? filterUnlockedPlayers(players, season, week) : players;
-  const sorted = [...availablePlayers].sort(byProjDesc);
+  // Step 2: For remaining slots, optimize using all available players
+  // (Game locking should be handled at a higher level when building player pools)
+  const sorted = [...players].sort(byProjDesc);
 
   // fill fixed positions first (skip already filled locked positions)
   for (let i=0;i<filled.length;i++){
