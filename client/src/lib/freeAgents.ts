@@ -8,6 +8,7 @@ import { isPlayerLocked, type GameSchedule } from "./gameLocking";
  */
 const WAIVER_BLOCKLIST = new Set([
   "Donnie Ernsberger",
+  "Mark McNamee",
   // Add other non-active players here as needed
 ]);
 
