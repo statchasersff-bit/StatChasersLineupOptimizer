@@ -549,6 +549,18 @@ export default function Home() {
     count + s.optimalSlots.filter((slot, i) => s.starters[i] !== slot.player?.player_id).length, 0
   );
 
+  // Calculate projected record based on head-to-head matchups
+  const projectedRecord = sortedSummaries.reduce((record, s) => {
+    if (s.projectedWin === true) {
+      record.wins++;
+    } else if (s.projectedWin === false) {
+      record.losses++;
+    } else {
+      record.noMatchup++;
+    }
+    return record;
+  }, { wins: 0, losses: 0, noMatchup: 0 });
+
   return (
     <div className="bg-background text-foreground min-h-screen">
       {/* Header */}
@@ -676,7 +688,7 @@ export default function Home() {
         </div>
 
         {/* Status Section */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           <div className="card rounded-lg border border-border p-4 text-center">
             <div className="text-2xl font-bold text-primary" data-testid="text-active-leagues">{summaries.length}</div>
             <div className="text-sm text-muted-foreground">Active Leagues</div>
@@ -692,6 +704,15 @@ export default function Home() {
           <div className="card rounded-lg border border-border p-4 text-center">
             <div className="text-2xl font-bold text-chart-3" data-testid="text-lineup-changes">{totalChanges}</div>
             <div className="text-sm text-muted-foreground">Lineup Changes</div>
+          </div>
+          <div className="card rounded-lg border border-border p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-projected-record">
+              {projectedRecord.wins + projectedRecord.losses > 0 ? `${projectedRecord.wins}-${projectedRecord.losses}` : '--'}
+            </div>
+            <div className="text-sm text-muted-foreground">Projected Record</div>
+            {projectedRecord.noMatchup > 0 && (
+              <div className="text-xs text-gray-500">{projectedRecord.noMatchup} no matchup</div>
+            )}
           </div>
         </div>
 
