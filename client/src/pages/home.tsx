@@ -13,6 +13,24 @@ import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
+
+// Calculate win probability based on point differential
+// Uses a normal distribution approach where larger point differences = higher confidence
+function calculateWinProbability(pointDifferential: number): number {
+  if (pointDifferential === 0) return 50; // Tie = 50% chance
+  
+  // Standard deviation of ~15 points seems reasonable for fantasy football
+  // This means a 15-point advantage gives ~84% win probability
+  const standardDeviation = 15;
+  const z = pointDifferential / standardDeviation;
+  
+  // Approximate normal CDF using error function approximation
+  // This converts z-score to probability percentage
+  const probability = 0.5 * (1 + Math.sign(z) * Math.sqrt(1 - Math.exp(-2 * z * z / Math.PI)));
+  
+  // Convert to percentage and clamp between 1-99% (avoid 0% or 100%)
+  return Math.max(1, Math.min(99, Math.round(probability * 100)));
+}
 import LeagueCard from "@/components/LeagueCard";
 import { LeagueListSkeleton } from "@/components/ui/league-skeleton";
 import { AutoSubBanner } from "@/components/ui/auto-sub-chip";
@@ -402,6 +420,7 @@ export default function Home() {
           let opponent: any = undefined;
           let projectedWin: boolean | undefined = undefined;
           let pointDifferential: number | undefined = undefined;
+          let winProbability: number | undefined = undefined;
 
           try {
             // Find user's matchup data based on roster_id
@@ -433,6 +452,8 @@ export default function Home() {
                 
                 // Calculate head-to-head comparison
                 pointDifferential = optimalTotal - opponentTotal;
+                winProbability = calculateWinProbability(pointDifferential);
+                
                 if (pointDifferential > 0) {
                   projectedWin = true;
                 } else if (pointDifferential < 0) {
@@ -476,7 +497,8 @@ export default function Home() {
             // Head-to-head matchup data
             opponent,
             projectedWin,
-            pointDifferential
+            pointDifferential,
+            winProbability
           });
         } catch (err) {
           console.warn("League failed", lg?.name, {

@@ -194,6 +194,15 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                     )}
                   </div>
                 )}
+                {lg.winProbability !== undefined && (
+                  <div className="mt-1 text-sm font-medium text-gray-700 dark:text-gray-300" data-testid={`text-win-probability-${lg.league_id}`}>
+                    Win Probability: <span className={`font-bold ${
+                      lg.winProbability >= 70 ? 'text-green-600 dark:text-green-400' :
+                      lg.winProbability >= 30 ? 'text-yellow-600 dark:text-yellow-400' :
+                      'text-red-600 dark:text-red-400'
+                    }`}>{lg.winProbability}%</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

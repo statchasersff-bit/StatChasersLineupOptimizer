@@ -65,4 +65,5 @@ export type LeagueSummary = {
   opponent?: OpponentSummary; // opponent team information and projections
   projectedWin?: boolean;     // true if user's optimal > opponent's current
   pointDifferential?: number; // user optimal - opponent current (positive = user favored)
+  winProbability?: number;    // probability of winning based on point differential (0-100%)
 };
