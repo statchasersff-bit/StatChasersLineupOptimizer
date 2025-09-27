@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown } from "lucide-react";
-import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getPlayersIndex } from "@/lib/sleeper";
+import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, type GameSchedule } from "@/lib/gameLocking";
@@ -150,10 +150,11 @@ export default function Home() {
 
       for (const lg of filteredLeagues) {
         try {
-          const [rosters, users, leagueDetails] = await Promise.all([
+          const [rosters, users, leagueDetails, matchups] = await Promise.all([
             getLeagueRosters(lg.league_id),
             getLeagueUsers(lg.league_id),
             getLeagueDetails(lg.league_id),
+            getLeagueMatchups(lg.league_id, week),
           ]);
 
           // Find user's roster
@@ -397,6 +398,56 @@ export default function Home() {
             });
           }
 
+          // Process head-to-head matchup analysis
+          let opponent: any = undefined;
+          let projectedWin: boolean | undefined = undefined;
+          let pointDifferential: number | undefined = undefined;
+
+          try {
+            // Find user's matchup data based on roster_id
+            const userMatchup = matchups?.find((m: any) => m.roster_id === meRoster?.roster_id);
+            
+            if (userMatchup?.matchup_id) {
+              // Find opponent with same matchup_id but different roster_id
+              const opponentMatchup = matchups?.find((m: any) => 
+                m.matchup_id === userMatchup.matchup_id && m.roster_id !== userMatchup.roster_id
+              );
+              
+              if (opponentMatchup) {
+                // Find opponent's roster and user info
+                const opponentRoster = rosters.find((r: any) => r.roster_id === opponentMatchup.roster_id);
+                const opponentUser = users.find((u: any) => u.user_id === opponentRoster?.owner_id);
+                const opponentTeamName = opponentUser?.metadata?.team_name || opponentUser?.display_name || "Unknown Opponent";
+                
+                // Process opponent's current starters with projections
+                const opponentStarters = opponentMatchup.starters || [];
+                const opponentCurrentSlots = fixedSlots.map((slot: string, i: number) => {
+                  const pid = opponentStarters[i];
+                  if (!pid) return { slot }; // Handle empty slots
+                  const player = addWithProj(pid);
+                  if (!player) return { slot };
+                  return { slot, player };
+                });
+                
+                const opponentTotal = sumProj(opponentCurrentSlots as any);
+                
+                // Calculate head-to-head comparison
+                projectedWin = optimalTotal > opponentTotal;
+                pointDifferential = optimalTotal - opponentTotal;
+                
+                opponent = {
+                  roster_id: opponentMatchup.roster_id,
+                  teamName: opponentTeamName,
+                  currentStarters: opponentCurrentSlots,
+                  currentTotal: opponentTotal
+                };
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to process opponent data for league", lg.name, err);
+            // Continue without opponent data rather than failing the entire league
+          }
+
           out.push({
             league_id: lg.league_id,
             name: lg.name,
@@ -415,7 +466,11 @@ export default function Home() {
             benchCount,
             benchEmpty,
             autoSubRecommendations,
-            autoSubConfig
+            autoSubConfig,
+            // Head-to-head matchup data
+            opponent,
+            projectedWin,
+            pointDifferential
           });
         } catch (err) {
           console.warn("League failed", lg?.name, {

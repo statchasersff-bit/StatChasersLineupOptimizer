@@ -35,6 +35,13 @@ export type WaiverSuggestion = {
   currentPlayerName?: string; // name of player currently in that slot
 };
 
+export type OpponentSummary = {
+  roster_id: number;
+  teamName: string;           // opponent team/owner display name
+  currentStarters: RosterSlot[]; // opponent's current lineup with projections
+  currentTotal: number;       // opponent's projected points
+};
+
 export type LeagueSummary = {
   league_id: string;
   name: string;
@@ -54,4 +61,8 @@ export type LeagueSummary = {
   benchEmpty: number;      // benchCapacity - benchCount (min 0)
   autoSubRecommendations?: import('./autoSubs').AutoSubRecommendation[]; // auto-sub suggestions for Q starters
   autoSubConfig?: import('./autoSubs').AutoSubConfig; // league auto-sub configuration
+  // Head-to-head matchup data
+  opponent?: OpponentSummary; // opponent team information and projections
+  projectedWin?: boolean;     // true if user's optimal > opponent's current
+  pointDifferential?: number; // user optimal - opponent current (positive = user favored)
 };
