@@ -14,22 +14,25 @@ import { saveProjections, loadProjections } from "@/lib/storage";
 import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 
-// Calculate win probability based on point differential
-// Uses a normal distribution approach where larger point differences = higher confidence
+// Calculate win probability based on point differential using realistic fantasy football variance
 function calculateWinProbability(pointDifferential: number): number {
   if (pointDifferential === 0) return 50; // Tie = 50% chance
   
-  // Standard deviation of ~15 points seems reasonable for fantasy football
-  // This means a 15-point advantage gives ~84% win probability
-  const standardDeviation = 15;
-  const z = pointDifferential / standardDeviation;
+  // Typical fantasy scoring has ~30 points standard deviation per team
+  // For the difference between two teams: sqrt(30^2 + 30^2) ≈ 42.4
+  const teamStdDev = 30;
+  const combinedStdDev = Math.sqrt(teamStdDev * teamStdDev + teamStdDev * teamStdDev); // ≈ 42.43
   
-  // Approximate normal CDF using error function approximation
-  // This converts z-score to probability percentage
-  const probability = 0.5 * (1 + Math.sign(z) * Math.sqrt(1 - Math.exp(-2 * z * z / Math.PI)));
+  // Calculate Z-score: how many standard deviations is the point differential
+  const z = pointDifferential / combinedStdDev;
   
-  // Convert to percentage and clamp between 1-99% (avoid 0% or 100%)
-  return Math.max(1, Math.min(99, Math.round(probability * 100)));
+  // Use more accurate normal CDF approximation (Abramowitz and Stegun)
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const polynomial = 0.319381530 * t - 0.356563782 * t * t + 1.781477937 * t * t * t - 1.821255978 * t * t * t * t + 1.330274429 * t * t * t * t * t;
+  const cdf = z >= 0 ? 1 - (0.3989423 * Math.exp(-0.5 * z * z) * polynomial) : 0.3989423 * Math.exp(-0.5 * z * z) * polynomial;
+  
+  // Convert to percentage and clamp between 1-99%
+  return Math.max(1, Math.min(99, Math.round(cdf * 100)));
 }
 import LeagueCard from "@/components/LeagueCard";
 import { LeagueListSkeleton } from "@/components/ui/league-skeleton";
