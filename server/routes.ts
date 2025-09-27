@@ -32,7 +32,8 @@ async function fetchESPNSchedule(season: string, week: string): Promise<Record<s
   }
 
   try {
-    const url = `https://site.api.espn.com/apis/fantasy/v2/games/ffl/scoreboard?seasonId=${season}&matchupPeriodId=${week}`;
+    // Use NFL scoreboard API which has current data
+    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard`;
     const response = await fetch(url);
     
     if (!response.ok) {

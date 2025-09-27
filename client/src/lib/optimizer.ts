@@ -83,9 +83,10 @@ export function optimizeLineup(
     }
   }
 
-  // Step 2: For remaining slots, optimize using all available players
-  // (Game locking should be handled at a higher level when building player pools)
-  const sorted = [...players].sort(byProjDesc);
+  // Step 2: For remaining slots, optimize using only unlocked players
+  // Locked players should stay in their current positions and not be moved
+  const availablePlayers = players.filter(p => !(p as any).locked || used.has(p.player_id));
+  const sorted = [...availablePlayers].sort(byProjDesc);
 
   // fill fixed positions first (skip already filled locked positions)
   for (let i=0;i<filled.length;i++){
