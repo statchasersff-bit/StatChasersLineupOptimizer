@@ -161,6 +161,37 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             </div>
           )}
 
+          {/* Head-to-Head Matchup Section */}
+          {lg.opponent && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="font-semibold mb-2 text-blue-800 dark:text-blue-200">This Week's Matchup</div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{lg.rosterUserDisplay}</div>
+                  <div className="text-xs text-gray-500">Your Optimal</div>
+                  <div className="font-bold text-lg">{lg.optimalTotal.toFixed(1)}</div>
+                </div>
+                <div>
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{lg.opponent.teamName}</div>
+                  <div className="text-xs text-gray-500">Their Current</div>
+                  <div className="font-bold text-lg">{lg.opponent.currentTotal.toFixed(1)}</div>
+                </div>
+              </div>
+              <div className="mt-2 text-center">
+                {lg.projectedWin !== undefined && (
+                  <div className={`font-semibold ${lg.projectedWin ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} data-testid={`text-projection-${lg.league_id}`}>
+                    {lg.projectedWin ? 'Projected Win' : 'Projected Loss'}
+                    {lg.pointDifferential !== undefined && (
+                      <span className="ml-2 text-sm">
+                        ({lg.pointDifferential > 0 ? '+' : ''}{lg.pointDifferential.toFixed(1)} pts)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="mt-3 text-sm" data-testid={`text-totals-${lg.league_id}`}>
             Current total: <b>{lg.currentTotal.toFixed(2)}</b> — Optimal total: <b>{lg.optimalTotal.toFixed(2)}</b>
           </div>
