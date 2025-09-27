@@ -61,20 +61,6 @@ export default function Home() {
     console.log(`[Home] Projections state updated: ${projections.length} projections available`);
     if (projections.length > 0) {
       console.log(`[Home] Sample projection:`, projections[0]);
-      
-      // Debug: Check for the specific players the user mentioned
-      const njoku = projections.find(p => p.name?.includes("Njoku"));
-      const goedert = projections.find(p => p.name?.includes("Goedert"));
-      if (njoku) {
-        console.log(`[Home] Found David Njoku with projection: ${njoku.proj}, sleeper_id: ${njoku.sleeper_id}`);
-      } else {
-        console.log(`[Home] David Njoku NOT found in projections`);
-      }
-      if (goedert) {
-        console.log(`[Home] Found Dallas Goedert with projection: ${goedert.proj}, sleeper_id: ${goedert.sleeper_id}`);
-      } else {
-        console.log(`[Home] Dallas Goedert NOT found in projections`);
-      }
     }
   }, [projections]);
 
