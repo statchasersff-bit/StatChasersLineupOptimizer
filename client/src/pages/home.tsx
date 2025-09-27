@@ -432,8 +432,14 @@ export default function Home() {
                 const opponentTotal = sumProj(opponentCurrentSlots as any);
                 
                 // Calculate head-to-head comparison
-                projectedWin = optimalTotal > opponentTotal;
                 pointDifferential = optimalTotal - opponentTotal;
+                if (pointDifferential > 0) {
+                  projectedWin = true;
+                } else if (pointDifferential < 0) {
+                  projectedWin = false;
+                } else {
+                  projectedWin = undefined; // Tie
+                }
                 
                 opponent = {
                   roster_id: opponentMatchup.roster_id,
@@ -555,11 +561,19 @@ export default function Home() {
       record.wins++;
     } else if (s.projectedWin === false) {
       record.losses++;
+    } else if (s.projectedWin === undefined && s.opponent) {
+      // Handle ties (same projected points) 
+      if (s.pointDifferential === 0) {
+        record.ties++;
+      } else {
+        record.noMatchup++;
+      }
     } else {
+      // No opponent data available
       record.noMatchup++;
     }
     return record;
-  }, { wins: 0, losses: 0, noMatchup: 0 });
+  }, { wins: 0, losses: 0, ties: 0, noMatchup: 0 });
 
   return (
     <div className="bg-background text-foreground min-h-screen">
@@ -707,7 +721,9 @@ export default function Home() {
           </div>
           <div className="card rounded-lg border border-border p-4 text-center">
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-projected-record">
-              {projectedRecord.wins + projectedRecord.losses > 0 ? `${projectedRecord.wins}-${projectedRecord.losses}` : '--'}
+              {projectedRecord.wins + projectedRecord.losses + projectedRecord.ties > 0 
+                ? `${projectedRecord.wins}-${projectedRecord.losses}${projectedRecord.ties > 0 ? `-${projectedRecord.ties}` : ''}` 
+                : '--'}
             </div>
             <div className="text-sm text-muted-foreground">Projected Record</div>
             {projectedRecord.noMatchup > 0 && (

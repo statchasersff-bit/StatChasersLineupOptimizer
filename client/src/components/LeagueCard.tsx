@@ -178,12 +178,18 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                 </div>
               </div>
               <div className="mt-2 text-center">
-                {lg.projectedWin !== undefined && (
-                  <div className={`font-semibold ${lg.projectedWin ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} data-testid={`text-projection-${lg.league_id}`}>
-                    {lg.projectedWin ? 'Projected Win' : 'Projected Loss'}
+                {(lg.projectedWin !== undefined || (lg.opponent && lg.pointDifferential === 0)) && (
+                  <div className={`font-semibold ${
+                    lg.projectedWin === true ? 'text-green-600 dark:text-green-400' : 
+                    lg.projectedWin === false ? 'text-red-600 dark:text-red-400' : 
+                    'text-yellow-600 dark:text-yellow-400'
+                  }`} data-testid={`text-projection-${lg.league_id}`}>
+                    {lg.projectedWin === true ? 'Projected Win' : 
+                     lg.projectedWin === false ? 'Projected Loss' : 
+                     'Projected Tie'}
                     {lg.pointDifferential !== undefined && (
                       <span className="ml-2 text-sm">
-                        ({lg.pointDifferential > 0 ? '+' : ''}{lg.pointDifferential.toFixed(1)} pts)
+                        ({lg.pointDifferential > 0 ? '+' : lg.pointDifferential < 0 ? '' : ''}{lg.pointDifferential.toFixed(1)} pts)
                       </span>
                     )}
                   </div>
