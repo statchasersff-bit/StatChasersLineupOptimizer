@@ -572,8 +572,8 @@ export default function Home() {
       const p = slot.player;
       if (!p) return false;
       const status = (p.injury_status || "").toUpperCase();
-      const opp = (p.opp || "").toUpperCase();
-      return status.includes("OUT") || status.includes("DOU") || status.includes("SUS") || opp === "BYE";
+      // Only count QUESTIONABLE players as risky starters
+      return status.includes("Q") || status.includes("QUESTIONABLE");
     }).length, 0
   );
   const totalChanges = sortedSummaries.reduce((count, s) => 
