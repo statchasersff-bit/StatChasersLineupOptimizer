@@ -67,9 +67,10 @@ export async function getLeagueMatchupsForLocking(leagueIds: string[], week: str
       for (const matchup of matchups) {
         // Check if this matchup has individual player scoring data
         if (matchup.players_points && typeof matchup.players_points === 'object') {
-          // Use per-player scoring data - any player with a defined score has played
-          for (const playerId of Object.keys(matchup.players_points)) {
-            if (playerId && playerId !== "0") {
+          // Only mark players as played if they have POSITIVE points (indicating game has started)
+          // Players with 0 points might just be pre-game initialization
+          for (const [playerId, points] of Object.entries(matchup.players_points)) {
+            if (playerId && playerId !== "0" && typeof points === 'number' && points > 0) {
               playedPlayerIds[playerId] = true;
             }
           }

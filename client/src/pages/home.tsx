@@ -240,7 +240,7 @@ export default function Home() {
             const finalProj = isOut ? 0 : adj;
             
             // Check if player is locked (team already played or has played in matchup)
-            const locked = isPlayerLocked(lite, schedule, Date.now(), playedPlayerIds, season);
+            const locked = isPlayerLocked(lite, schedule, Date.now(), playedPlayerIds);
             
             return { ...lite, proj: finalProj, opp: pr?.opp, locked };
           };
@@ -274,7 +274,6 @@ export default function Home() {
               projIdx,
               schedule,
               playedPlayerIds, // Pass the played player data for enhanced locking
-              season, // Pass season to avoid ESPN locking issues with future seasons
             });
 
             // Score the FA pool using league scoring (teams that have played are already filtered out)

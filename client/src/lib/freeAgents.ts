@@ -20,8 +20,7 @@ function shouldExcludeFromWaivers(
   playerName: string, 
   playerData: any, 
   schedule?: GameSchedule, 
-  playedPlayerIds?: Record<string, boolean>,
-  season?: string
+  playedPlayerIds?: Record<string, boolean>
 ): boolean {
   // Check against blocklist
   if (WAIVER_BLOCKLIST.has(playerName)) {
@@ -29,7 +28,7 @@ function shouldExcludeFromWaivers(
   }
   
   // Check if player's team has already played, is on bye, or has played in matchup
-  if (schedule && isPlayerLocked(playerData, schedule, Date.now(), playedPlayerIds, season)) {
+  if (schedule && isPlayerLocked(playerData, schedule, Date.now(), playedPlayerIds)) {
     return true;
   }
   
@@ -62,9 +61,8 @@ export function buildFreeAgentPool(opts: {
   projIdx: Record<string, Projection>;
   schedule?: GameSchedule;
   playedPlayerIds?: Record<string, boolean>;
-  season?: string;
 }) {
-  const { playersIndex, owned, projIdx, schedule, playedPlayerIds, season } = opts;
+  const { playersIndex, owned, projIdx, schedule, playedPlayerIds } = opts;
   const perPosCap = 125; // hard-coded cap for all positions
 
   const byPos: Record<
@@ -76,7 +74,7 @@ export function buildFreeAgentPool(opts: {
     const playerName = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.full_name || String(pid);
     
     // Skip players that should be excluded from waiver recommendations
-    if (shouldExcludeFromWaivers(playerName, p, schedule, playedPlayerIds, season)) {
+    if (shouldExcludeFromWaivers(playerName, p, schedule, playedPlayerIds)) {
       return;
     }
     
