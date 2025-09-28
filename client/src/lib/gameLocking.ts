@@ -56,14 +56,25 @@ export function isPlayerLocked(
   player: { team?: string; player_id?: string }, 
   schedule: GameSchedule, 
   now: number = Date.now(),
-  playedPlayerIds?: Record<string, boolean>
+  playedPlayerIds?: Record<string, boolean>,
+  season?: string
 ): boolean {
   // Priority 1: Check if player has already played in Sleeper matchup data
   if (playedPlayerIds && player.player_id && playedPlayerIds[player.player_id]) {
     return true;
   }
   
-  // Priority 2: Fall back to game schedule data
+  // Priority 2: Only use ESPN schedule data for current season to avoid false positives
+  // For future seasons, ESPN returns current season data which causes incorrect locking
+  const currentYear = new Date().getFullYear();
+  const analyzingSeason = season ? parseInt(season) : currentYear;
+  
+  // If analyzing a future season, don't use ESPN schedule data as it's not accurate
+  if (analyzingSeason > currentYear) {
+    return false;
+  }
+  
+  // Priority 3: Fall back to game schedule data for current/past seasons
   return hasGameStarted(player.team, schedule, now) || isTeamOnBye(player.team, schedule);
 }
 
@@ -75,9 +86,10 @@ export function filterUnlockedPlayers<T extends { team?: string; player_id?: str
   players: T[], 
   schedule: GameSchedule,
   now: number = Date.now(),
-  playedPlayerIds?: Record<string, boolean>
+  playedPlayerIds?: Record<string, boolean>,
+  season?: string
 ): T[] {
-  return players.filter(player => !isPlayerLocked(player, schedule, now, playedPlayerIds));
+  return players.filter(player => !isPlayerLocked(player, schedule, now, playedPlayerIds, season));
 }
 
 /**
