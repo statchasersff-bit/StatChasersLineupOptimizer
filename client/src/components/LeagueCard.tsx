@@ -10,6 +10,16 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
   // TRUE ins/outs based on sets, not slot-by-slot
   const diff = useMemo(() => buildLineupDiff(lg, lg.allEligible), [lg]);
   const changeCount = Math.max(diff.ins.length, diff.outs.length);
+  
+  // Check if this league has any risky starters (questionable players in optimal lineup)
+  const hasRiskyStarters = useMemo(() => {
+    return lg.optimalSlots.some(slot => {
+      const p = slot.player;
+      if (!p) return false;
+      const status = (p.injury_status || "").toUpperCase();
+      return status.includes("Q") || status.includes("QUESTIONABLE");
+    });
+  }, [lg.optimalSlots]);
 
   return (
     <div className="rounded-2xl shadow border" data-testid={`card-league-${lg.league_id}`}>
@@ -31,7 +41,14 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
       >
         <div className="min-w-0">
           <div className="text-sm text-gray-500 truncate" data-testid={`text-manager-${lg.league_id}`}>{lg.rosterUserDisplay}</div>
-          <h3 className="text-base md:text-lg font-semibold truncate" data-testid={`text-league-name-${lg.league_id}`}>{lg.name}</h3>
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="text-base md:text-lg font-semibold truncate" data-testid={`text-league-name-${lg.league_id}`}>{lg.name}</h3>
+            {hasRiskyStarters && (
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400 whitespace-nowrap" data-testid={`text-risky-indicator-${lg.league_id}`}>
+                Risky Starters
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
