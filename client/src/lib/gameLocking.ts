@@ -50,20 +50,34 @@ export function isTeamOnBye(team: string | undefined, schedule: GameSchedule): b
 /**
  * Check if a player should be excluded from waiver recommendations
  * (their team has already played or is on bye)
+ * Enhanced version that can also check Sleeper matchup data for played players
  */
-export function isPlayerLocked(player: { team?: string }, schedule: GameSchedule, now: number = Date.now()): boolean {
+export function isPlayerLocked(
+  player: { team?: string; player_id?: string }, 
+  schedule: GameSchedule, 
+  now: number = Date.now(),
+  playedPlayerIds?: Record<string, boolean>
+): boolean {
+  // Priority 1: Check if player has already played in Sleeper matchup data
+  if (playedPlayerIds && player.player_id && playedPlayerIds[player.player_id]) {
+    return true;
+  }
+  
+  // Priority 2: Fall back to game schedule data
   return hasGameStarted(player.team, schedule, now) || isTeamOnBye(player.team, schedule);
 }
 
 /**
  * Filter out locked players from a list
+ * Enhanced version that can also use Sleeper matchup data for played players
  */
-export function filterUnlockedPlayers<T extends { team?: string }>(
+export function filterUnlockedPlayers<T extends { team?: string; player_id?: string }>(
   players: T[], 
   schedule: GameSchedule,
-  now: number = Date.now()
+  now: number = Date.now(),
+  playedPlayerIds?: Record<string, boolean>
 ): T[] {
-  return players.filter(player => !isPlayerLocked(player, schedule, now));
+  return players.filter(player => !isPlayerLocked(player, schedule, now, playedPlayerIds));
 }
 
 /**

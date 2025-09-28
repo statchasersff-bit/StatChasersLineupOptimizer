@@ -40,3 +40,57 @@ export async function getPlayersIndex() {
   // Big object of all NFL players; cache in app state.
   return fetchJSON<Record<string, any>>("https://api.sleeper.app/v1/players/nfl");
 }
+
+/**
+ * Get matchup data for all leagues to detect if players have already played/scored
+ * This is more reliable than game start times for detecting locked players
+ */
+export async function getLeagueMatchupsForLocking(leagueIds: string[], week: string): Promise<Record<string, boolean>> {
+  const playedPlayerIds: Record<string, boolean> = {};
+  
+  try {
+    // Fetch matchup data for all leagues in parallel
+    const matchupPromises = leagueIds.map(async (leagueId) => {
+      try {
+        const matchups = await getLeagueMatchups(leagueId, week);
+        return { leagueId, matchups };
+      } catch (error) {
+        console.warn(`Failed to fetch matchups for league ${leagueId}:`, error);
+        return { leagueId, matchups: [] };
+      }
+    });
+    
+    const results = await Promise.all(matchupPromises);
+    
+    // Process matchup data to identify players who have already played
+    for (const { matchups } of results) {
+      for (const matchup of matchups) {
+        // Check if this matchup has individual player scoring data
+        if (matchup.players_points && typeof matchup.players_points === 'object') {
+          // Use per-player scoring data - any player with a defined score has played
+          for (const playerId of Object.keys(matchup.players_points)) {
+            if (playerId && playerId !== "0") {
+              playedPlayerIds[playerId] = true;
+            }
+          }
+        } else {
+          // Fallback: Only mark players as played if roster has positive points
+          // This avoids false positives from pre-game 0 scores
+          if (matchup.points && matchup.points > 0 && matchup.starters) {
+            for (const playerId of matchup.starters) {
+              if (playerId && playerId !== "0") {
+                playedPlayerIds[playerId] = true;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    console.log(`[Sleeper] Found ${Object.keys(playedPlayerIds).length} players who have already played`);
+    return playedPlayerIds;
+  } catch (error) {
+    console.error('Failed to fetch league matchups for locking:', error);
+    return {};
+  }
+}

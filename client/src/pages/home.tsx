@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown } from "lucide-react";
-import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex } from "@/lib/sleeper";
+import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, type GameSchedule } from "@/lib/gameLocking";
@@ -169,6 +169,11 @@ export default function Home() {
       const out: LeagueSummary[] = [];
       const currentPlayersIndex = playersIndex || await getPlayersIndex();
 
+      // Fetch Sleeper matchup data for all leagues to detect played players (enhanced locking)
+      const leagueIds = filteredLeagues.map(lg => lg.league_id);
+      console.log(`[Home] Fetching matchup data for ${leagueIds.length} leagues to enhance player locking...`);
+      const playedPlayerIds = await getLeagueMatchupsForLocking(leagueIds, week);
+
       for (const lg of filteredLeagues) {
         try {
           const [rosters, users, leagueDetails, matchups] = await Promise.all([
@@ -234,8 +239,8 @@ export default function Home() {
             const isOut = flags.includes("OUT");
             const finalProj = isOut ? 0 : adj;
             
-            // Check if player is locked (team already played)
-            const locked = isPlayerLocked(lite, schedule);
+            // Check if player is locked (team already played or has played in matchup)
+            const locked = isPlayerLocked(lite, schedule, Date.now(), playedPlayerIds);
             
             return { ...lite, proj: finalProj, opp: pr?.opp, locked };
           };
@@ -268,6 +273,7 @@ export default function Home() {
               owned,
               projIdx,
               schedule,
+              playedPlayerIds, // Pass the played player data for enhanced locking
             });
 
             // Score the FA pool using league scoring (teams that have played are already filtered out)
