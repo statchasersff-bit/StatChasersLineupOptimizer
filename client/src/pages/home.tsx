@@ -42,7 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const [season, setSeason] = useState("2025");
-  const [week, setWeek] = useState("4"); // Current NFL week
+  const [week, setWeek] = useState("5"); // Current NFL week
   const [username, setUsername] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
