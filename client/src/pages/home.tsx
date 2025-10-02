@@ -194,8 +194,14 @@ export default function Home() {
           const roster_positions: string[] = leagueDetails?.roster_positions || lg.roster_positions || [];
           const slotCounts = buildSlotCounts(roster_positions);
 
+          // Use matchup starters (reflects in-week changes & auto-subs) over roster starters
+          const meMatchup = matchups?.find((m: any) => m.roster_id === meRoster?.roster_id);
+          const actualStarters = (meMatchup && meMatchup.starters && meMatchup.starters.length > 0) 
+            ? meMatchup.starters 
+            : (meRoster?.starters || []);
+          
           // Keep original starter structure (including empty slots) for display
-          const starters: (string | null)[] = (meRoster?.starters || []);
+          const starters: (string | null)[] = actualStarters;
           // For bench calculation, filter out empties and get non-starting players
           const validStarters = starters.filter((x): x is string => !!x);
           const bench: string[] = (meRoster?.players || []).filter((p: string) => p && !validStarters.includes(p));
