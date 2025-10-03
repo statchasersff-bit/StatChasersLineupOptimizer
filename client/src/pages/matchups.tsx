@@ -59,7 +59,7 @@ interface LeagueMetrics {
   league: any; // Store the full league object for filtering
 }
 
-const DYNASTY_KEY = "stc:filter:dynasty:on";
+const REDRAFT_KEY = "stc:filter:redraft:on";
 
 export default function MatchupsPage() {
   const params = useParams<{ username: string }>();
@@ -74,16 +74,16 @@ export default function MatchupsPage() {
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<"optMinusAct" | "projectedResult" | "quesCount" | "byeOutCount">("optMinusAct");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [dynastyOnly, setDynastyOnly] = useState<boolean>(() => {
-    const saved = localStorage.getItem(DYNASTY_KEY);
+  const [redraftOnly, setRedraftOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem(REDRAFT_KEY);
     return saved ? saved === "1" : false;
   });
   const { toast } = useToast();
 
-  // Persist dynasty filter preference
+  // Persist redraft filter preference
   useEffect(() => {
-    localStorage.setItem(DYNASTY_KEY, dynastyOnly ? "1" : "0");
-  }, [dynastyOnly]);
+    localStorage.setItem(REDRAFT_KEY, redraftOnly ? "1" : "0");
+  }, [redraftOnly]);
 
   // Load projections on mount and when season/week changes
   useEffect(() => {
@@ -356,10 +356,10 @@ export default function MatchupsPage() {
   }, [username, projections, season, week, projIdx, toast]);
 
   const sortedMetrics = useMemo(() => {
-    // Apply dynasty filter if enabled
+    // Apply redraft filter if enabled (show only non-dynasty leagues)
     let filtered = leagueMetrics;
-    if (dynastyOnly) {
-      filtered = leagueMetrics.filter((metric) => isDynastyLeague(metric.league));
+    if (redraftOnly) {
+      filtered = leagueMetrics.filter((metric) => !isDynastyLeague(metric.league));
     }
     
     const sorted = [...filtered].sort((a, b) => {
@@ -388,7 +388,7 @@ export default function MatchupsPage() {
       return sortOrder === "desc" ? bVal - aVal : aVal - bVal;
     });
     return sorted;
-  }, [leagueMetrics, sortBy, sortOrder, dynastyOnly]);
+  }, [leagueMetrics, sortBy, sortOrder, redraftOnly]);
 
   const toggleExpanded = (leagueId: string) => {
     const newSet = new Set(expandedLeagues);
@@ -458,13 +458,13 @@ export default function MatchupsPage() {
               
               <div className="flex items-center gap-2 border-l pl-3">
                 <Switch 
-                  id="dynasty-only" 
-                  checked={dynastyOnly} 
-                  onCheckedChange={setDynastyOnly}
-                  data-testid="switch-dynasty-filter"
+                  id="redraft-only" 
+                  checked={redraftOnly} 
+                  onCheckedChange={setRedraftOnly}
+                  data-testid="switch-redraft-filter"
                 />
-                <Label htmlFor="dynasty-only" className="cursor-pointer text-sm" data-testid="label-dynasty-filter">
-                  Dynasty only
+                <Label htmlFor="redraft-only" className="cursor-pointer text-sm" data-testid="label-redraft-filter">
+                  Redraft only
                 </Label>
               </div>
             </div>
@@ -476,12 +476,12 @@ export default function MatchupsPage() {
                 Using StatChasers projections for Week {week}
               </Badge>
             )}
-            {dynastyOnly && leagueMetrics.length > 0 && (
-              <Badge variant="secondary" className="w-fit" data-testid="badge-dynasty-filter">
-                Showing dynasty leagues only ({sortedMetrics.length} of {leagueMetrics.length})
+            {redraftOnly && leagueMetrics.length > 0 && (
+              <Badge variant="secondary" className="w-fit" data-testid="badge-redraft-filter">
+                Showing redraft leagues only ({sortedMetrics.length} of {leagueMetrics.length})
               </Badge>
             )}
-            {!dynastyOnly && leagueMetrics.length > 0 && (
+            {!redraftOnly && leagueMetrics.length > 0 && (
               <span className="text-xs text-muted-foreground" data-testid="text-league-count">
                 {sortedMetrics.length} {sortedMetrics.length === 1 ? 'league' : 'leagues'}
               </span>

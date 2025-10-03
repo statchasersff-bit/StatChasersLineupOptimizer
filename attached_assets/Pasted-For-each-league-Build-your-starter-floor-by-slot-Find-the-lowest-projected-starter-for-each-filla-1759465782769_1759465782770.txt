@@ -1,0 +1,214 @@
+For each league:
+
+Build your starter floor by slot
+
+Find the lowest projected starter for each fillable slot (QB, RB, WR, TE, K, DEF, FLEX, SUPER_FLEX).
+
+For FLEX/SF compare against the lowest eligible starter across those pools (RB/WR/TE for FLEX; QB+RB/WR/TE for SF).
+
+Pull the free-agent pool (not already rostered)
+
+Sleeper has a “players” catalog + league “rosters.”
+
+Free agents are players that are not on any roster in that league (or have status: 'free_agent' in some endpoints).
+
+You can also use the trending endpoint to reduce volume, then backfill with a paged search if you want depth.
+
+Convert each FA to league-scored projection using your StatChasers columns (you already compute this per league).
+
+For each FA, check slot eligibility vs the slot where they’d help and compute delta = FA_proj − worstStarter_proj.
+
+Only surface if delta ≥ MIN_GAIN (recommend: 1.5 pts) and the FA isn’t on BYE/OUT (configurable).
+
+Return top N suggestions per league (recommend N=5), grouped by slot with a link to Sleeper add/drop.
+
+Sleeper endpoints to use
+
+League rosters/users: GET /v1/league/{league_id}/rosters
+
+Player catalog (one time per session; cache): GET /v1/players/nfl
+
+Optional to limit pool: Trending free agents:
+GET /v1/players/nfl/trending/add?limit=200
+
+Rate limit gently (3–5 concurrent), cache player catalog for the session.
+
+Eligibility helpers
+type Slot = "QB"|"RB"|"WR"|"TE"|"K"|"DEF"|"FLEX"|"SUPER_FLEX"|"BN";
+
+const isFlexEligible = (pos: string) => pos==="RB"||pos==="WR"||pos==="TE";
+const isSuperFlexEligible = (pos: string) => pos==="QB" || isFlexEligible(pos);
+
+function slotEligible(pos: string, slot: Slot) {
+  if (slot==="FLEX") return isFlexEligible(pos);
+  if (slot==="SUPER_FLEX") return isSuperFlexEligible(pos);
+  return pos === slot; // strict for primary slots
+}
+
+Compute worst starter by slot (the target to beat)
+function buildStarterFloors(starters: Array<{player_id:string; pos:string; slot:Slot; proj:number}>) {
+  const floors: Record<Slot, {player_id:string; proj:number} | null> = {
+    QB:null,RB:null,WR:null,TE:null,K:null,DEF:null,FLEX:null,SUPER_FLEX:null,BN:null
+  };
+  for (const s of starters) {
+    if (s.slot==="BN") continue;
+    const cur = floors[s.slot];
+    if (!cur || (s.proj ?? 0) < (cur.proj ?? 0)) {
+      floors[s.slot] = { player_id: s.player_id, proj: s.proj ?? 0 };
+    }
+  }
+
+  // FLEX/SF floors should reflect the *lowest* eligible starter from the pool
+  const flexCandidates = starters.filter(s => slotEligible(s.pos, "FLEX"));
+  const sfCandidates   = starters.filter(s => slotEligible(s.pos, "SUPER_FLEX"));
+  floors.FLEX = flexCandidates.length
+    ? flexCandidates.reduce((m,s)=> (m && m.proj <= (s.proj??0)) ? m : {player_id:s.player_id, proj:s.proj??0}, null as any)
+    : null;
+  floors.SUPER_FLEX = sfCandidates.length
+    ? sfCandidates.reduce((m,s)=> (m && m.proj <= (s.proj??0)) ? m : {player_id:s.player_id, proj:s.proj??0}, null as any)
+    : null;
+
+  return floors;
+}
+
+Build the FA pool for a league
+async function getFreeAgentsForLeague(leagueId: string, allPlayers: Record<string, any>) {
+  const rosters = await fetch(`/v1/league/${leagueId}/rosters`).then(r=>r.json());
+  const owned = new Set<string>();
+  for (const r of rosters) for (const pid of (r.players ?? [])) owned.add(String(pid));
+
+  // Start with trending pool to keep it fast
+  const trending = await fetch(`/v1/players/nfl/trending/add?limit=300`).then(r=>r.json());
+  const faIds = trending
+    .map((t:any)=> String(t.player_id))
+    .filter(pid => !owned.has(pid) && allPlayers[pid]);
+
+  // Map to lightweight objects
+  return faIds.map(pid => {
+    const p = allPlayers[pid];
+    return { player_id: pid, name: p.full_name, pos: p.position, team: p.team, injury_status: p.injury_status };
+  });
+}
+
+Score FAs with your StatChasers projections (league-adjusted)
+
+Assuming you already have projectPlayerPts(player, leagueScoring, weekProjectionRow):
+
+function scoreFreeAgents(
+  fas: any[],
+  leagueScoring: any,
+  projMap: Map<string, any>, // keyed by sleeper_id to your CSV row
+  byeSet: Set<string>        // player_ids or team/week map if you have one
+) {
+  return fas.map(p => {
+    const row = projMap.get(p.player_id);
+    const base = row ? projectPlayerPts(row, leagueScoring) : 0;
+    const isByeOrOut = row?.opp === "BYE" || ["O","IR","NA"].includes(p.injury_status);
+    return { ...p, proj: base, isByeOrOut };
+  });
+}
+
+Compare to floors and pick suggestions
+type WaiverSuggestion = {
+  slot: Slot;
+  inP: { player_id:string; name:string; pos:string; proj:number };
+  outP: { player_id:string; name:string; pos:string; proj:number };
+  delta: number;
+};
+
+function pickWaiverUpgrades(
+  scoredFAs: any[],
+  starters: Array<{player_id:string; name:string; pos:string; slot:Slot; proj:number}>,
+  minGain = 1.5
+): WaiverSuggestion[] {
+  const floors = buildStarterFloors(starters);
+  const suggestions: WaiverSuggestion[] = [];
+
+  // Build a quick lookup of current starters by player_id for names/pos
+  const byId = new Map(starters.map(s => [s.player_id, s]));
+
+  for (const fa of scoredFAs) {
+    if (!fa || !Number.isFinite(fa.proj)) continue;
+
+    // Check against each slot the FA can fill
+    (["QB","RB","WR","TE","K","DEF","FLEX","SUPER_FLEX"] as Slot[]).forEach(slot => {
+      if (!slotEligible(fa.pos, slot)) return;
+      const floor = floors[slot];
+      if (!floor) return;
+      const delta = fa.proj - floor.proj;
+      if (delta >= minGain) {
+        const outS = byId.get(floor.player_id);
+        suggestions.push({
+          slot,
+          inP: { player_id: fa.player_id, name: fa.name, pos: fa.pos, proj: fa.proj },
+          outP: { player_id: floor.player_id, name: outS?.name ?? "(starter)", pos: outS?.pos ?? "", proj: floor.proj },
+          delta
+        });
+      }
+    });
+  }
+
+  // Deduplicate by FA & slot, keep the highest delta, and cap to top N
+  const key = (s:WaiverSuggestion) => `${s.slot}:${s.inP.player_id}`;
+  const best = new Map<string, WaiverSuggestion>();
+  for (const s of suggestions) {
+    const k = key(s);
+    if (!best.has(k) || best.get(k)!.delta < s.delta) best.set(k, s);
+  }
+  return [...best.values()]
+    .sort((a,b)=> b.delta - a.delta)
+    .slice(0, 5); // top 5 per league
+}
+
+UI placement
+
+In each league’s expanded panel, add a “Waiver Watchlist” card:
+
+{waiverSuggestions.length ? (
+  <div className="mt-4 rounded-lg border p-3">
+    <div className="mb-2 font-semibold">Waiver Watchlist</div>
+    <ul className="space-y-2">
+      {waiverSuggestions.map(s => (
+        <li key={s.slot + s.inP.player_id} className="flex flex-wrap items-center justify-between rounded-md border p-2">
+          <div>
+            <span className="text-green-700 font-medium">Add {s.inP.name}</span>
+            <span className="text-xs text-muted-foreground ml-2">({s.inP.pos} → {s.slot})</span>
+            <span className="ml-2 text-green-700">+{s.delta.toFixed(1)} pts</span>
+            <div className="text-xs text-muted-foreground">
+              over {s.outP.name} ({s.outP.pos}, {s.outP.proj.toFixed(1)})
+            </div>
+          </div>
+          <a
+            className="text-sm underline"
+            href={`https://sleeper.com/leagues/${leagueId}/players/${s.inP.player_id}`}
+            target="_blank" rel="noopener noreferrer"
+          >
+            View in Sleeper
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+) : (
+  <div className="mt-4 text-sm text-muted-foreground">No obvious waiver upgrades (≥ +1.5 pts).</div>
+)}
+
+Config knobs (put in a settings/constants file)
+
+MIN_WAIVER_GAIN = 1.5 // threshold to display
+
+EXCLUDE_STATUSES = ["O","IR","NA"]
+
+IGNORE_BYE = true
+
+MAX_SUGGESTIONS = 5
+
+Edge cases handled
+
+Multi-FLEX/SF: eligibility functions allow FA to be compared against the correct floor.
+
+No projection for FA: skip (proj = 0).
+
+Different scoring: we always compute with the league’s scoring settings.
+
+Rate limits: use trending endpoint; cache players and per-league free-agent results for the session.

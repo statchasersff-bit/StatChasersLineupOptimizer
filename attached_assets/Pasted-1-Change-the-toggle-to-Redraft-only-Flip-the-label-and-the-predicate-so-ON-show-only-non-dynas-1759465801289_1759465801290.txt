@@ -1,0 +1,95 @@
+1) Change the toggle to “Redraft only”
+
+Flip the label and the predicate so ON = show only non-dynasty.
+
+// src/lib/leagues.ts (we keep this helper)
+export function isDynasty(l: any): boolean {
+  const t = String(l?.settings?.type ?? l?.type ?? "").toLowerCase();
+  const name = `${l?.name ?? ""} ${l?.metadata?.description ?? ""}`.toLowerCase();
+  return t.includes("dynasty") || t === "dynasty" || t === "keeper" ||
+         /\bdynasty\b/.test(name) || /\bkeeper(s)?\b/.test(name);
+}
+
+// src/pages/MatchupsPage.tsx
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { isDynasty } from "@/lib/leagues";
+
+const REDRAFT_KEY = "stc:filter:redraft:on";
+
+export default function MatchupsPage({ leagues /*...*/ }) {
+  const [redraftOnly, setRedraftOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem(REDRAFT_KEY);
+    return saved ? saved === "1" : false;   // default OFF = show all non-bestball
+  });
+  useEffect(() => {
+    localStorage.setItem(REDRAFT_KEY, redraftOnly ? "1" : "0");
+  }, [redraftOnly]);
+
+  const base = useMemo(
+    () => leagues.filter(l => !(l.settings?.best_ball === 1 || /best.?ball/i.test(l?.name ?? ""))),
+    [leagues]
+  );
+
+  const leaguesFiltered = useMemo(
+    () => redraftOnly ? base.filter(l => !isDynasty(l)) : base,
+    [base, redraftOnly]
+  );
+
+  return (
+    <>
+      {/* …season/week pickers… */}
+      <div className="flex items-center gap-3">
+        <Switch id="redraft-only" checked={redraftOnly} onCheckedChange={setRedraftOnly} />
+        <Label htmlFor="redraft-only" className="cursor-pointer">Redraft only</Label>
+      </div>
+      {/* …table uses leaguesFiltered… */}
+    </>
+  );
+}
+
+2) Opt-Act: show a green checkmark when already optimal
+
+Use a small epsilon so +0.0 from rounding is treated as 0. Example with lucide-react CheckCircle (or swap for ✓).
+
+// src/components/OptActCell.tsx
+import { CheckCircle } from "lucide-react";
+
+export function OptActCell({ optPoints, actPoints }: { optPoints:number; actPoints:number }) {
+  const delta = (optPoints ?? 0) - (actPoints ?? 0);
+  const EPS = 0.05; // treat |delta| < 0.05 as 0
+
+  if (Math.abs(delta) < EPS) {
+    return (
+      <span className="inline-flex items-center gap-1 text-green-600">
+        <CheckCircle className="h-4 w-4" aria-hidden />
+        <span className="sr-only">Already optimal</span>
+      </span>
+    );
+  }
+
+  const sign = delta > 0 ? "+" : ""; // keep minus automatically
+  const cls  = delta > 0 ? "text-green-600" : "text-red-600";
+  return <span className={cls}>{sign}{delta.toFixed(1)}</span>;
+}
+
+
+Use it in your table column render:
+
+// columns
+{ header: "Opt-Act", id: "optact", cell: (row) => (
+    <OptActCell optPoints={row.original.optPoints} actPoints={row.original.actPoints} />
+) }
+
+
+And make sure your sort for this column uses the raw numeric delta (not the rendered string):
+
+sortFn: (a, b) => ((a.optPoints - a.actPoints) - (b.optPoints - b.actPoints))
+
+Micro-polish
+
+Tooltip: wrap the checkmark with a title "Already optimal".
+
+If you also display Proj Result, keep your header text as “Proj Result” (you already asked for that rename).
+
+That’s it—toggle reads Redraft only, and zero-gain rows show a clean ✅ instead of “+0.0”.
