@@ -1,0 +1,162 @@
+let’s split “not playing” from “questionable” and make it super obvious.
+
+What you want
+
+Replace the vague “Risky Starters” with:
+
+OUT/BYE/EMPTY (red/gray) — players who will score 0 unless changed
+
+QUES (orange) — players with questionable/doubtful status
+
+Show counts in the leagues table and list names inside the expand panel.
+
+Badge each starter card with the right tag.
+
+1) Classify starter availability
+// src/lib/availability.ts
+export type AvailTag = "OUT" | "BYE" | "EMPTY" | "QUES" | null;
+
+const OUT_STATUSES = new Set(["O","IR","NA","SUS","SSPD"]); // “not playing”
+const Q_STATUSES   = new Set(["Q","D"]);                   // “questionable” (orange)
+
+export function classifyStarter(p?: {
+  player_id?: string;
+  name?: string;
+  pos?: string;
+  opp?: string;                // from your projections row (e.g., 'BYE')
+  injury_status?: string;      // from Sleeper players
+}): AvailTag {
+  if (!p || !p.player_id) return "EMPTY";
+  const s = (p.injury_status || "").toUpperCase();
+  if (p.opp === "BYE") return "BYE";
+  if (OUT_STATUSES.has(s)) return "OUT";
+  if (Q_STATUSES.has(s)) return "QUES";
+  return null;
+}
+
+2) Gather counts + names for the league row
+// when you build each league’s row (after you’ve attached projections & statuses)
+import { classifyStarter } from "@/lib/availability";
+
+type Starter = { player_id?: string; name?: string; opp?: string; injury_status?: string; slot: string };
+
+function summarizeStarters(starters: Starter[]) {
+  const outByeEmpty: Starter[] = [];
+  const ques: Starter[] = [];
+
+  for (const s of starters) {
+    const tag = classifyStarter(s);
+    if (tag === "OUT" || tag === "BYE" || tag === "EMPTY") outByeEmpty.push(s);
+    else if (tag === "QUES") ques.push(s);
+  }
+
+  return {
+    notPlayingCount: outByeEmpty.length,
+    notPlayingList: outByeEmpty.map(s => ({ id: s.player_id, name: s.name, tag: classifyStarter(s) })),
+    quesCount: ques.length,
+    quesList: ques.map(s => ({ id: s.player_id, name: s.name })),
+  };
+}
+
+
+Use these in your table badges and in the expanded warning boxes.
+
+3) Table badges (replace old “Risky Starters”)
+// In leagues table columns
+// OUT/BYE/EMPTY count (red pill if >0)
+<th>OUT/BYE/EMPTY?</th>
+<td>
+  {row.notPlayingCount > 0 ? (
+    <span className="rounded-full bg-red-50 text-red-700 text-xs px-2 py-0.5">
+      {row.notPlayingCount}
+    </span>
+  ) : (
+    <span className="rounded-full bg-green-50 text-green-600 text-xs px-2 py-0.5">0</span>
+  )}
+</td>
+
+// QUES count (orange pill if >0)
+<th>QUES?</th>
+<td>
+  {row.quesCount > 0 ? (
+    <span className="rounded-full bg-amber-50 text-amber-700 text-xs px-2 py-0.5">
+      {row.quesCount}
+    </span>
+  ) : <span className="text-xs text-muted-foreground">-</span>}
+</td>
+
+
+(You already renamed “Result” → “Proj Result”. Keep that.)
+
+4) Expanded warnings with names
+{/* Not playing list */}
+{row.notPlayingCount > 0 && (
+  <div className="my-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+    <div className="font-medium">OUT/BYE/EMPTY starters</div>
+    <div className="text-sm">
+      {row.notPlayingList.map((p, i) => (
+        <span key={p.id || i}>
+          {p.name || "—"}{p.tag ? ` (${p.tag})` : ""}{i < row.notPlayingList.length - 1 ? ", " : ""}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* Questionable list */}
+{row.quesCount > 0 && (
+  <div className="my-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+    <div className="font-medium">Questionable starters</div>
+    <div className="text-sm">
+      {row.quesList.map((p, i) => (
+        <span key={p.id || i}>
+          {p.name}{i < row.quesList.length - 1 ? ", " : ""}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+
+5) Badge each starter card
+// on your StarterCard component
+import { classifyStarter } from "@/lib/availability";
+
+function StarterBadge({ p }: { p?: any }) {
+  const tag = classifyStarter(p);
+  if (!tag) return null;
+
+  const styles: Record<string, string> = {
+    OUT:   "bg-red-600 text-white",
+    BYE:   "bg-gray-500 text-white",
+    EMPTY: "bg-gray-400 text-white",
+    QUES:  "bg-amber-500 text-white",
+  };
+
+  return (
+    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[tag]}`}>
+      {tag}
+    </span>
+  );
+}
+
+// Usage inside the player label
+<div className="flex items-center">
+  <span>{player.name ?? "Empty"}</span>
+  <StarterBadge p={player} />
+</div>
+
+6) Replace any “Risky Starters” text
+
+Page chips / section titles: change to OUT/BYE/EMPTY and QUES.
+
+Keep your existing counts, just feeding from summarizeStarters.
+
+Notes / edge cases
+
+If Sleeper sometimes omits injury_status, the classification still flags BYE via projections (opp === "BYE") and EMPTY when no player_id.
+
+If you want Doubtful (D) separate from Questionable (Q), split Q_STATUSES into two tags and render another orange badge; right now both map to QUES.
+
+If you support multiple FLEX slots, classification still works per player, no change needed.
+
+Plug these in and you’ll have a clear red OUT/BYE/EMPTY indicator (names included) plus a separate orange QUES tag—no more mixed “Risky” bucket.

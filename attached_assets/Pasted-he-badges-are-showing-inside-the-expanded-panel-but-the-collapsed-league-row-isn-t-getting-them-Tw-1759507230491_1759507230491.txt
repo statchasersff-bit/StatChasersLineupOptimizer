@@ -1,0 +1,251 @@
+he badges are showing inside the expanded panel, but the collapsed league row isn’t getting them. Two things to do:
+
+Compute the counts at summary time (when you build each league row).
+
+Render small pills next to the league name in the table row.
+
+Below is a drop-in fix.
+
+1) Summarize starters at row-build time
+
+Add (or reuse) this helper and call it right after you compute currentStarters for a league:
+
+// src/lib/availability.ts
+export type AvailTag = "OUT" | "BYE" | "EMPTY" | "QUES" | null;
+
+const OUT_STATUSES = new Set(["O","IR","NA","SUS","SSPD"]);
+const Q_STATUSES   = new Set(["Q","D"]);
+
+export function classifyStarter(p?: {
+  player_id?: string;
+  opp?: string;                  // from projections row (e.g., 'BYE')
+  injury_status?: string;        // from Sleeper
+}): AvailTag {
+  if (!p || !p.player_id) return "EMPTY";
+  const s = (p.injury_status || "").toUpperCase();
+  if (p.opp === "BYE")      return "BYE";
+  if (OUT_STATUSES.has(s))  return "OUT";
+  if (Q_STATUSES.has(s))    return "QUES";
+  return null;
+}
+
+export function summarizeStartersForRow(starters: Array<{player_id?:string; opp?:string; injury_status?:string}>) {
+  let notPlaying = 0, ques = 0;
+  for (const s of starters) {
+    const tag = classifyStarter(s);
+    if (tag === "OUT" || tag === "BYE" || tag === "EMPTY") notPlaying++;
+    else if (tag === "QUES") ques++;
+  }
+  return { notPlayingCount: notPlaying, quesCount: ques };
+}
+
+
+When you create each league row model:
+
+// wherever you assemble the league summary row
+import { summarizeStartersForRow } from "@/lib/availability";
+
+const { notPlayingCount, quesCount } = summarizeStartersForRow(currentStarters);
+row.notPlayingCount = notPlayingCount;   // OUT/BYE/EMPTY
+row.quesCount = quesCount;               // Q/D
+
+
+Make sure currentStarters items include injury_status (from Sleeper players) and opp (from your projections) so classification works.
+
+2) Render badges in the collapsed row (next to league name)
+
+In your table row component (the collapsed/summary view), add tiny pills after the league name:
+
+// src/components/LeagueRow.tsx (summary row)
+function Pill({ children, className = "" }: {children: React.ReactNode; className?: string}) {
+  return <span className={`ml-2 rounded-full px-2 py-[2px] text-xs font-medium ${className}`}>{children}</span>;
+}
+
+export function LeagueRow({ row }: { row: LeagueRowModel }) {
+  const np = row.notPlayingCount ?? 0;
+  const q  = row.quesCount ?? 0;
+
+  return (
+    <tr /* ... */>
+      <td className="text-left">
+        <div className="flex items-center gap-2">
+          {/* caret / icon … */}
+          <span className="font-medium">{row.leagueName}</span>
+
+          {/* NEW: OUT/BYE/EMPTY pill */}
+          {np > 0 && (
+            <Pill className="bg-red-50 text-red-700 border border-red-200">
+              OUT/BYE/EMPTY: {np}
+            </Pill>
+          )}
+
+          {/* NEW: QUES pill */}
+          {q > 0 && (
+            <Pill className="bg-amber-50 text-amber-700 border border-amber-200">
+              QUES: {q}
+            </Pill>
+          )}
+        </div>
+      </td>
+
+      {/* …other columns (Record, Opt-Act, Proj Result, etc.) … */}
+    </tr>
+  );
+}
+
+
+If you prefer icons-only:
+
+{/* icon-only */}
+{np > 0 && <Pill className="bg-red-600 text-white">NP {np}</Pill>}
+{q  > 0 && <Pill className="bg-amber-500 text-white">Q {q}</Pill>}
+
+3) (Optional) Sort/Filter hooks
+
+Add a filter button “Hide leagues with OUT/BYE/EMPTY” if you want: rows.filter(r => r.notPlayingCount === 0).
+
+Allow sorting by notPlayingCount desc to bubble problems to the top.
+
+4) Common misses to check
+
+Your currentStarters items must carry both injury_status (from the Sleeper players catalog) and opp (from your projections row).
+
+If opp isn’t present, BYE won’t be detected—map it during your projections join:
+
+starter.opp = projectionsById.get(starter.player_id)?.opp ?? starter.opp ?? "";
+
+
+Empty slots should be represented with an object lacking player_id so classifyStarter returns "EMPTY".
+
+Once you add row.notPlayingCount and row.quesCount at build time and render the pills as above, you’ll see the OUT/BYE/EMPTY and QUES indicators right next to each league name in the collapsed view.
+
+You said:
+A few other issues I see (please see attached).
+
+It is suggesting to add Sam Darnold who is projected 19.03 points instead of Bryce Young who is projected 19.31 points.
+
+It is suggesting to add Kendrick Bourne from waivers even though he has already played and should be locked
+
+It is suggesting to put Jordan Addison into Flex even though he is already in a FLEX spot.
+ChatGPT said:
+Thought for 34s
+
+Great catches. Here’s how to fix all three issues so the solver behaves the way you expect when “Consider Free Agents” is on:
+
+1) It picked Sam Darnold (19.03) over Bryce Young (19.31)
+
+Cause: FA shortlist/optimizer isn’t strictly preferring the highest projection per slot (or you capped the FA bucket before Bryce got in).
+
+Fixes
+
+Always sort FA candidates by proj DESC and cap after sorting.
+
+In the lineup solver, when two candidates are eligible for the same slot, pick the higher proj; for ties, use a stable tiebreaker (name/ID) so results are deterministic.
+
+// when preparing FA list per position
+buckets[pos].sort((a,b) => b.proj - a.proj);
+const shortlist = buckets[pos].slice(0, MAX_FA_PER_POS); // cap AFTER sort
+
+// in solver’s comparator
+function better(a: Candidate, b: Candidate) {
+  if ((a.proj ?? 0) !== (b.proj ?? 0)) return (a.proj ?? 0) - (b.proj ?? 0);
+  return a.player_id.localeCompare(b.player_id); // stable tiebreak
+}
+
+2) It suggested Kendrick Bourne though he has already played (locked)
+
+Cause: FA pool doesn’t check if the player’s game has started/finished.
+
+Fix (pick one of these; #A is best):
+
+A) Use a kickoff timestamp per player (recommended)
+
+Add a kickoff_ts (UTC seconds) column to your projections CSV weekly (easy to export from your slate), then filter:
+
+const now = Math.floor(Date.now()/1000);
+const playedOrLocked = row.kickoff_ts && now >= row.kickoff_ts;
+if (playedOrLocked) continue; // skip from FA pool and from optimal
+
+
+Bonus: also hide rostered starters who are already locked from “Recommended Changes”.
+
+B) Keep a tiny schedule.json in the repo
+
+Ship public/schedule/2025/week05.json with items {player_id, kickoff_ts} or {team, opp, kickoff_ts}, load it with the week, and apply the same playedOrLocked check.
+
+C) (Heuristic if you can’t add schedule yet)
+
+Skip any FA whose actual points for the week > 0 (requires a call to Sleeper weekly stats) → heavier and inconsistent, so prefer A/B.
+
+Also exclude BYE and OUT/IR:
+
+if (row.opp === "BYE") continue;
+if (["O","IR","NA"].includes((p.injury_status||"").toUpperCase())) continue;
+
+3) It said “Put Jordan Addison into FLEX” even though he’s already in FLEX
+
+Cause: the recommendation renderer isn’t filtering intra-starter reshuffles or “same-player/same-slot” no-ops.
+
+Fix: only show bench → starter promotions and pair them with the bumped starter; skip:
+
+same player_id
+
+from.slot === to.slot
+
+both from and to are starter slots (i.e., reshuffle)
+
+const STARTER = new Set(["QB","RB","WR","TE","K","DEF","FLEX","SUPER_FLEX"]);
+
+const benchPromotionsOnly = rawChanges.filter(ch => {
+  if (!ch.in || !ch.out) return false;
+  if (ch.in.player_id === ch.out.player_id) return false;          // same player
+  if (ch.in.slot === ch.out.slot) return false;                    // same slot
+  return ch.out.slot === "BN" && STARTER.has(ch.in.slot);          // BN -> starter only
+});
+
+
+If you have multiple FLEX slots, the guard still holds—BN→FLEX is allowed, FLEX→FLEX will be filtered.
+
+Put it together — FA pool + locks + solver preferences
+// 1) Build FA candidates (after you map projections & league scoring)
+const now = Math.floor(Date.now()/1000);
+const EXCLUDE_STATUSES = new Set(["O","IR","NA"]);
+const MAX_FA_PER_POS = 12;
+
+for (const pid of faIds) {
+  const p   = allPlayers[pid];
+  const row = projMap.get(pid);
+  if (!p || !row) continue;
+
+  // Skip BYE/OUT/locked
+  const status = (p.injury_status||"").toUpperCase();
+  if (row.opp === "BYE") continue;
+  if (EXCLUDE_STATUSES.has(status)) continue;
+  if (row.kickoff_ts && now >= row.kickoff_ts) continue; // <— NEW
+
+  const proj = projectPlayerPts(row, leagueScoring);
+  if (!(proj > 0)) continue;
+
+  buckets[pos].push({ /* … */ proj });
+}
+
+// cap AFTER sorting
+Object.keys(buckets).forEach(pos => {
+  buckets[pos].sort((a,b) => b.proj - a.proj);
+  buckets[pos] = buckets[pos].slice(0, MAX_FA_PER_POS);
+});
+
+// 2) Merge FA with roster pool and drop 0-proj
+const pool = rosterCandidates.concat(...Object.values(buckets).flat()).filter(c => c.proj > 0);
+
+// 3) In your solver, always choose better() by proj DESC, then id
+
+UI tweaks to reinforce behavior
+
+When Consider Free Agents is ON, show a tiny note:
+
+“Optimal lineup includes eligible free agents who haven’t played yet.”
+
+In “Recommended Changes”, mark FA adds clearly:
+
+Add FA Bryce Young (QB) → QB (+19.3 over Sam Darnold 19.0)
