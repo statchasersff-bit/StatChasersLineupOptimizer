@@ -65,6 +65,9 @@ export async function buildFACandidates(
     const pos = p.position;
     if (!buckets[pos]) continue; // ignore IDP etc.
     
+    // Exclude kickers from FA candidates
+    if (pos === "K") continue;
+    
     // Exclude players on BYE or with OUT status
     if (proj.opp === "BYE") continue;
     const status = (p.injury_status || "").toUpperCase();
