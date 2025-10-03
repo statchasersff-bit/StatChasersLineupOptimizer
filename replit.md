@@ -87,16 +87,27 @@ This approach focuses user attention on actionable roster changes rather than in
 ### League Filtering
 The application provides intelligent filtering capabilities:
 - **Best Ball Filter**: Automatically excludes Best Ball leagues from all analysis (always active)
-- **Redraft Filter**: Optional toggle to show only redraft (non-dynasty) leagues in matchups view
-  - Detects dynasty leagues by checking league type settings and name/description keywords
-  - Filter preference persists in localStorage across sessions
+- **Dynasty/Keeper Filter**: Available on both home page ("Filter Dynasty Leagues") and matchups page ("Redraft only" toggle)
+  - **Enhanced Detection** (updated Oct 3, 2025): Detects dynasty/keeper leagues using multiple authoritative indicators:
+    - `previous_league_id` - Official league continuation link from prior season
+    - `metadata.copy_from_league_id` - League copied from another league
+    - `metadata.league_history` - League has historical data
+    - `metadata.auto_continue` - League set to auto-continue year-to-year
+    - `settings.keeper_count` or `settings.keepers` > 0 - Has keeper roster spots configured
+    - `settings.type` - Explicit dynasty/keeper type designation
+    - Name/description keyword matching - Case-insensitive detection of "dynasty" or "keeper" in league name or description
+  - Filter preference persists in localStorage across sessions (matchups page)
   - Shows filtered count vs total leagues when active
 
 ### Waiver Watchlist System
 The waiver watchlist analyzes free agent availability and suggests optimal pickups for each league:
 - Fetches trending free agents from Sleeper API (up to 300 players)
 - Calculates league-adjusted projections using StatChasers data
-- Identifies worst starters by slot position (QB, RB, WR, TE, K, DEF, FLEX, SUPER_FLEX)
+- **Slot-Aware Analysis** (updated Oct 3, 2025): Only evaluates roster slots that exist in each league's configuration
+  - Extracts active roster positions from league's `roster_positions` field
+  - Calculates upgrade floors only for slots the league actually uses (QB, RB, WR, TE, K, DEF, FLEX, SUPER_FLEX)
+  - Prevents invalid suggestions (e.g., QB for WR in non-superflex leagues)
+  - Respects position eligibility rules for each slot type
 - Suggests top 5 free agent upgrades with minimum +1.5 point improvement threshold
 - Automatically excludes players on BYE weeks or OUT/IR status
 - Each suggestion includes:

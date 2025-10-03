@@ -15,9 +15,9 @@ export function isDynastyLeague(lg: any): boolean {
   const settingsType = String(lg?.settings?.type ?? "").toLowerCase();
   if (settingsType === "dynasty" || settingsType === "keeper") return true;
 
-  // Check name and description for dynasty/keeper keywords
+  // Check name and description for dynasty/keeper keywords (case-insensitive)
   const name = `${lg?.name ?? ""} ${lg?.metadata?.description ?? ""}`.toLowerCase();
-  if (/\bdynasty\b/i.test(name) || /\bkeeper(s)?\b/i.test(name)) return true;
+  if (name.includes("dynasty") || name.includes("keeper")) return true;
 
   return false;
 }
