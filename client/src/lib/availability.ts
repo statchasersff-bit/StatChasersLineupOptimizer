@@ -14,7 +14,8 @@ export function classifyStarter(p?: {
   const s = (p.injury_status || "").toUpperCase();
   if (p.opp === "BYE") return "BYE";
   if (OUT_STATUSES.has(s)) return "OUT";
-  if (Q_STATUSES.has(s)) return "QUES";
+  // Check exact codes and partial string matches for questionable statuses
+  if (Q_STATUSES.has(s) || s.includes("QUES") || s.includes("DOUBT")) return "QUES";
   return null;
 }
 

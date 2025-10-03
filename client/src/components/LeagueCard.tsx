@@ -39,7 +39,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
               </span>
             )}
             {(lg.quesCount ?? 0) > 0 && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 whitespace-nowrap" data-testid={`text-ques-${lg.league_id}`}>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 whitespace-nowrap" data-testid={`text-ques-${lg.league_id}`}>
                 QUES: {lg.quesCount}
               </span>
             )}

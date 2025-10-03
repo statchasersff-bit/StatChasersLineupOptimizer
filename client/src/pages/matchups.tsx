@@ -781,7 +781,7 @@ export default function MatchupsPage() {
                               </span>
                             )}
                             {!league.isComputing && league.quesCount !== undefined && league.quesCount > 0 && (
-                              <span className="rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2 py-0.5 font-medium" data-testid={`badge-ques-${league.leagueId}`}>
+                              <span className="rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs px-2 py-0.5 font-medium dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700" data-testid={`badge-ques-${league.leagueId}`}>
                                 QUES: {league.quesCount}
                               </span>
                             )}
@@ -833,7 +833,7 @@ export default function MatchupsPage() {
                         {league.isComputing || league.quesCount === undefined ? (
                           <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : league.quesCount > 0 ? (
-                          <span className="rounded-full bg-amber-50 text-amber-700 text-xs px-2 py-0.5" data-testid={`badge-ques-${league.leagueId}`}>
+                          <span className="rounded-full bg-yellow-50 text-yellow-700 text-xs px-2 py-0.5 dark:bg-yellow-900/30 dark:text-yellow-300" data-testid={`badge-ques-${league.leagueId}`}>
                             {league.quesCount}
                           </span>
                         ) : (
@@ -880,7 +880,7 @@ export default function MatchupsPage() {
 
                               {/* Questionable list */}
                               {league.quesCount !== undefined && league.quesCount > 0 && league.quesList && (
-                                <div className="my-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900" data-testid={`ques-warning-${league.leagueId}`}>
+                                <div className="my-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700" data-testid={`ques-warning-${league.leagueId}`}>
                                   <div className="font-medium">Questionable starters</div>
                                   <div className="text-sm">
                                     {(league.quesList ?? []).map((p, i) => (

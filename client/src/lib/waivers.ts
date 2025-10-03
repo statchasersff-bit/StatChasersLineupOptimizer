@@ -132,7 +132,7 @@ export async function getFreeAgentsForLeague(
 
     // Map to lightweight objects and filter blocklist
     return faIds
-      .map((pid: string) => {
+      .map((pid: string): FreeAgent | null => {
         const p = allPlayers[pid];
         const name = (p.full_name || p.first_name + " " + p.last_name).trim();
         
@@ -147,7 +147,7 @@ export async function getFreeAgentsForLeague(
           injury_status: p.injury_status,
         };
       })
-      .filter((fa): fa is FreeAgent => fa !== null);
+      .filter((fa: FreeAgent | null): fa is FreeAgent => fa !== null);
   } catch (err) {
     console.error(`[Waivers] Error fetching free agents for league ${leagueId}:`, err);
     return [];
