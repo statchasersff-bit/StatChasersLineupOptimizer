@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown } from "lucide-react";
+import { useLocation } from "wouter";
+import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
@@ -41,6 +42,7 @@ import AdminModal from "@/components/AdminModal";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const [season, setSeason] = useState("2025");
   const [week, setWeek] = useState("5"); // Current NFL week
   const [username, setUsername] = useState("");
@@ -677,9 +679,9 @@ export default function Home() {
               />
             </div>
             
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
               <button 
-                className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 onClick={handleAnalyzeLineups}
                 disabled={isAnalyzing}
                 data-testid="button-analyze"
@@ -691,6 +693,16 @@ export default function Home() {
                 )}
                 {isAnalyzing ? "Analyzing..." : "Analyze Lineups"}
               </button>
+              {username.trim() && (
+                <button
+                  className="bg-secondary text-secondary-foreground px-4 py-2 rounded-md font-medium hover:bg-secondary/90 transition-colors flex items-center gap-2"
+                  onClick={() => setLocation(`/${username.trim()}/matchups`)}
+                  data-testid="button-table-view"
+                  title="View Table Summary"
+                >
+                  <TableIcon className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 

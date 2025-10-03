@@ -1,0 +1,237 @@
+✅ Product goals
+
+Single screen per Sleeper user: /{sleeperUsername}/matchups
+
+No Best Ball leagues—filter them out up front.
+
+League rows collapsed by default with a quick-glance header; expand for details.
+
+Key columns:
+
+Opt-Act (optimal − actual)
+
+Projected Result (W / L)
+
+QUES starters? (questionable)
+
+BYE/OUT starters? (bye, out, IR, suspended)
+
+Keep your “Optimal vs Current lineup” drill-down inside each row.
+
+🧱 Data inputs we already have
+
+StatChasers weekly projections (CSV) per Season+Week.
+
+Sleeper APIs:
+
+leagues for a user, rosters, users, matchups, league settings/scoring, players, injury status.
+
+🧮 How to compute the columns
+1) Filter leagues (no best ball)
+const isBestBall = (l: League) =>
+  l.settings?.best_ball === 1 || l.scoring_settings?.best_ball === 1 ||
+  /best.?ball/i.test(`${l.name} ${l.metadata?.description||""}`);
+const leagues = allLeagues.filter(l => !isBestBall(l));
+
+2) Actual vs Optimal points
+
+Actual (Act): Sum locked/current starters’ actual points to date + projected rest-of-week (or simply “projected” if before kickoff). If you don’t have live totals, use “projected for set starters.”
+
+Optimal (Opt): For each roster, select the top projected lineup subject to roster constraints (QB/RB/WR/TE/K/DEF + FLEX/SUPER_FLEX), using your StatChasers projections.
+
+Return:
+
+optPoints   // total projected points with optimal starters
+actPoints   // total projected points with current starters
+optMinusAct = optPoints - actPoints
+
+3) Projected Result (W/L)
+
+For each matchup (head-to-head):
+
+Get opponent roster.
+
+Compute their optPoints (or actPoints if you prefer).
+
+Compare your selected lineup’s total to opponent’s:
+
+const you = useOptimal ? your.optPoints : your.actPoints;
+const opp  = useOptimal ? opp.optPoints : opp.actPoints;
+const projectedResult = you >= opp ? "W" : "L";
+
+
+Optionally add a margin and a simple probability:
+
+const margin = you - opp;               // pts
+const winProb = 1 / (1 + Math.exp(-margin / 8)); // logistic, 8 ≈ spread scale
+
+4) QUES starters?
+
+Count starters with injury status in {Q, D, SSPD, SUS}:
+
+const quesCodes = new Set(["Q","D","SUS","SSPD","LP","DTD"]);
+const quesCount = starters.filter(p => quesCodes.has(p.injury_status)).length;
+
+5) BYE/OUT starters?
+
+Count starters with status in {OUT, IR} or opponent === BYE:
+
+const byeOutCount = starters.filter(p =>
+  p.opp === "BYE" || ["O","IR","DNR","NA"].includes(p.injury_status)
+).length;
+
+
+Use Sleeper player feed (or cached mapping) for injury_status, team, pos, and bye weeks. Fall back to schedule matrix for BYE.
+
+🎨 UI/UX blueprint
+Page header
+
+Title: StatChasers Lineup Checker
+
+Subheader: Season / Week selector (drop-downs).
+
+Right side: Sleeper username + “Analyze” button.
+
+Small badge: Using StatChasers projections for Week NN.
+
+Leagues table (collapsed rows)
+
+Columns (sortable):
+
+League (name • format chips: PPR/Half/Std • size)
+
+Record (W-L-T)
+
+Opt-Act (▲ red/green)
+
+Projected Result (W/L + margin)
+
+QUES starters? (count, yellow pill if >0)
+
+BYE/OUT starters? (count, red pill if >0)
+
+Potential Pts (+X.X vs current) – optional
+
+⌄ (expand)
+
+Row color accents:
+
+Projected W: subtle green border
+
+Projected L: subtle red border
+
+Opt-Act > 0: green number; < 0: red
+
+Expanded panel per league
+
+Your lineup (Current vs Optimal) side-by-side:
+
+Starters grid with positions and projected points.
+
+List of Recommended changes (X in / Y out).
+
+Opponent card with their total.
+
+Warnings:
+
+3 QUES starters, 1 BYE/OUT starter, Empty bench slot (if you added that feature).
+
+Waiver suggestions (if enabled): top +X players by projection vs your worst starter.
+
+Export/Copy summary button.
+
+Sorting
+
+Default sort: Opt-Act (desc) so the biggest “free points” fix is on top. Allow sorting by any column.
+
+🧩 Components (React/Vite + Tailwind, shadcn/ui recommended)
+
+<AppHeader /> – username, week/season, “Analyze”.
+
+<LeaguesTable />
+
+<LeagueRow /> (smart row; fetches/derives metrics)
+
+<LeagueExpand /> (lineups, recommendations)
+
+<StartersGrid /> (position cards, shows Q/OUT/BYE badges)
+
+<LineupDiffList /> (who to swap)
+
+<OpponentCard />
+
+<WarningsBar /> (QUES / BYE/OUT counts, empty bench)
+
+<WaiverSuggestions /> (optional)
+
+🔌 Sleeper calls (client-side)
+
+GET /v1/user/{username}/leagues/{season}/nfl
+
+GET /v1/league/{leagueId}/rosters
+
+GET /v1/league/{leagueId}/matchups/{week}
+
+GET /v1/players/nfl (injury status, team, bye) – cache this
+
+GET /v1/league/{leagueId} (scoring settings; you already adjust projections per league)
+
+Respect rate limits; cache per session; run leagues in small concurrency (e.g., 3–5 at a time).
+
+📊 Projection application (per-league scoring)
+
+You already add columns (pass_att, pass_yd, etc.). For each player row, compute Projected fantasy points using the league’s scoring_settings, then store that for lineup calc. Keep the 125 cap you set globally, unless you want to expose it in Admin.
+
+📐 Optimal lineup selection (deterministic)
+
+Build buckets by position: QB/RB/WR/TE/K/DEF and a flex pool (RB/WR/TE), and superflex (QB+flex if league uses it).
+
+Greedy with backtracking works well:
+
+Fill mandatory slots by highest projection per position.
+
+For FLEX/SF: choose next best from the eligible pool, but swap if a higher-scoring player in a filled slot would increase total via a position-swap.
+
+Guard: never recommend replacing a player with themselves (compare by player_id).
+
+🧠 Column definitions (tooltips)
+
+Opt-Act: “Projected points if you set the optimal lineup minus your current starters.”
+
+Projected Result: “W/L based on your total vs your opponent’s total (same method: optimal or current—pick one and be consistent).”
+
+QUES starters?: “Number of starters listed as Questionable/Doubtful/Suspended.”
+
+BYE/OUT starters?: “Number of starters on bye or ruled Out/IR/NA.”
+
+🧪 Edge cases & polish
+
+If opponent data missing: compute Projected Result against their current starters only; show “N/A” if no matchup found (some leagues format differently).
+
+Injury/bye from Sleeper sometimes lags—fall back to your own bye map if present.
+
+When projections are missing for a player, show — and exclude them from optimal selection (or treat as 0).
+
+Persist last username + week in localStorage.
+
+📦 Hand-off to Replit AI (paste this)
+
+Implement a new page at /[username]/matchups that lists all non-BestBall Sleeper leagues for that user for the selected Season/Week. The leagues table shows columns: League, Record, Opt-Act, Projected Result (W/L), QUES starters?, BYE/OUT starters?.
+
+Compute Opt-Act by comparing our optimal lineup (built from StatChasers per-league adjusted projections) to the user’s current starters.
+
+Projected Result compares my total vs opponent’s (use optimal for both sides; if opponent data missing, use current starters or “N/A”).
+
+QUES starters? counts starters with injury status in {Q, D, SSPD/SUS, LP, DTD}.
+
+BYE/OUT starters? counts starters with bye (opp === "BYE") or injury status in {O, IR, NA}.
+
+Default sort by Opt-Act desc. Each row expands to show Current vs Optimal starters, recommended swaps (never suggest replacing a player with themselves), warnings (QUES/BYE/OUT counts), and optional waiver suggestions.
+
+Hide any “best ball” league: l.settings.best_ball === 1 or text match /best.?ball/i.
+
+Use our existing projection CSV loader and league scoring adjuster. Add a guard: if the CSV fetch returns HTML/404, show a visible error (“Projections for Season/Week not found”).
+
+Use shadcn/ui tables, badges for Q/OUT/BYE counts, and Tailwind for styling.
+
+Add tooltips to column headers with the definitions above.
