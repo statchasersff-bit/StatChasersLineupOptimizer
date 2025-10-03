@@ -622,17 +622,11 @@ export default function Home() {
   };
 
   const totalPotentialPoints = sortedSummaries.reduce((sum, s) => sum + Math.max(0, s.delta), 0);
-  const riskyStarters = sortedSummaries.reduce((count, s) => 
-    count + s.optimalSlots.filter(slot => {
-      const p = slot.player;
-      if (!p) return false;
-      const status = (p.injury_status || "").toUpperCase();
-      // Only count QUESTIONABLE players as risky starters
-      return status.includes("Q") || status.includes("QUESTIONABLE");
-    }).length, 0
+  const totalOutByeEmpty = sortedSummaries.reduce((count, s) => 
+    count + (s.outByeEmptyCount || 0), 0
   );
-  const totalChanges = sortedSummaries.reduce((count, s) => 
-    count + s.optimalSlots.filter((slot, i) => s.starters[i] !== slot.player?.player_id).length, 0
+  const totalQues = sortedSummaries.reduce((count, s) => 
+    count + (s.quesCount || 0), 0
   );
 
   // Calculate projected record based on head-to-head matchups
@@ -802,12 +796,12 @@ export default function Home() {
             <div className="text-sm text-muted-foreground">Total Potential Pts</div>
           </div>
           <div className="card rounded-lg border border-border p-4 text-center">
-            <div className="text-2xl font-bold text-destructive" data-testid="text-risky-starters">{riskyStarters}</div>
-            <div className="text-sm text-muted-foreground">Risky Starters</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400" data-testid="text-out-bye-empty">{totalOutByeEmpty}</div>
+            <div className="text-sm text-muted-foreground">OUT/BYE/EMPTY Starters</div>
           </div>
           <div className="card rounded-lg border border-border p-4 text-center">
-            <div className="text-2xl font-bold text-chart-3" data-testid="text-lineup-changes">{totalChanges}</div>
-            <div className="text-sm text-muted-foreground">Lineup Changes</div>
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400" data-testid="text-ques-doub">{totalQues}</div>
+            <div className="text-sm text-muted-foreground">QUES/DOUB Starters</div>
           </div>
           <div className="card rounded-lg border border-border p-4 text-center">
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-projected-record">
