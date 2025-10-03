@@ -231,8 +231,23 @@ export function pickWaiverUpgrades(
     if (!best.has(k) || best.get(k)!.delta < s.delta) best.set(k, s);
   }
 
-  // Return top N sorted by delta
-  return Array.from(best.values())
-    .sort((a, b) => b.delta - a.delta)
-    .slice(0, maxSuggestions);
+  // Group by position and return top N per position
+  const byPosition = new Map<string, WaiverSuggestion[]>();
+  for (const s of Array.from(best.values())) {
+    const pos = s.inP.pos;
+    if (!byPosition.has(pos)) byPosition.set(pos, []);
+    byPosition.get(pos)!.push(s);
+  }
+
+  // Sort each position group by delta and take top maxSuggestions per position
+  const result: WaiverSuggestion[] = [];
+  for (const [pos, suggestions] of Array.from(byPosition.entries())) {
+    const topN = suggestions
+      .sort((a: WaiverSuggestion, b: WaiverSuggestion) => b.delta - a.delta)
+      .slice(0, maxSuggestions);
+    result.push(...topN);
+  }
+
+  // Return all results sorted by delta
+  return result.sort((a: WaiverSuggestion, b: WaiverSuggestion) => b.delta - a.delta);
 }
