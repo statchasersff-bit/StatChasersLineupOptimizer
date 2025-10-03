@@ -651,8 +651,20 @@ export default function MatchupsPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium" data-testid={`text-league-name-${league.leagueId}`}>
-                            {league.leagueName}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium" data-testid={`text-league-name-${league.leagueId}`}>
+                              {league.leagueName}
+                            </span>
+                            {league.notPlayingCount > 0 && (
+                              <span className="rounded-full bg-red-50 text-red-700 border border-red-200 text-xs px-2 py-0.5 font-medium" data-testid={`badge-not-playing-${league.leagueId}`}>
+                                OUT/BYE/EMPTY: {league.notPlayingCount}
+                              </span>
+                            )}
+                            {league.quesCount > 0 && (
+                              <span className="rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2 py-0.5 font-medium" data-testid={`badge-ques-${league.leagueId}`}>
+                                QUES: {league.quesCount}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="secondary" className="text-xs" data-testid={`badge-format-${league.leagueId}`}>
