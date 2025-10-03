@@ -341,8 +341,11 @@ export default function MatchupsPage() {
               ownedPlayerIds
             );
 
+            // Convert projIdx to Map for scoreFreeAgents
+            const projMap = new Map(Object.entries(projIdx));
+
             // Score free agents with league-adjusted projections
-            const scoredFAs = scoreFreeAgents(freeAgents, scoring, projIdx);
+            const scoredFAs = scoreFreeAgents(freeAgents, scoring, projMap);
 
             // Convert optimal starters to StarterWithSlot format
             const startersWithSlots: StarterWithSlot[] = optimalSlots
@@ -740,6 +743,54 @@ export default function MatchupsPage() {
                             {league.recommendations.length === 0 && (
                               <div className="text-center text-muted-foreground py-4" data-testid={`no-changes-${league.leagueId}`}>
                                 Your lineup is already optimal!
+                              </div>
+                            )}
+
+                            {/* Waiver Watchlist */}
+                            {league.waiverSuggestions && league.waiverSuggestions.length > 0 && (
+                              <div className="mt-4 rounded-lg border p-4 bg-background" data-testid={`waiver-watchlist-${league.leagueId}`}>
+                                <h4 className="font-semibold mb-3">Waiver Watchlist</h4>
+                                <ul className="space-y-2">
+                                  {league.waiverSuggestions.map((s, idx) => (
+                                    <li
+                                      key={`${s.slot}-${s.inP.player_id}-${idx}`}
+                                      className="flex flex-wrap items-center justify-between rounded-md border p-3 hover:bg-muted/50 transition-colors"
+                                      data-testid={`waiver-suggestion-${league.leagueId}-${idx}`}
+                                    >
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-green-700 font-medium">
+                                            Add {s.inP.name}
+                                          </span>
+                                          <span className="text-xs text-muted-foreground">
+                                            ({s.inP.pos} → {s.slot})
+                                          </span>
+                                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                            +{s.delta.toFixed(1)} pts
+                                          </Badge>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                          over {s.outP.name} ({s.outP.pos}, {s.outP.proj.toFixed(1)} pts)
+                                        </div>
+                                      </div>
+                                      <a
+                                        className="text-sm underline text-primary hover:text-primary/80 whitespace-nowrap"
+                                        href={`https://sleeper.com/leagues/${league.leagueId}/players/${s.inP.player_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        data-testid={`waiver-link-${league.leagueId}-${idx}`}
+                                      >
+                                        View in Sleeper
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {(!league.waiverSuggestions || league.waiverSuggestions.length === 0) && (
+                              <div className="mt-4 text-sm text-muted-foreground text-center py-3" data-testid={`no-waiver-suggestions-${league.leagueId}`}>
+                                No obvious waiver upgrades (≥ +1.5 pts)
                               </div>
                             )}
                           </div>
