@@ -36,14 +36,8 @@ export async function buildFACandidates(
   schedule?: GameSchedule,
   playedPlayerIds?: Record<string, boolean>
 ): Promise<FACandidate[]> {
-  // Fetch trending free agents from Sleeper API
-  const trendingResponse = await fetch('https://api.sleeper.app/v1/players/nfl/trending/add?limit=300');
-  const trending = await trendingResponse.json();
-  const faIds = trending
-    .map((t: any) => String(t.player_id))
-    .filter((pid: string) => !ownedPlayerIds.has(pid));
-
-  // Score and filter
+  // Iterate through all projections (only numeric sleeper_id keys) to find free agents
+  // This is the same approach as buildFreeAgentPool
   const buckets: Record<string, FACandidate[]> = {
     QB: [],
     RB: [],
@@ -53,17 +47,26 @@ export async function buildFACandidates(
     DEF: [],
   };
 
-  for (const pid of faIds) {
+  // Iterate through projMap looking for numeric sleeper_id keys only
+  for (const key in projMap) {
+    if (!/^\d+$/.test(key)) continue; // only numeric sleeper_ids, skip "name|team|pos" keys
+    
+    const pid = key;
+    
+    // Skip if owned
+    if (ownedPlayerIds.has(pid)) continue;
+    
     const p = allPlayers[pid];
     if (!p) continue;
+    
+    const proj = projMap[pid];
+    if (!proj) continue;
+    
     const pos = p.position;
     if (!buckets[pos]) continue; // ignore IDP etc.
-
-    const row = projMap[pid] || projMap[`${p.full_name?.toLowerCase()}|${p.team ?? ""}|${pos}`];
-    if (!row) continue;
     
     // Exclude players on BYE or with OUT status
-    if (row.opp === "BYE") continue;
+    if (proj.opp === "BYE") continue;
     const status = (p.injury_status || "").toUpperCase();
     if (EXCLUDE_FA_STATUSES.has(status)) continue;
 
@@ -73,9 +76,9 @@ export async function buildFACandidates(
     }
 
     // Calculate league-adjusted projection
-    const stats = (row as any)?.stats || {};
-    const proj = scoreByLeague(pos, stats, leagueScoring, row.proj);
-    if (!(proj > 0)) continue;
+    const stats = (proj as any)?.stats || {};
+    const adjProj = scoreByLeague(pos, stats, leagueScoring, proj.proj);
+    if (!(adjProj > 0)) continue;
 
     const eligible: Slot[] = (["QB", "RB", "WR", "TE", "K", "DEF", "FLEX", "SUPER_FLEX"] as Slot[])
       .filter((s) => slotEligible(pos, s));
@@ -85,10 +88,10 @@ export async function buildFACandidates(
       name: p.full_name,
       team: p.team,
       pos,
-      proj,
+      proj: adjProj,
       eligible,
       isFA: true,
-      opp: row.opp,
+      opp: proj.opp,
       injury_status: p.injury_status,
     });
   }

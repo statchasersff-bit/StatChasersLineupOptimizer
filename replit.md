@@ -71,11 +71,14 @@ The application heavily integrates with the Sleeper Fantasy Football API for fet
 The core lineup optimization logic implements a sophisticated algorithm that respects fantasy football roster construction rules including FLEX, SUPER_FLEX, and other specialty positions. The optimizer handles player eligibility across multiple positions, calculates optimal lineups based on projected points, and identifies risky starters based on injury status, bye weeks, and other factors. The system uses matchup.starters from Sleeper's matchups endpoint rather than roster.starters to accurately reflect in-week lineup changes and automatic substitutions.
 
 **Free Agent Integration** (updated Oct 3, 2025): When "Consider Free Agents" toggle is enabled:
-- Fetches trending free agents from Sleeper API (up to 300 players)
+- Scans ALL available free agents from projections data (not limited to trending players)
 - Scores FAs using league-specific scoring settings
-- Merges top 10 FAs per position into the candidate pool
+- Selects top 10 FAs per position by projection (DESC) with stable tiebreaker
+- Merges FAs into the candidate pool for optimal lineup calculation
 - Optimizer naturally selects best available players (roster or FA)
+- Filters out locked players (games already started), BYE weeks, and OUT/IR status
 - Enables identification of lineup improvements via free agent pickups
+- Uses same comprehensive approach as waiver watchlist for consistency
 
 ### Matchup Analysis System
 The matchups analysis component calculates key metrics for quick league assessment:
