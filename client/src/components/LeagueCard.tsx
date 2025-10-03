@@ -170,13 +170,29 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             <div className="mt-4">
               <div className="font-semibold mb-1">Suggested Changes</div>
               <ul className="space-y-1">
-                {diff.moves.map((m, i) => (
-                  <li key={i} className="text-sm" data-testid={`row-suggestion-${i}`}>
-                    Put <b>{m.in_name}</b> into <b>{m.slot}</b>
-                    {m.out_name ? <> (bench <b>{m.out_name}</b>)</> : null}
-                    <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
-                  </li>
-                ))}
+                {diff.moves.map((m, i) => {
+                  // Check if the incoming player is a FA
+                  const inPlayer = lg.allEligible?.find(p => p.player_id === m.in_pid);
+                  const isFA = (inPlayer as any)?.isFA === true;
+                  
+                  return (
+                    <li key={i} className="text-sm" data-testid={`row-suggestion-${i}`}>
+                      {isFA ? (
+                        <>
+                          <span className="text-yellow-700 font-semibold">Add FA</span> <b>{m.in_name}</b> into <b>{m.slot}</b>
+                          {m.out_name ? <> (drop <b>{m.out_name}</b>)</> : null}
+                          <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
+                        </>
+                      ) : (
+                        <>
+                          Put <b>{m.in_name}</b> into <b>{m.slot}</b>
+                          {m.out_name ? <> (bench <b>{m.out_name}</b>)</> : null}
+                          <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

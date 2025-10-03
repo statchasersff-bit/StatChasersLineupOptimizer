@@ -255,7 +255,27 @@ export default function Home() {
 
           const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];
           const benchObjs = bench.map(addWithProj).filter(Boolean) as any[];
-          const allEligible = [...starterObjs, ...benchObjs];
+          let allEligible = [...starterObjs, ...benchObjs];
+
+          // If considerWaivers is enabled, fetch and merge free agents into the candidate pool
+          if (considerWaivers) {
+            try {
+              const { buildFACandidates } = await import("@/lib/faIntegration");
+              const owned = new Set<string>();
+              rosters.forEach((roster: any) => {
+                (roster.players || []).forEach((pid: string) => owned.add(pid));
+              });
+
+              const faCandidates = await buildFACandidates(owned, currentPlayersIndex, projIdx, scoring);
+              
+              // Merge FAs into allEligible, filtering out duplicates
+              const existingIds = new Set(allEligible.map(p => p.player_id));
+              const newFAs = faCandidates.filter(fa => !existingIds.has(fa.player_id));
+              allEligible = [...allEligible, ...newFAs];
+            } catch (err) {
+              console.error("[FA Integration] Error fetching free agents:", err);
+            }
+          }
 
           const optimalSlots = optimizeLineup(slotCounts, allEligible, season, week, starters);
           const optimalTotal = sumProj(optimalSlots);
