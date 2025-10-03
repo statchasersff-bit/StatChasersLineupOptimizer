@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { ChevronDown, ChevronRight, AlertTriangle, FileSpreadsheet, ArrowLeft } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
@@ -630,9 +630,8 @@ export default function MatchupsPage() {
               </TableHeader>
               <TableBody>
                 {sortedMetrics.map((league) => (
-                  <>
+                  <Fragment key={league.leagueId}>
                     <TableRow
-                      key={league.leagueId}
                       className={`cursor-pointer ${
                         league.projectedResult === "W" 
                           ? "border-l-4 border-l-green-500" 
@@ -830,7 +829,7 @@ export default function MatchupsPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>
