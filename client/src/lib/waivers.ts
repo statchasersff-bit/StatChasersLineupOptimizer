@@ -106,6 +106,12 @@ export function buildStarterFloors(
   return floors;
 }
 
+// Blocklist for players that should never appear in waiver suggestions
+const WAIVER_BLOCKLIST = new Set([
+  "Donnie Ernsberger",
+  "Mark McNamee",
+]);
+
 // Fetch free agents for a league (not on any roster)
 export async function getFreeAgentsForLeague(
   leagueId: string,
@@ -124,17 +130,24 @@ export async function getFreeAgentsForLeague(
       .map((t: any) => String(t.player_id))
       .filter((pid: string) => !ownedPlayerIds.has(pid) && allPlayers[pid]);
 
-    // Map to lightweight objects
-    return faIds.map((pid: string) => {
-      const p = allPlayers[pid];
-      return {
-        player_id: pid,
-        name: p.full_name || p.first_name + " " + p.last_name,
-        pos: p.position || p.fantasy_positions?.[0] || "UNKNOWN",
-        team: p.team || "",
-        injury_status: p.injury_status,
-      };
-    });
+    // Map to lightweight objects and filter blocklist
+    return faIds
+      .map((pid: string) => {
+        const p = allPlayers[pid];
+        const name = (p.full_name || p.first_name + " " + p.last_name).trim();
+        
+        // Skip blocklisted players
+        if (WAIVER_BLOCKLIST.has(name)) return null;
+        
+        return {
+          player_id: pid,
+          name: name,
+          pos: p.position || p.fantasy_positions?.[0] || "UNKNOWN",
+          team: p.team || "",
+          injury_status: p.injury_status,
+        };
+      })
+      .filter((fa): fa is FreeAgent => fa !== null);
   } catch (err) {
     console.error(`[Waivers] Error fetching free agents for league ${leagueId}:`, err);
     return [];
@@ -174,9 +187,11 @@ export function pickWaiverUpgrades(
   for (const fa of scoredFAs) {
     if (!fa || !Number.isFinite(fa.proj)) continue;
     if (fa.isByeOrOut) continue; // Skip BYE/OUT players
+    
+    // Explicitly exclude kickers from waiver recommendations
+    if (fa.pos === "K") continue;
 
     // Check against each slot the FA can fill (only active slots in this league)
-    // Exclude kickers from waiver recommendations
     (["QB", "RB", "WR", "TE", "DEF", "FLEX", "SUPER_FLEX"] as Slot[]).forEach(
       (slot) => {
         // Skip if league doesn't have this slot
