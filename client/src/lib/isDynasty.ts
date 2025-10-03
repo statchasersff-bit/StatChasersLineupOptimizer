@@ -12,7 +12,13 @@ export function isDynastyLeague(lg: any): boolean {
 
   // Check name and description for dynasty/keeper keywords (case-insensitive)
   const name = `${lg?.name ?? ""} ${lg?.metadata?.description ?? ""}`.toLowerCase();
+  
+  // Match full words: "dynasty" or "keeper"
   if (name.includes("dynasty") || name.includes("keeper")) return true;
+  
+  // Match common dynasty abbreviations: "D" followed by number (e.g., "D10", "D12", "D13")
+  // Use word boundary to avoid false positives
+  if (/\bd\d+\b/i.test(name)) return true;
 
   return false;
 }
