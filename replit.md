@@ -26,15 +26,18 @@ The main page provides a detailed view of all leagues with comprehensive lineup 
 ### Matchups Table View (/:username/matchups)
 A streamlined table-based view for quick summary analysis across all leagues. Features include:
 - Automatic data loading on page load (no analyze button needed)
-- Sortable columns: League, Record, Opt-Act, Projected Result, QUES?, BYE/OUT?
+- Dynasty filter toggle with localStorage persistence to show/hide dynasty leagues
+- Sortable columns: League, Record, Opt-Act, Proj Result, QUES?, BYE/OUT?
 - Visual indicators: green border for projected wins, red for losses
 - Expandable rows showing:
   - Current starters vs optimal starters comparison
-  - Lineup recommendations with point improvements
+  - Lineup recommendations showing only bench → starter promotions (excludes starter reshuffles)
+  - Point improvement deltas for each recommendation
   - Opponent card with projected points
   - Warning badges for risky starters
 - "Back to Home" button for easy navigation
 - Best Ball leagues automatically filtered out
+- League count display showing filtered vs total leagues
 
 ## System Architecture
 
@@ -62,11 +65,28 @@ The core lineup optimization logic implements a sophisticated algorithm that res
 ### Matchup Analysis System
 The matchups analysis component calculates key metrics for quick league assessment:
 - **Opt-Act**: Difference between optimal and actual projected points
-- **Projected Result (W/L)**: Win or loss prediction based on optimal lineup vs opponent's optimal lineup
+- **Proj Result (W/L)**: Win or loss prediction based on optimal lineup vs opponent's optimal lineup
 - **QUES Starters**: Count of questionable/doubtful starters in current lineup
 - **BYE/OUT Starters**: Count of players on bye week or ruled out in current lineup
 - **Margin**: Point differential between user's optimal and opponent's optimal lineup
 These metrics enable quick identification of leagues needing attention and strategic decisions.
+
+### Recommendations Engine
+The lineup recommendations system uses a greedy pairing algorithm to identify only meaningful bench → starter promotions:
+- Identifies bench players entering the optimal starting lineup (promotions)
+- Identifies current starters being benched in the optimal lineup (demotions)
+- Pairs promotions with demotions by highest point gain
+- Filters out starter → starter reshuffles (position swaps with no bench involvement)
+- Each recommendation shows the outgoing player, incoming player, target slot, and projected point improvement
+This approach focuses user attention on actionable roster changes rather than internal lineup rearrangements.
+
+### League Filtering
+The application provides intelligent filtering capabilities:
+- **Best Ball Filter**: Automatically excludes Best Ball leagues from all analysis (always active)
+- **Dynasty Filter**: Optional toggle to show only dynasty/keeper leagues in matchups view
+  - Detects dynasty leagues by checking league type settings and name/description keywords
+  - Filter preference persists in localStorage across sessions
+  - Shows filtered count vs total leagues when active
 
 ### Build and Deployment
 The application uses a monorepo structure with shared types and schemas between client and server. Build process includes TypeScript compilation, Vite bundling for the frontend, and esbuild for the backend. The application is configured for easy deployment with proper environment variable handling and production optimizations.
