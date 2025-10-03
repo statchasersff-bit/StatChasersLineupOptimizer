@@ -245,25 +245,38 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             {(lg.benchEmpty ?? 0) > 0 && <> — <span className="text-amber-700">{lg.benchEmpty} empty</span></>}
           </div>
 
-          {lg.waiverSuggestions && lg.waiverSuggestions.length > 0 && (
-            <div className="mt-4">
-              {(lg.benchEmpty ?? 0) > 0 && (
-                <div className="mb-2 text-xs text-emerald-700 dark:text-emerald-400">
-                  You have open bench slots — consider adding top waiver targets below.
+          {(() => {
+            // Get FAs from suggested changes
+            const suggestedFAIds = new Set(
+              diff.moves
+                .map(m => lg.allEligible?.find(p => p.player_id === m.in_pid))
+                .filter(p => (p as any)?.isFA === true)
+                .map(p => p?.player_id)
+                .filter(Boolean) as string[]
+            );
+            
+            // Get all FAs not already in suggested changes, sorted by projection
+            const otherFAs = (lg.allEligible || [])
+              .filter(p => (p as any)?.isFA === true && !suggestedFAIds.has(p.player_id))
+              .sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0))
+              .slice(0, 10);
+            
+            return otherFAs.length > 0 && (
+              <div className="mt-4">
+                <div className="font-semibold mb-1">Waiver Watchlist</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                  Other highly projected free agents to consider
                 </div>
-              )}
-              <div className="font-semibold mb-1">Waiver Watchlist</div>
-              <ul className="space-y-1">
-                {lg.waiverSuggestions.slice(0, 10).map((w, i) => (
-                  <li key={i} className="text-sm" data-testid={`row-waiver-${i}`}>
-                    Put <b>{w.name}</b> into <b>{w.replaceSlot}</b>
-                    {w.currentPlayerName && w.currentPlayerName !== "[EMPTY]" ? <> (bench <b>{w.currentPlayerName}</b>)</> : null}
-                    <span className="ml-2 text-green-600">(+{w.gain.toFixed(2)} pts)</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+                <ul className="space-y-1">
+                  {otherFAs.map((fa, i) => (
+                    <li key={i} className="text-sm" data-testid={`row-waiver-${i}`}>
+                      <b>{fa.name}</b> ({fa.pos}) — <span className="text-green-600 font-medium">{fa.proj?.toFixed(2)} pts</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
