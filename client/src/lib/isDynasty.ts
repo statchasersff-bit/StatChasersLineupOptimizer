@@ -1,17 +1,4 @@
 export function isDynastyLeague(lg: any): boolean {
-  // Temporary debug logging for "The Blueprint" league
-  if (lg?.name?.toLowerCase().includes("blueprint")) {
-    console.log("[Dynasty Debug] The Blueprint league data:", {
-      name: lg.name,
-      previous_league_id: lg.previous_league_id,
-      keeper_count: lg?.settings?.keeper_count,
-      keepers: lg?.settings?.keepers,
-      type: lg?.settings?.type,
-      metadata: lg?.metadata,
-      description: lg?.metadata?.description,
-    });
-  }
-
   // Check if previous_league_id exists (indicates dynasty/keeper continuation)
   if (lg?.previous_league_id) return true;
 
@@ -32,6 +19,16 @@ export function isDynastyLeague(lg: any): boolean {
   // Match common dynasty abbreviations: "D" followed by number (e.g., "D10", "D12", "D13")
   // Use word boundary to avoid false positives
   if (/\bd\d+\b/i.test(name)) return true;
+  
+  // Check for version numbers in league name (e.g., "2.0", "2.1", "V2") which often indicate multi-year leagues
+  // Match patterns like: 2.0, 2.1, v2, V2, etc.
+  const leagueName = lg?.name ?? "";
+  if (/\d+\.\d+/.test(leagueName) || /\bv\d+\b/i.test(leagueName)) {
+    // Additional check: if it also has auto_continue or copy_from_league_id, it's likely dynasty
+    if (lg?.metadata?.auto_continue || lg?.metadata?.copy_from_league_id) {
+      return true;
+    }
+  }
 
   return false;
 }
