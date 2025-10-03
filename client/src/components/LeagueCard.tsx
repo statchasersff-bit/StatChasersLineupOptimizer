@@ -168,18 +168,21 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                   const inPlayer = lg.allEligible?.find(p => p.player_id === m.in_pid);
                   const isFA = (inPlayer as any)?.isFA === true;
                   
+                  // Check if out_name is an empty slot (starts with "player_id" or out_pid is "0")
+                  const isEmptySlot = !m.out_name || m.out_pid === "0" || m.out_name.startsWith("player_id");
+                  
                   return (
                     <li key={i} className="text-sm" data-testid={`row-suggestion-${i}`}>
                       {isFA ? (
                         <>
                           <span className="text-yellow-700 font-semibold">Add FA</span> <b>{m.in_name}</b> into <b>{m.slot}</b>
-                          {m.out_name ? <> (drop <b>{m.out_name}</b>)</> : null}
+                          {m.out_name && !isEmptySlot ? <> (drop <b>{m.out_name}</b>)</> : null}
                           <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
                         </>
                       ) : (
                         <>
                           Put <b>{m.in_name}</b> into <b>{m.slot}</b>
-                          {m.out_name ? <> (bench <b>{m.out_name}</b>)</> : null}
+                          {m.out_name && !isEmptySlot ? <> (bench <b>{m.out_name}</b>)</> : null}
                           <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
                         </>
                       )}
