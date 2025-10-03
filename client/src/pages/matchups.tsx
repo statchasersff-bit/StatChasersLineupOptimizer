@@ -12,6 +12,7 @@ import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import type { Projection } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { OptActCell } from "@/components/OptActCell";
 import {
   Table,
   TableBody,
@@ -604,15 +605,8 @@ export default function MatchupsPage() {
                       <TableCell className="text-center" data-testid={`text-record-${league.leagueId}`}>
                         {league.record}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className={`font-semibold ${
-                            league.optMinusAct > 0 ? "text-green-600" : league.optMinusAct < 0 ? "text-red-600" : ""
-                          }`}
-                          data-testid={`text-opt-act-${league.leagueId}`}
-                        >
-                          {league.optMinusAct > 0 ? "+" : ""}{league.optMinusAct.toFixed(1)}
-                        </span>
+                      <TableCell className="text-center" data-testid={`text-opt-act-${league.leagueId}`}>
+                        <OptActCell optPoints={league.optPoints} actPoints={league.actPoints} />
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-2">
