@@ -800,7 +800,7 @@ export default function Home() {
             <div className="text-sm text-muted-foreground">OUT/BYE/EMPTY Starters</div>
           </div>
           <div className="card rounded-lg border border-border p-4 text-center">
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400" data-testid="text-ques-doub">{totalQues}</div>
+            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400" data-testid="text-ques-doub">{totalQues}</div>
             <div className="text-sm text-muted-foreground">QUES/DOUB Starters</div>
           </div>
           <div className="card rounded-lg border border-border p-4 text-center">

@@ -176,7 +176,7 @@ export function pickWaiverUpgrades(
   starters: StarterWithSlot[],
   activeSlots: Set<Slot>,
   minGain: number = 1.5,
-  maxSuggestions: number = 5
+  maxSuggestions: number = 3
 ): WaiverSuggestion[] {
   const floors = buildStarterFloors(starters, activeSlots);
   const suggestions: WaiverSuggestion[] = [];
