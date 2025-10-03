@@ -74,17 +74,9 @@ export async function getLeagueMatchupsForLocking(leagueIds: string[], week: str
               playedPlayerIds[playerId] = true;
             }
           }
-        } else {
-          // Fallback: Only mark players as played if roster has positive points
-          // This avoids false positives from pre-game 0 scores
-          if (matchup.points && matchup.points > 0 && matchup.starters) {
-            for (const playerId of matchup.starters) {
-              if (playerId && playerId !== "0") {
-                playedPlayerIds[playerId] = true;
-              }
-            }
-          }
         }
+        // Note: Removed fallback logic that incorrectly marked ALL starters as played
+        // if ANY player had points. This caused false positives for players who haven't played yet.
       }
     }
     
