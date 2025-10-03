@@ -14,6 +14,13 @@ import type { Projection } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { OptActCell } from "@/components/OptActCell";
 import {
+  getFreeAgentsForLeague,
+  scoreFreeAgents,
+  pickWaiverUpgrades,
+  type WaiverSuggestion,
+  type StarterWithSlot,
+} from "@/lib/waivers";
+import {
   Table,
   TableBody,
   TableCell,
@@ -57,6 +64,7 @@ interface LeagueMetrics {
   opponentName: string;
   opponentPoints: number;
   warnings: string[];
+  waiverSuggestions: WaiverSuggestion[];
   league: any; // Store the full league object for filtering
 }
 
@@ -317,6 +325,42 @@ export default function MatchupsPage() {
           if (quesCount > 0) warnings.push(`${quesCount} questionable starter${quesCount > 1 ? 's' : ''}`);
           if (byeOutCount > 0) warnings.push(`${byeOutCount} bye/out starter${byeOutCount > 1 ? 's' : ''}`);
 
+          // Calculate waiver suggestions
+          let waiverSuggestions: WaiverSuggestion[] = [];
+          try {
+            // Build set of owned player IDs across all rosters
+            const ownedPlayerIds = new Set<string>();
+            rosters.forEach((roster: any) => {
+              (roster.players || []).forEach((pid: string) => ownedPlayerIds.add(pid));
+            });
+
+            // Fetch free agents for this league
+            const freeAgents = await getFreeAgentsForLeague(
+              lg.league_id,
+              playersIndex,
+              ownedPlayerIds
+            );
+
+            // Score free agents with league-adjusted projections
+            const scoredFAs = scoreFreeAgents(freeAgents, scoring, projIdx);
+
+            // Convert optimal starters to StarterWithSlot format
+            const startersWithSlots: StarterWithSlot[] = optimalSlots
+              .filter((s: any) => s.player)
+              .map((s: any) => ({
+                player_id: s.player.player_id,
+                name: s.player.name,
+                pos: s.player.pos,
+                slot: s.slot,
+                proj: s.player.proj ?? 0,
+              }));
+
+            // Pick top waiver upgrades
+            waiverSuggestions = pickWaiverUpgrades(scoredFAs, startersWithSlots);
+          } catch (waiverErr) {
+            console.error(`[Waivers] Error calculating suggestions for league ${lg.league_id}:`, waiverErr);
+          }
+
           metrics.push({
             leagueId: lg.league_id,
             leagueName: lg.name,
@@ -336,6 +380,7 @@ export default function MatchupsPage() {
             opponentName,
             opponentPoints,
             warnings,
+            waiverSuggestions,
             league: lg,
           });
 
