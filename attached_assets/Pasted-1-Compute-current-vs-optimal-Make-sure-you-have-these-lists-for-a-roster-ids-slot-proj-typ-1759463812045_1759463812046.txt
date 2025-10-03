@@ -1,0 +1,121 @@
+1) Compute current vs optimal
+
+Make sure you have these lists for a roster (ids + slot + proj):
+
+type SlotId =
+  | "QB" | "RB" | "WR" | "TE" | "FLEX" | "SUPER_FLEX" | "K" | "DEF"
+  | "BN"; // bench
+
+type LineupSlot = {
+  player_id: string;
+  slot: SlotId;            // where they are right now (or in optimal)
+  proj: number;
+  eligible: SlotId[];      // from Sleeper: fantasy_positions → map to slots
+};
+
+const CURRENT_STARTERS: LineupSlot[] = ...   // starters only (no bench)
+const CURRENT_BENCH: LineupSlot[] = ...      // bench only
+const OPTIMAL_STARTERS: LineupSlot[] = ...   // starters only
+
+
+Helper:
+
+const STARTER_SLOTS = new Set<SlotId>([
+  "QB","RB","WR","TE","FLEX","SUPER_FLEX","K","DEF"
+]);
+
+const inSet = (ids:Set<string>, p:LineupSlot) => ids.has(p.player_id);
+
+2) Identify promotions/demotions
+const currStarterIds = new Set(CURRENT_STARTERS.map(p => p.player_id));
+const optStarterIds  = new Set(OPTIMAL_STARTERS.map(p => p.player_id));
+
+// Players that enter the starting lineup (were bench before)
+const promotions = OPTIMAL_STARTERS.filter(p => !currStarterIds.has(p.player_id));
+
+// Players that leave the starting lineup (were starters before)
+const demotions  = CURRENT_STARTERS.filter(p => !optStarterIds.has(p.player_id));
+
+3) Pair promotions with who gets bumped
+
+Greedy pairing by slot eligibility and biggest gain:
+
+function canFillSlot(inPlayer: LineupSlot, outSlot: SlotId) {
+  return outSlot === "FLEX"
+    ? ["RB","WR","TE"].some(s => inPlayer.eligible.includes(s as SlotId))
+    : outSlot === "SUPER_FLEX"
+    ? ["QB","RB","WR","TE"].some(s => inPlayer.eligible.includes(s as SlotId))
+    : inPlayer.eligible.includes(outSlot);
+}
+
+// Build candidate pairs (only bench → starter)
+type Suggestion = { inP: LineupSlot; outP: LineupSlot; slot: SlotId; delta: number };
+
+const suggestions: Suggestion[] = [];
+const demotedPool = [...demotions];
+
+for (const inP of promotions) {
+  // find a demoted player whose slot this bench player can occupy
+  let bestIdx = -1, bestGain = -Infinity, bestOut: LineupSlot | null = null;
+
+  for (let i=0; i<demotedPool.length; i++) {
+    const outP = demotedPool[i];
+    if (!canFillSlot(inP, outP.slot)) continue;
+    const gain = (inP.proj ?? 0) - (outP.proj ?? 0);
+    if (gain > bestGain) { bestGain = gain; bestIdx = i; bestOut = outP; }
+  }
+
+  if (bestOut && bestIdx >= 0) {
+    suggestions.push({ inP: inP, outP: demotedPool[bestIdx], slot: demotedPool[bestIdx].slot, delta: bestGain });
+    demotedPool.splice(bestIdx, 1); // consume this bump
+  }
+}
+
+
+This only creates a suggestion if:
+
+the incoming player was on the bench, and
+
+a current starter is actually being benched to make room.
+
+It ignores pure reshuffles among starters (e.g., WR → FLEX and TE → TE), because no bench player enters.
+
+4) Render only these suggestions
+
+Where you currently list “Out … → In …”, change the source to suggestions:
+
+{suggestions.length === 0 ? (
+  <div className="text-sm text-muted-foreground">No bench promotions needed.</div>
+) : suggestions.map(s => (
+  <div key={s.inP.player_id + s.outP.player_id} className="rounded-lg border p-2">
+    <span className="text-red-600 font-medium">Out: {s.outPName} ({s.outP.proj?.toFixed(1) ?? "0.0"})</span>
+    <span className="mx-2 text-muted-foreground">→</span>
+    <span className="text-green-600 font-medium">
+      In: {s.inPName} ({s.inP.proj?.toFixed(1) ?? "0.0"}) into {s.slot}
+    </span>
+    <span className="ml-2 text-green-700">(+{s.delta.toFixed(1)} pts)</span>
+  </div>
+))}
+
+
+(Replace s.outPName / s.inPName with your player-name formatter.)
+
+5) Safety guards (fixes common quirks)
+
+Never suggest the same player: you already compare by player_id, but keep this:
+
+if (inP.player_id === bestOut?.player_id) continue;
+
+
+Handle ties / mismatched counts: it’s fine if promotions ≠ demotions (bye/injury); the greedy loop will pair what’s eligible and skip the rest.
+
+Multi-flex leagues: canFillSlot already handles FLEX/SUPER_FLEX; extend for WRRB, WRTE, etc., if your league settings expose them.
+
+6) One-liner filter (if you already have a change list)
+
+If your code already produces generic changes like {from: {slot}, to: {slot}}, just filter before rendering:
+
+const benchPromotionsOnly = rawChanges.filter(ch =>
+  ch.from.slot === "BN" && STARTER_SLOTS.has(ch.to.slot)
+);
+// render benchPromotionsOnly

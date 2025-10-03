@@ -1,0 +1,112 @@
+What to add
+
+A Dynasty filter toggle (on/off) that hides/show dynasty leagues.
+
+Rename the table header “Result” → “Proj Result”.
+
+Below is drop-in React code using your current setup (Vite + Tailwind + shadcn/ui).
+
+1) Detect “dynasty” reliably
+
+Sleeper sometimes exposes a type field, but names/descriptions aren’t consistent. Use a tolerant detector:
+
+// src/lib/leagues.ts
+export function isDynasty(l: any): boolean {
+  const t = String(l?.settings?.type ?? l?.type ?? "").toLowerCase();
+  const name = `${l?.name ?? ""} ${l?.metadata?.description ?? ""}`.toLowerCase();
+
+  // common signals
+  if (t.includes("dynasty") || t === "dynasty" || t === "keeper") return true;
+  if (/\bdynasty\b/i.test(name) || /\bkeeper(s)?\b/i.test(name)) return true;
+
+  // feel free to add org-specific tags here later
+  return false;
+}
+
+2) UI state + persistence for the filter
+// src/pages/MatchupsPage.tsx
+import { useEffect, useMemo, useState } from "react";
+import { isDynasty } from "@/lib/leagues";
+import { Switch } from "@/components/ui/switch";       // shadcn/ui
+import { Label } from "@/components/ui/label";
+
+const DYNASTY_KEY = "stc:filter:dynasty:on";
+
+export default function MatchupsPage(props: { leagues: any[] /*...*/ }) {
+  const [dynastyOnly, setDynastyOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem(DYNASTY_KEY);
+    return saved ? saved === "1" : false;  // default OFF (show all)
+  });
+
+  useEffect(() => {
+    localStorage.setItem(DYNASTY_KEY, dynastyOnly ? "1" : "0");
+  }, [dynastyOnly]);
+
+  const leaguesFiltered = useMemo(() => {
+    const base = props.leagues
+      // you already filter bestball elsewhere
+      .filter(l => !l.settings?.best_ball && !/best.?ball/i.test(l?.name ?? ""));
+    if (!dynastyOnly) return base;
+    return base.filter(isDynasty);
+  }, [props.leagues, dynastyOnly]);
+
+  // ...
+}
+
+3) Toggle control in the header
+
+Place this next to your Season/Week pickers:
+
+{/* Filters row */}
+<div className="flex items-center gap-6">
+  {/* season/week selectors... */}
+
+  <div className="flex items-center gap-3">
+    <Switch id="dynasty-only" checked={dynastyOnly} onCheckedChange={setDynastyOnly} />
+    <Label htmlFor="dynasty-only" className="cursor-pointer">
+      Dynasty only
+    </Label>
+  </div>
+</div>
+
+
+If you’d rather exclude dynasty (i.e., “Hide dynasty”), flip the predicate or label accordingly.
+
+4) Rename the column header
+
+Where you render the table head:
+
+<thead>
+  <tr className="text-xs uppercase text-muted-foreground">
+    <th className="w-[38px]"></th>
+    <th className="text-left">League</th>
+    <th className="text-left">Record</th>
+    <th className="text-left">Opt-Act</th>
+    <th className="text-left">Proj Result</th>   {/* ← rename here */}
+    <th className="text-left">QUES?</th>
+    <th className="text-left">BYE/OUT?</th>
+  </tr>
+</thead>
+
+
+If you have a sort affordance on that column, keep the same key but just change the label:
+
+// columns config
+{ key: "result", label: "Proj Result", sortable: true }
+
+5) (Optional) Tiny UX niceties
+
+Show a small helper chip when the filter hides leagues:
+
+{dynastyOnly && (
+  <span className="text-xs rounded-full bg-muted px-2 py-0.5">
+    Showing dynasty leagues only
+  </span>
+)}
+
+
+Expose a quick count:
+
+<span className="text-xs text-muted-foreground">
+  {leaguesFiltered.length} of {props.leagues.length}
+</span>
