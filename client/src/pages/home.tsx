@@ -847,7 +847,7 @@ export default function Home() {
             <div>
               <h3 className="font-semibold mb-3">Version Info</h3>
               <p className="text-sm text-muted-foreground mb-2">
-                Model v0.3 • Updated Sep 14, 2025
+                Model v1.4 • Updated Oct 3, 2025
               </p>
               <p className="text-xs text-muted-foreground">
                 Always using the latest projections and optimizations.

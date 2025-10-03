@@ -1,0 +1,86 @@
+let’s make that banner name the actual questionable starter(s), not just the count.
+
+What to change
+
+Collect Q-starters when you build the league row.
+
+// decide what counts as "questionable"
+const Q_STATUSES = new Set(["Q","D","SUS","SSPD","LP","DTD","PUP","PROB"]); // tweak as you like
+
+function getQuestionableStarters(starters: {player_id:string; name:string; injury_status?:string}[]) {
+  return starters.filter(s => Q_STATUSES.has((s.injury_status || "").toUpperCase()));
+}
+
+
+Store them on your league row model:
+
+const qStarters = getQuestionableStarters(currentStarters);
+row.qCount = qStarters.length;
+row.qPlayers = qStarters.map(s => ({ id: s.player_id, name: s.name, status: s.injury_status || "Q" }));
+
+
+Render the banner with names (badge → list or tooltip).
+Here are two options—pick one or include both:
+
+A) Inline names (auto pluralize)
+// inside LeagueExpand panel
+{row.qPlayers?.length ? (
+  <div className="my-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-yellow-900">
+    <div className="flex items-start gap-2">
+      <span className="mt-0.5">⚠️</span>
+      <div>
+        <div className="font-medium">
+          {row.qPlayers.length} questionable starter{row.qPlayers.length > 1 ? "s" : ""}
+        </div>
+        <div className="text-sm">
+          {row.qPlayers.map((p, i) => (
+            <span key={p.id}>
+              {p.name} <span className="text-xs text-yellow-700">({p.status})</span>
+              {i < row.qPlayers.length - 1 ? ", " : ""}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+) : null}
+
+B) Compact banner + tooltip
+
+(using shadcn/ui tooltip)
+
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+{row.qPlayers?.length ? (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="my-3 inline-flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-yellow-900">
+          ⚠️ <span>{row.qPlayers.length} questionable starter{row.qPlayers.length>1?"s":""}</span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        <div className="text-sm">
+          {row.qPlayers.map(p => (
+            <div key={p.id}>{p.name} <span className="text-xs text-yellow-700">({p.status})</span></div>
+          ))}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+) : null}
+
+Nice extras (optional)
+
+Link to player on Sleeper:
+
+<a href={`https://sleeper.com/players/${p.id}`} target="_blank" rel="noreferrer" className="underline">
+  {p.name}
+</a>
+
+
+Badge on the starters grid: add a small yellow “Q” pill on the player card itself for immediate context.
+
+Sort impact: keep the table top-level “QUES?” column as the count; clicking it could scroll/open the expand panel.
+
+This will show the exact names and their status code (Q/D/SUS/etc.) in the warning, so you don’t have to hunt for which player triggered the alert.
