@@ -52,24 +52,29 @@ interface LeagueMetrics {
   leagueName: string;
   format: string;
   size: number;
-  record: string;
-  optPoints: number;
-  actPoints: number;
-  optMinusAct: number;
-  projectedResult: "W" | "L" | "N/A";
-  margin: number;
-  notPlayingCount: number;
-  notPlayingList: Array<{ id?: string; name?: string; tag: AvailTag; slot: string }>;
-  quesCount: number;
-  quesList: Array<{ id?: string; name?: string; slot: string }>;
-  currentStarters: any[];
-  optimalStarters: any[];
-  recommendations: Array<{ out: any; in: any; slot: string; delta: number }>;
-  opponentName: string;
-  opponentPoints: number;
-  warnings: string[];
-  waiverSuggestions: WaiverSuggestion[];
   league: any; // Store the full league object for filtering
+  
+  // Computed fields (may be undefined during progressive loading)
+  record?: string;
+  optPoints?: number;
+  actPoints?: number;
+  optMinusAct?: number;
+  projectedResult?: "W" | "L" | "N/A";
+  margin?: number;
+  notPlayingCount?: number;
+  notPlayingList?: Array<{ id?: string; name?: string; tag: AvailTag; slot: string }>;
+  quesCount?: number;
+  quesList?: Array<{ id?: string; name?: string; slot: string }>;
+  currentStarters?: any[];
+  optimalStarters?: any[];
+  recommendations?: Array<{ out: any; in: any; slot: string; delta: number }>;
+  opponentName?: string;
+  opponentPoints?: number;
+  warnings?: string[];
+  waiverSuggestions?: WaiverSuggestion[];
+  
+  // Loading state
+  isComputing?: boolean;
 }
 
 const REDRAFT_KEY = "stc:filter:redraft:on";
@@ -92,6 +97,8 @@ export default function MatchupsPage() {
     return saved ? saved === "1" : false;
   });
   const [considerWaivers, setConsiderWaivers] = useState(true);
+  const [totalLeagues, setTotalLeagues] = useState(0);
+  const [loadedLeagues, setLoadedLeagues] = useState(0);
   const { toast } = useToast();
 
   // Persist redraft filter preference
@@ -129,6 +136,8 @@ export default function MatchupsPage() {
     
     const analyze = async () => {
       setIsLoading(true);
+      setLeagueMetrics([]); // Clear previous results
+      setLoadedLeagues(0); // Reset counter
       try {
       const user = await getUserByName(username.trim());
       if (!user || !user.user_id) {
@@ -146,11 +155,25 @@ export default function MatchupsPage() {
         console.log(`[Matchups] Filtered out ${bestBallCount} Best Ball leagues`);
       }
 
+      // Set total leagues count for progress tracking
+      setTotalLeagues(leagues.length);
+
+      // STEP 1: Render fast - show basic league info immediately
+      const initialMetrics: LeagueMetrics[] = leagues.map(lg => ({
+        leagueId: lg.league_id,
+        leagueName: lg.name,
+        format: lg.scoring_settings?.rec === 1 ? "PPR" : lg.scoring_settings?.rec === 0.5 ? "Half" : "Std",
+        size: lg.total_rosters || 0,
+        league: lg,
+        isComputing: true, // Mark as computing
+      }));
+      
+      setLeagueMetrics(initialMetrics);
+
+      // STEP 2: Compute deep analysis progressively for each league
       const playersIndex = await getPlayersIndex();
       const playedPlayerIds = await getLeagueMatchupsForLocking(leagues.map(lg => lg.league_id), week);
       const schedule = await getWeekSchedule(season, week);
-
-      const metrics: LeagueMetrics[] = [];
 
       for (const lg of leagues) {
         try {
@@ -380,37 +403,49 @@ export default function MatchupsPage() {
             }
           }
 
-          metrics.push({
-            leagueId: lg.league_id,
-            leagueName: lg.name,
-            format: lg.scoring_settings?.rec === 1 ? "PPR" : lg.scoring_settings?.rec === 0.5 ? "Half" : "Std",
-            size: lg.total_rosters || 0,
-            record: `${meRoster.settings?.wins || 0}-${meRoster.settings?.losses || 0}${meRoster.settings?.ties ? `-${meRoster.settings.ties}` : ''}`,
-            optPoints,
-            actPoints,
-            optMinusAct: optPoints - actPoints,
-            projectedResult,
-            margin,
-            notPlayingCount,
-            notPlayingList,
-            quesCount,
-            quesList,
-            currentStarters: currentSlots,
-            optimalStarters: optimalSlots,
-            recommendations,
-            opponentName,
-            opponentPoints,
-            warnings,
-            waiverSuggestions,
-            league: lg,
-          });
+          // Update the existing league entry with computed data
+          setLeagueMetrics(prev => prev.map(metric => 
+            metric.leagueId === lg.league_id
+              ? {
+                  ...metric,
+                  record: `${meRoster.settings?.wins || 0}-${meRoster.settings?.losses || 0}${meRoster.settings?.ties ? `-${meRoster.settings.ties}` : ''}`,
+                  optPoints,
+                  actPoints,
+                  optMinusAct: optPoints - actPoints,
+                  projectedResult,
+                  margin,
+                  notPlayingCount,
+                  notPlayingList,
+                  quesCount,
+                  quesList,
+                  currentStarters: currentSlots,
+                  optimalStarters: optimalSlots,
+                  recommendations,
+                  opponentName,
+                  opponentPoints,
+                  warnings,
+                  waiverSuggestions,
+                  isComputing: false, // Done computing
+                }
+              : metric
+          ));
+          
+          // Update progress counter
+          setLoadedLeagues(count => count + 1);
 
         } catch (err) {
           console.error(`[Matchups] Error processing league ${lg.league_id}:`, err);
+          // Mark league as done computing even on error
+          setLeagueMetrics(prev => prev.map(metric => 
+            metric.leagueId === lg.league_id
+              ? { ...metric, isComputing: false }
+              : metric
+          ));
+          // Still increment counter even on error
+          setLoadedLeagues(count => count + 1);
         }
       }
 
-      setLeagueMetrics(metrics);
       setIsLoading(false);
     } catch (err) {
       console.error("[Matchups] Error:", err);
@@ -438,24 +473,24 @@ export default function MatchupsPage() {
             ? b.leagueName.localeCompare(a.leagueName)
             : a.leagueName.localeCompare(b.leagueName);
         case "optMinusAct":
-          aVal = a.optMinusAct;
-          bVal = b.optMinusAct;
+          aVal = a.optMinusAct ?? -Infinity;
+          bVal = b.optMinusAct ?? -Infinity;
           break;
         case "projectedResult":
           aVal = a.projectedResult === "W" ? 1 : a.projectedResult === "L" ? 0 : -1;
           bVal = b.projectedResult === "W" ? 1 : b.projectedResult === "L" ? 0 : -1;
           break;
         case "quesCount":
-          aVal = a.quesCount;
-          bVal = b.quesCount;
+          aVal = a.quesCount ?? -Infinity;
+          bVal = b.quesCount ?? -Infinity;
           break;
         case "notPlayingCount":
-          aVal = a.notPlayingCount;
-          bVal = b.notPlayingCount;
+          aVal = a.notPlayingCount ?? -Infinity;
+          bVal = b.notPlayingCount ?? -Infinity;
           break;
         default:
-          aVal = a.optMinusAct;
-          bVal = b.optMinusAct;
+          aVal = a.optMinusAct ?? -Infinity;
+          bVal = b.optMinusAct ?? -Infinity;
       }
       return sortOrder === "desc" ? bVal - aVal : aVal - bVal;
     });
@@ -560,12 +595,17 @@ export default function MatchupsPage() {
                 Using StatChasers projections for Week {week}
               </Badge>
             )}
+            {isLoading && totalLeagues > 0 && (
+              <Badge variant="secondary" className="w-fit animate-pulse" data-testid="badge-loading-progress">
+                Analyzing: {loadedLeagues} / {totalLeagues}
+              </Badge>
+            )}
             {redraftOnly && leagueMetrics.length > 0 && (
               <Badge variant="secondary" className="w-fit" data-testid="badge-redraft-filter">
                 Showing redraft leagues only ({sortedMetrics.length} of {leagueMetrics.length})
               </Badge>
             )}
-            {!redraftOnly && leagueMetrics.length > 0 && (
+            {!redraftOnly && leagueMetrics.length > 0 && !isLoading && (
               <span className="text-xs text-muted-foreground" data-testid="text-league-count">
                 {sortedMetrics.length} {sortedMetrics.length === 1 ? 'league' : 'leagues'}
               </span>
@@ -574,9 +614,63 @@ export default function MatchupsPage() {
         </div>
 
         {/* Leagues Table */}
-        {isLoading ? (
-          <div className="text-center py-12" data-testid="text-loading">
-            <p className="text-muted-foreground">Loading leagues...</p>
+        {isLoading && leagueMetrics.length === 0 ? (
+          <div className="space-y-4">
+            {totalLeagues > 0 && (
+              <div className="text-center" data-testid="text-loading-progress">
+                <p className="text-muted-foreground">
+                  Analyzing leagues: {loadedLeagues} / {totalLeagues}
+                </p>
+              </div>
+            )}
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12"></TableHead>
+                    <TableHead>League</TableHead>
+                    <TableHead className="text-center">Record</TableHead>
+                    <TableHead className="text-center">Opt-Act</TableHead>
+                    <TableHead className="text-center">Proj Result</TableHead>
+                    <TableHead className="text-center">QUES?</TableHead>
+                    <TableHead className="text-center">OUT/BYE/EMPTY?</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: Math.min(totalLeagues || 5, 5) }).map((_, i) => (
+                    <TableRow key={i} className="animate-pulse">
+                      <TableCell>
+                        <div className="h-4 w-4 bg-muted rounded" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-muted rounded w-48" />
+                          <div className="flex gap-2">
+                            <div className="h-5 bg-muted rounded w-12" />
+                            <div className="h-5 bg-muted rounded w-16" />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="h-4 bg-muted rounded w-12 mx-auto" />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="h-4 bg-muted rounded w-16 mx-auto" />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="h-6 bg-muted rounded w-8 mx-auto" />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="h-4 bg-muted rounded w-8 mx-auto" />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="h-4 bg-muted rounded w-8 mx-auto" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         ) : leagueMetrics.length === 0 ? (
           <div className="text-center py-12" data-testid="text-no-leagues">
@@ -681,12 +775,12 @@ export default function MatchupsPage() {
                             <span className="font-medium" data-testid={`text-league-name-${league.leagueId}`}>
                               {league.leagueName}
                             </span>
-                            {league.notPlayingCount > 0 && (
+                            {!league.isComputing && league.notPlayingCount !== undefined && league.notPlayingCount > 0 && (
                               <span className="rounded-full bg-red-50 text-red-700 border border-red-200 text-xs px-2 py-0.5 font-medium" data-testid={`badge-not-playing-${league.leagueId}`}>
                                 OUT/BYE/EMPTY: {league.notPlayingCount}
                               </span>
                             )}
-                            {league.quesCount > 0 && (
+                            {!league.isComputing && league.quesCount !== undefined && league.quesCount > 0 && (
                               <span className="rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2 py-0.5 font-medium" data-testid={`badge-ques-${league.leagueId}`}>
                                 QUES: {league.quesCount}
                               </span>
@@ -703,28 +797,42 @@ export default function MatchupsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center" data-testid={`text-record-${league.leagueId}`}>
-                        {league.record}
+                        {league.isComputing || !league.record ? (
+                          <div className="h-4 bg-muted rounded w-12 mx-auto animate-pulse" />
+                        ) : (
+                          league.record
+                        )}
                       </TableCell>
                       <TableCell className="text-center" data-testid={`text-opt-act-${league.leagueId}`}>
-                        <OptActCell optPoints={league.optPoints} actPoints={league.actPoints} />
+                        {league.isComputing || league.optPoints === undefined ? (
+                          <div className="h-4 bg-muted rounded w-16 mx-auto animate-pulse" />
+                        ) : (
+                          <OptActCell optPoints={league.optPoints} actPoints={league.actPoints ?? 0} />
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Badge
-                            variant={league.projectedResult === "W" ? "default" : league.projectedResult === "L" ? "destructive" : "outline"}
-                            data-testid={`badge-result-${league.leagueId}`}
-                          >
-                            {league.projectedResult}
-                          </Badge>
-                          {league.projectedResult !== "N/A" && (
-                            <span className="text-xs text-muted-foreground" data-testid={`text-margin-${league.leagueId}`}>
-                              {league.margin > 0 ? "+" : ""}{league.margin.toFixed(1)}
-                            </span>
-                          )}
-                        </div>
+                        {league.isComputing || !league.projectedResult ? (
+                          <div className="h-6 bg-muted rounded w-8 mx-auto animate-pulse" />
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            <Badge
+                              variant={league.projectedResult === "W" ? "default" : league.projectedResult === "L" ? "destructive" : "outline"}
+                              data-testid={`badge-result-${league.leagueId}`}
+                            >
+                              {league.projectedResult}
+                            </Badge>
+                            {league.projectedResult !== "N/A" && league.margin !== undefined && (
+                              <span className="text-xs text-muted-foreground" data-testid={`text-margin-${league.leagueId}`}>
+                                {league.margin > 0 ? "+" : ""}{league.margin.toFixed(1)}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {league.quesCount > 0 ? (
+                        {league.isComputing || league.quesCount === undefined ? (
+                          <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
+                        ) : league.quesCount > 0 ? (
                           <span className="rounded-full bg-amber-50 text-amber-700 text-xs px-2 py-0.5" data-testid={`badge-ques-${league.leagueId}`}>
                             {league.quesCount}
                           </span>
@@ -733,7 +841,9 @@ export default function MatchupsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {league.notPlayingCount > 0 ? (
+                        {league.isComputing || league.notPlayingCount === undefined ? (
+                          <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
+                        ) : league.notPlayingCount > 0 ? (
                           <span className="rounded-full bg-red-50 text-red-700 text-xs px-2 py-0.5" data-testid={`badge-not-playing-${league.leagueId}`}>
                             {league.notPlayingCount}
                           </span>
@@ -747,45 +857,53 @@ export default function MatchupsPage() {
                     {expandedLeagues.has(league.leagueId) && (
                       <TableRow data-testid={`expanded-${league.leagueId}`}>
                         <TableCell colSpan={7} className="bg-muted/50 p-6">
-                          <div className="space-y-6">
-                            {/* Not playing list */}
-                            {league.notPlayingCount > 0 && (
-                              <div className="my-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-800" data-testid={`not-playing-warning-${league.leagueId}`}>
-                                <div className="font-medium">OUT/BYE/EMPTY starters</div>
-                                <div className="text-sm">
-                                  {league.notPlayingList.map((p, i) => (
-                                    <span key={p.id || i}>
-                                      {p.name || "—"}{p.tag ? ` (${p.tag})` : ""}{i < league.notPlayingList.length - 1 ? ", " : ""}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Questionable list */}
-                            {league.quesCount > 0 && (
-                              <div className="my-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900" data-testid={`ques-warning-${league.leagueId}`}>
-                                <div className="font-medium">Questionable starters</div>
-                                <div className="text-sm">
-                                  {league.quesList.map((p, i) => (
-                                    <span key={p.id || i}>
-                                      {p.name}{i < league.quesList.length - 1 ? ", " : ""}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Opponent Info */}
-                            <div className="p-4 bg-background rounded-lg border" data-testid={`opponent-card-${league.leagueId}`}>
-                              <h4 className="font-semibold mb-2">Opponent: {league.opponentName}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                Projected Points: {league.opponentPoints.toFixed(1)}
-                              </p>
+                          {league.isComputing ? (
+                            <div className="text-center py-8">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
+                              <p className="text-sm text-muted-foreground">Analyzing league...</p>
                             </div>
+                          ) : (
+                            <div className="space-y-6">
+                              {/* Not playing list */}
+                              {league.notPlayingCount !== undefined && league.notPlayingCount > 0 && league.notPlayingList && (
+                                <div className="my-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-800" data-testid={`not-playing-warning-${league.leagueId}`}>
+                                  <div className="font-medium">OUT/BYE/EMPTY starters</div>
+                                  <div className="text-sm">
+                                    {(league.notPlayingList ?? []).map((p, i) => (
+                                      <span key={p.id || i}>
+                                        {p.name || "—"}{p.tag ? ` (${p.tag})` : ""}{i < (league.notPlayingList ?? []).length - 1 ? ", " : ""}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
 
-                            {/* Recommendations */}
-                            {league.recommendations.length > 0 && (
+                              {/* Questionable list */}
+                              {league.quesCount !== undefined && league.quesCount > 0 && league.quesList && (
+                                <div className="my-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900" data-testid={`ques-warning-${league.leagueId}`}>
+                                  <div className="font-medium">Questionable starters</div>
+                                  <div className="text-sm">
+                                    {(league.quesList ?? []).map((p, i) => (
+                                      <span key={p.id || i}>
+                                        {p.name}{i < (league.quesList ?? []).length - 1 ? ", " : ""}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Opponent Info */}
+                              {league.opponentName && league.opponentPoints !== undefined && (
+                                <div className="p-4 bg-background rounded-lg border" data-testid={`opponent-card-${league.leagueId}`}>
+                                  <h4 className="font-semibold mb-2">Opponent: {league.opponentName}</h4>
+                                  <p className="text-sm text-muted-foreground">
+                                    Projected Points: {league.opponentPoints.toFixed(1)}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {league.recommendations && league.recommendations.length > 0 && (
                               <div className="space-y-2" data-testid={`recommendations-${league.leagueId}`}>
                                 <h4 className="font-semibold">Recommended Changes:</h4>
                                 <div className="space-y-2">
@@ -810,7 +928,7 @@ export default function MatchupsPage() {
                               </div>
                             )}
 
-                            {league.recommendations.length === 0 && (
+                            {league.recommendations && league.recommendations.length === 0 && (
                               <div className="text-center text-muted-foreground py-4" data-testid={`no-changes-${league.leagueId}`}>
                                 Your lineup is already optimal!
                               </div>
@@ -864,6 +982,7 @@ export default function MatchupsPage() {
                               </div>
                             )}
                           </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     )}
