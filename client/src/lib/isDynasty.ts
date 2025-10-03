@@ -1,11 +1,19 @@
 export function isDynastyLeague(lg: any): boolean {
+  // Temporary debug logging for "The Blueprint" league
+  if (lg?.name?.toLowerCase().includes("blueprint")) {
+    console.log("[Dynasty Debug] The Blueprint league data:", {
+      name: lg.name,
+      previous_league_id: lg.previous_league_id,
+      keeper_count: lg?.settings?.keeper_count,
+      keepers: lg?.settings?.keepers,
+      type: lg?.settings?.type,
+      metadata: lg?.metadata,
+      description: lg?.metadata?.description,
+    });
+  }
+
   // Check if previous_league_id exists (indicates dynasty/keeper continuation)
   if (lg?.previous_league_id) return true;
-
-  // Check metadata for dynasty/keeper indicators
-  if (lg?.metadata?.copy_from_league_id) return true; // League copied from another (often dynasty)
-  if (lg?.metadata?.league_history) return true; // League has historical data
-  if (lg?.metadata?.auto_continue) return true; // League set to auto-continue
 
   // Check for keeper settings (actual keeper slots configured)
   const keepers = lg?.settings?.keeper_count ?? lg?.settings?.keepers ?? 0;
