@@ -249,6 +249,12 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
           </div>
 
           {(() => {
+            // Blocklist of non-active players to exclude from waiver recommendations
+            const WAIVER_BLOCKLIST = new Set([
+              "Donnie Ernsberger",
+              "Mark McNamee",
+            ]);
+            
             // Get FAs from suggested changes
             const suggestedFAIds = new Set(
               diff.moves
@@ -260,7 +266,13 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             
             // Get all FAs not already in suggested changes, sorted by projection
             const otherFAs = (lg.allEligible || [])
-              .filter(p => (p as any)?.isFA === true && !suggestedFAIds.has(p.player_id))
+              .filter(p => {
+                // Must be a FA and not already suggested
+                if (!(p as any)?.isFA || suggestedFAIds.has(p.player_id)) return false;
+                // Exclude blocklisted players
+                if (WAIVER_BLOCKLIST.has(p.name)) return false;
+                return true;
+              })
               .sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0))
               .slice(0, 10);
             
