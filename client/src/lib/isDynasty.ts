@@ -2,6 +2,11 @@ export function isDynastyLeague(lg: any): boolean {
   // Check if previous_league_id exists (indicates dynasty/keeper continuation)
   if (lg?.previous_league_id) return true;
 
+  // Check metadata for dynasty/keeper indicators
+  if (lg?.metadata?.copy_from_league_id) return true; // League copied from another (often dynasty)
+  if (lg?.metadata?.league_history) return true; // League has historical data
+  if (lg?.metadata?.auto_continue) return true; // League set to auto-continue
+
   // Check for keeper settings (actual keeper slots configured)
   const keepers = lg?.settings?.keeper_count ?? lg?.settings?.keepers ?? 0;
   if (keepers > 0) return true;
