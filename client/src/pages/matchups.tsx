@@ -6,6 +6,7 @@ import { buildProjectionIndex } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule } from "@/lib/gameLocking";
 import { isBestBallLeague } from "@/lib/isBestBall";
+import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
 import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
@@ -21,6 +22,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -49,11 +52,14 @@ interface LeagueMetrics {
   byeOutCount: number;
   currentStarters: any[];
   optimalStarters: any[];
-  recommendations: Array<{ out: any; in: any }>;
+  recommendations: Array<{ out: any; in: any; slot: string; delta: number }>;
   opponentName: string;
   opponentPoints: number;
   warnings: string[];
+  league: any; // Store the full league object for filtering
 }
+
+const DYNASTY_KEY = "stc:filter:dynasty:on";
 
 export default function MatchupsPage() {
   const params = useParams<{ username: string }>();
@@ -68,7 +74,16 @@ export default function MatchupsPage() {
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<"optMinusAct" | "projectedResult" | "quesCount" | "byeOutCount">("optMinusAct");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [dynastyOnly, setDynastyOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem(DYNASTY_KEY);
+    return saved ? saved === "1" : false;
+  });
   const { toast } = useToast();
+
+  // Persist dynasty filter preference
+  useEffect(() => {
+    localStorage.setItem(DYNASTY_KEY, dynastyOnly ? "1" : "0");
+  }, [dynastyOnly]);
 
   // Load projections on mount and when season/week changes
   useEffect(() => {
@@ -245,21 +260,56 @@ export default function MatchupsPage() {
             }
           }
 
-          // Build recommendations
-          const recommendations: Array<{ out: any; in: any }> = [];
-          const currentIds = new Set(validStarters);
+          // Build recommendations - only show bench → starter promotions
+          const recommendations: Array<{ out: any; in: any; slot: string; delta: number }> = [];
           
-          optimalSlots.forEach((optSlot, i) => {
-            const currSlot = currentSlots[i];
-            const optPlayer = optSlot.player;
-            const currPlayer = currSlot.player;
+          // Identify which players are in current starters vs optimal starters
+          const currStarterIds = new Set(validStarters);
+          const optStarterIds = new Set(
+            optimalSlots.map(s => s.player?.player_id).filter(Boolean)
+          );
+          
+          // Find promotions (bench players entering starting lineup)
+          const promotions = optimalSlots
+            .filter(s => s.player && !currStarterIds.has(s.player.player_id))
+            .map(s => ({ ...s.player, slot: s.slot }));
+          
+          // Find demotions (starters being benched)
+          const demotions = currentSlots
+            .filter(s => s.player && !optStarterIds.has(s.player.player_id))
+            .map(s => ({ ...s.player, slot: s.slot }));
+          
+          // Pair promotions with demotions
+          const demotedPool = [...demotions];
+          for (const inPlayer of promotions) {
+            // Find best demotion to pair with (highest gain)
+            let bestIdx = -1;
+            let bestGain = -Infinity;
+            let bestOut: any = null;
             
-            if (optPlayer && currPlayer && optPlayer.player_id !== currPlayer.player_id) {
-              recommendations.push({ out: currPlayer, in: optPlayer });
-            } else if (optPlayer && !currPlayer) {
-              recommendations.push({ out: null, in: optPlayer });
+            for (let i = 0; i < demotedPool.length; i++) {
+              const outPlayer = demotedPool[i];
+              // Make sure it's not the same player and calculate gain
+              if (inPlayer.player_id !== outPlayer.player_id) {
+                const gain = (inPlayer.proj ?? 0) - (outPlayer.proj ?? 0);
+                if (gain > bestGain) {
+                  bestGain = gain;
+                  bestIdx = i;
+                  bestOut = outPlayer;
+                }
+              }
             }
-          });
+            
+            if (bestOut && bestIdx >= 0) {
+              recommendations.push({
+                out: bestOut,
+                in: inPlayer,
+                slot: inPlayer.slot,
+                delta: bestGain
+              });
+              demotedPool.splice(bestIdx, 1);
+            }
+          }
 
           // Build warnings
           const warnings: string[] = [];
@@ -285,6 +335,7 @@ export default function MatchupsPage() {
             opponentName,
             opponentPoints,
             warnings,
+            league: lg,
           });
 
         } catch (err) {
@@ -305,7 +356,13 @@ export default function MatchupsPage() {
   }, [username, projections, season, week, projIdx, toast]);
 
   const sortedMetrics = useMemo(() => {
-    const sorted = [...leagueMetrics].sort((a, b) => {
+    // Apply dynasty filter if enabled
+    let filtered = leagueMetrics;
+    if (dynastyOnly) {
+      filtered = leagueMetrics.filter((metric) => isDynastyLeague(metric.league));
+    }
+    
+    const sorted = [...filtered].sort((a, b) => {
       let aVal, bVal;
       switch (sortBy) {
         case "optMinusAct":
@@ -331,7 +388,7 @@ export default function MatchupsPage() {
       return sortOrder === "desc" ? bVal - aVal : aVal - bVal;
     });
     return sorted;
-  }, [leagueMetrics, sortBy, sortOrder]);
+  }, [leagueMetrics, sortBy, sortOrder, dynastyOnly]);
 
   const toggleExpanded = (leagueId: string) => {
     const newSet = new Set(expandedLeagues);
@@ -398,14 +455,38 @@ export default function MatchupsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              
+              <div className="flex items-center gap-2 border-l pl-3">
+                <Switch 
+                  id="dynasty-only" 
+                  checked={dynastyOnly} 
+                  onCheckedChange={setDynastyOnly}
+                  data-testid="switch-dynasty-filter"
+                />
+                <Label htmlFor="dynasty-only" className="cursor-pointer text-sm" data-testid="label-dynasty-filter">
+                  Dynasty only
+                </Label>
+              </div>
             </div>
           </div>
 
-          {projections.length > 0 && (
-            <Badge variant="outline" className="w-fit" data-testid="badge-projections">
-              Using StatChasers projections for Week {week}
-            </Badge>
-          )}
+          <div className="flex items-center gap-3">
+            {projections.length > 0 && (
+              <Badge variant="outline" className="w-fit" data-testid="badge-projections">
+                Using StatChasers projections for Week {week}
+              </Badge>
+            )}
+            {dynastyOnly && leagueMetrics.length > 0 && (
+              <Badge variant="secondary" className="w-fit" data-testid="badge-dynasty-filter">
+                Showing dynasty leagues only ({sortedMetrics.length} of {leagueMetrics.length})
+              </Badge>
+            )}
+            {!dynastyOnly && leagueMetrics.length > 0 && (
+              <span className="text-xs text-muted-foreground" data-testid="text-league-count">
+                {sortedMetrics.length} {sortedMetrics.length === 1 ? 'league' : 'leagues'}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Leagues Table */}
@@ -446,7 +527,7 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        Result {sortBy === "projectedResult" && (sortOrder === "desc" ? "↓" : "↑")}
+                        Proj Result {sortBy === "projectedResult" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         W/L based on your total vs your opponent's total (optimal lineups)
