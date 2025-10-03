@@ -92,24 +92,15 @@ export default function MatchupsPage() {
 
   // Load leagues on mount if username is provided
   useEffect(() => {
-    if (username && projections.length > 0) {
-      handleAnalyze();
-    }
-  }, [username, projections]);
-
-  const handleAnalyze = async () => {
-    if (!username.trim()) {
-      toast({ title: "Error", description: "No username provided", variant: "destructive" });
+    if (!username || projections.length === 0) {
       return;
     }
 
-    if (projections.length === 0) {
-      toast({ title: "Error", description: "No projections available for this week", variant: "destructive" });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
+    console.log(`[Matchups] Auto-analyzing for username: ${username}, projections: ${projections.length}`);
+    
+    const analyze = async () => {
+      setIsLoading(true);
+      try {
       const user = await getUserByName(username.trim());
       if (!user || !user.user_id) {
         toast({ title: "Error", description: `User "${username}" not found on Sleeper`, variant: "destructive" });
@@ -308,7 +299,10 @@ export default function MatchupsPage() {
       toast({ title: "Error", description: "Failed to analyze leagues", variant: "destructive" });
       setIsLoading(false);
     }
-  };
+    };
+    
+    analyze();
+  }, [username, projections, season, week, projIdx, toast]);
 
   const sortedMetrics = useMemo(() => {
     const sorted = [...leagueMetrics].sort((a, b) => {
