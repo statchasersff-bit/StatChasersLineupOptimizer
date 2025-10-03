@@ -57,7 +57,6 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
           <div className={`text-sm md:text-base font-semibold ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
             {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
           </div>
-          <div className="text-xs md:text-sm text-gray-500" data-testid={`text-changes-${lg.league_id}`}>{changeCount} changes</div>
 
           {/* Bench empties badge */}
           {(lg.benchEmpty ?? 0) > 0 && (
