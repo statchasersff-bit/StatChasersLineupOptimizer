@@ -19,8 +19,9 @@ The main page provides a detailed view of all leagues with comprehensive lineup 
 - Detailed league cards showing:
   - **Player Availability Badges** (updated Oct 3, 2025): Next to league names
     - OUT/BYE/EMPTY badge (red): Count of players who won't score (empty slots, OUT status, BYE week)
-    - QUES badge (orange): Count of questionable/doubtful players
+    - QUES badge (yellow/gold): Count of questionable/doubtful players
     - Only displayed when counts > 0
+  - **Total Potential Points stat card** (updated Oct 3, 2025): Green colored indicator showing aggregate optimal point improvements
   - Current vs optimal lineups side-by-side with availability badges (OUT, BYE, QUES)
   - Projected points and optimal improvements
   - Recommended roster changes with "Add FA" labels for free agent pickups (empty slot additions show cleanly without placeholder IDs)
@@ -44,7 +45,7 @@ A streamlined table-based view for quick summary analysis across all leagues. Fe
   - Opponent card with projected points
   - **Player Availability Warnings** (updated Oct 3, 2025): Specific classification with player names
     - OUT/BYE/EMPTY warnings (red/gray): Players who will score 0 points unless changed
-    - QUES warnings (orange): Questionable/Doubtful/Suspended players
+    - QUES warnings (yellow/gold): Questionable/Doubtful/Suspended players
     - Each warning shows affected player names with their status tags
   - Waiver Watchlist with free agent pickup suggestions
 - "Back to Home" button for easy navigation
@@ -78,6 +79,7 @@ The core lineup optimization logic implements a sophisticated algorithm that res
 - Scans ALL available free agents from projections data (not limited to trending players)
 - Scores FAs using league-specific scoring settings
 - Selects top 10 FAs per position by projection (DESC) with stable tiebreaker
+- **Excludes kickers (K position)** from FA candidate pool to prevent irrelevant suggestions
 - Merges FAs into the candidate pool for optimal lineup calculation
 - Optimizer naturally selects best available players (roster or FA)
 - Filters out locked players (games already started), BYE weeks, and OUT/IR status
@@ -125,13 +127,16 @@ The application provides intelligent filtering capabilities:
 The waiver watchlist analyzes free agent availability and suggests optimal pickups for each league:
 - Fetches trending free agents from Sleeper API (up to 300 players)
 - Calculates league-adjusted projections using StatChasers data
+- **Blocklist Filtering** (updated Oct 3, 2025): Excludes specific problematic players (e.g., Donnie Ernsberger, Mark McNamee) from appearing in suggestions
+- **Position Filtering** (updated Oct 3, 2025): Excludes kickers (K position) from waiver suggestions as low-impact pickups
 - **Slot-Aware Analysis** (updated Oct 3, 2025): Only evaluates roster slots that exist in each league's configuration
   - Extracts active roster positions from league's `roster_positions` field
-  - Calculates upgrade floors only for slots the league actually uses (QB, RB, WR, TE, K, DEF, FLEX, SUPER_FLEX)
+  - Calculates upgrade floors only for slots the league actually uses (QB, RB, WR, TE, DEF, FLEX, SUPER_FLEX)
   - Prevents invalid suggestions (e.g., QB for WR in non-superflex leagues)
   - Respects position eligibility rules for each slot type
 - Suggests top 5 free agent upgrades with minimum +1.5 point improvement threshold
 - Automatically excludes players on BYE weeks or OUT/IR status
+- **Enhanced QUES Detection** (updated Oct 3, 2025): Identifies questionable/doubtful players through both single-letter codes (Q, D) and partial string matching (QUES, DOUBT) to handle various Sleeper API injury status formats
 - Each suggestion includes:
   - Player to add with position and target slot
   - Projected point improvement delta
