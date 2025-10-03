@@ -176,7 +176,8 @@ export function pickWaiverUpgrades(
     if (fa.isByeOrOut) continue; // Skip BYE/OUT players
 
     // Check against each slot the FA can fill (only active slots in this league)
-    (["QB", "RB", "WR", "TE", "K", "DEF", "FLEX", "SUPER_FLEX"] as Slot[]).forEach(
+    // Exclude kickers from waiver recommendations
+    (["QB", "RB", "WR", "TE", "DEF", "FLEX", "SUPER_FLEX"] as Slot[]).forEach(
       (slot) => {
         // Skip if league doesn't have this slot
         if (!activeSlots.has(slot)) return;
