@@ -516,9 +516,11 @@ export default function Home() {
           // Calculate availability counts for current starters
           const startersForAvailability: Starter[] = fixedSlots.map((slot: string, i: number) => {
             const pid = starters[i];
-            const player = starterObjs.find((p: any) => p.player_id === pid);
+            // Treat "0", "", null, or undefined as empty slots
+            const validPid = (pid && pid !== "0") ? pid : undefined;
+            const player = validPid ? starterObjs.find((p: any) => p.player_id === validPid) : undefined;
             return {
-              player_id: pid || undefined,
+              player_id: validPid,
               name: player?.name,
               opp: player?.opp,
               injury_status: player?.injury_status,

@@ -17,11 +17,15 @@ The main page provides a detailed view of all leagues with comprehensive lineup 
 - CSV file upload for custom projections
 - **Consider Free Agents toggle** (updated Oct 3, 2025): When enabled (default), integrates trending free agents from Sleeper API into optimal lineup calculation
 - Detailed league cards showing:
+  - **Player Availability Badges** (updated Oct 3, 2025): Next to league names
+    - OUT/BYE/EMPTY badge (red): Count of players who won't score (empty slots, OUT status, BYE week)
+    - QUES badge (orange): Count of questionable/doubtful players
+    - Only displayed when counts > 0
   - Current vs optimal lineups side-by-side with availability badges (OUT, BYE, QUES)
   - Projected points and optimal improvements
-  - Recommended roster changes with "Add FA" labels for free agent pickups
+  - Recommended roster changes with "Add FA" labels for free agent pickups (empty slot additions show cleanly without placeholder IDs)
   - Opponent analysis with win probability
-  - Player risk indicators (injury status, bye weeks)
+  - **Waiver Watchlist** (redesigned Oct 3, 2025): Shows other highly projected free agents not already in suggested changes, displaying just name, position, and projected points for quick consideration
   - Export to CSV functionality
 
 ### Matchups Table View (/:username/matchups)
