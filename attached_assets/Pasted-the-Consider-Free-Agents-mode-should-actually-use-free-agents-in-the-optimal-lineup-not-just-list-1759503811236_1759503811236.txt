@@ -1,0 +1,173 @@
+the “Consider Free Agents” mode should actually use free agents in the optimal lineup, not just list them in a watchlist. What’s happening now is your optimizer is only building the optimal lineup from players already on your roster, and the FA scan runs after as a side panel. That’s why it still picked Lamar (0.0) at QB instead of Cooper Rush (~15), and Mike Evans (0.0) instead of JuJu.
+
+Here’s a focused patch plan so FA candidates are part of the lineup solver when the toggle is on.
+
+What to change (high-level)
+
+When considerFA === true, fetch/score a shortlist of free agents for the league and merge them into the candidate pool used by the lineup optimizer (the same pool that currently contains your starters + bench).
+
+Filter FA candidates so they’re legit:
+
+Not owned by any team in that league
+
+Have a projection > 0 (after league scoring)
+
+Not on BYE (unless you want to allow it)
+
+Injury status not in {O, IR, NA} (configurable)
+
+Cap the size per position (e.g., top 10 per position) to keep it fast
+
+Run the optimizer across the merged pool (roster + FA).
+The solver must treat FA players like any other candidate for slot assignment. If an FA wins a slot, your “Recommended Changes” should say “Add FA X into <slot> (bench Y)”.
+
+Never select 0-projection players if there exists an eligible FA > 0.
+
+Drop-in code (TypeScript / React)
+A) Build FA candidates
+// config knobs
+const EXCLUDE_FA_STATUSES = new Set(["O", "IR", "NA"]);
+const EXCLUDE_BYE = true;
+const MAX_FA_PER_POS = 10;
+
+type Slot = "QB"|"RB"|"WR"|"TE"|"K"|"DEF"|"FLEX"|"SUPER_FLEX"|"BN";
+
+const isFlexEligible = (pos: string) => pos==="RB"||pos==="WR"||pos==="TE";
+const isSuperFlexEligible = (pos: string) => pos==="QB" || isFlexEligible(pos);
+const slotEligible = (pos: string, slot: Slot) =>
+  slot==="FLEX" ? isFlexEligible(pos) :
+  slot==="SUPER_FLEX" ? isSuperFlexEligible(pos) :
+  pos === slot;
+
+type Candidate = {
+  player_id: string;
+  name: string;
+  team: string;
+  pos: string;
+  proj: number;
+  eligible: Slot[];     // computed from Sleeper fantasy_positions
+  isFA: boolean;
+};
+
+async function buildFACandidates(
+  leagueId: string,
+  leagueScoring: any,
+  allPlayers: Record<string, any>,         // Sleeper players catalog
+  projMap: Map<string, any>                // sleeper_id -> your CSV row
+): Promise<Candidate[]> {
+  // who is owned?
+  const rosters = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/rosters`).then(r=>r.json());
+  const owned = new Set<string>();
+  for (const r of rosters) for (const pid of (r.players ?? [])) owned.add(String(pid));
+
+  // trending FAs first (keeps pool small & relevant)
+  const trending = await fetch(`https://api.sleeper.app/v1/players/nfl/trending/add?limit=300`).then(r=>r.json());
+  const faIds = trending.map((t:any)=> String(t.player_id)).filter(pid => !owned.has(pid));
+
+  // score & filter
+  const buckets: Record<string, Candidate[]> = { QB:[], RB:[], WR:[], TE:[], K:[], DEF:[] };
+
+  for (const pid of faIds) {
+    const p = allPlayers[pid];
+    if (!p) continue;
+    const pos = p.position;
+    if (!buckets[pos]) continue; // ignore IDP etc.
+
+    const row = projMap.get(pid);
+    if (!row) continue;
+    if (EXCLUDE_BYE && row.opp === "BYE") continue;
+    const status = (p.injury_status || "").toUpperCase();
+    if (EXCLUDE_FA_STATUSES.has(status)) continue;
+
+    const proj = projectPlayerPts(row, leagueScoring); // your existing scorer
+    if (!(proj > 0)) continue;
+
+    const eligible: Slot[] = ["QB","RB","WR","TE","K","DEF","FLEX","SUPER_FLEX"].filter(s=>slotEligible(pos,s)) as Slot[];
+
+    buckets[pos].push({
+      player_id: pid,
+      name: p.full_name,
+      team: p.team,
+      pos,
+      proj,
+      eligible,
+      isFA: true,
+    });
+  }
+
+  // cap per position by projection
+  const shortlist: Candidate[] = [];
+  for (const pos of Object.keys(buckets)) {
+    shortlist.push(...buckets[pos].sort((a,b)=> b.proj - a.proj).slice(0, MAX_FA_PER_POS));
+  }
+  return shortlist;
+}
+
+B) Merge into optimizer pool
+
+Where you currently build the pool from roster (starters+bench), merge FA candidates when the toggle is on:
+
+async function buildCandidatePool(
+  rosterCandidates: Candidate[],
+  considerFA: boolean,
+  leagueId: string,
+  leagueScoring: any,
+  allPlayers: Record<string,any>,
+  projMap: Map<string, any>
+) {
+  if (!considerFA) return rosterCandidates;
+
+  const fa = await buildFACandidates(leagueId, leagueScoring, allPlayers, projMap);
+
+  // Exclude any duplicate IDs (shouldn’t happen but safe)
+  const seen = new Set(rosterCandidates.map(c => c.player_id));
+  const merged = rosterCandidates.concat(fa.filter(c => !seen.has(c.player_id)));
+
+  // Strong rule: don’t keep 0-proj candidates if there exists any eligible > 0 for that slot
+  return merged.filter(c => c.proj > 0);
+}
+
+C) Solve lineup with merged pool
+
+Your solver likely assigns players to slots to maximize total. Keep your existing routine—just pass the merged list.
+
+If your solver is greedy, make sure it:
+
+Respects slot eligibility (including FLEX/SF)
+
+Doesn’t assign a player twice
+
+Prefers higher proj
+
+If you want a simple, robust approach without ILP: greedy with swap/backtracking works great. You already had that earlier.
+
+D) Produce recommendations (and show FA adds)
+
+After solving:
+
+For each slot where the chosen candidate is isFA === true, emit:
+“Add {FA} into {slot} (+X.X) over {worst eligible starter}”
+
+For normal bench promotions (non-FA), your existing pairing logic still works.
+
+E) UI: wire the toggle that recomputes with FAs
+
+Make your “Consider Free Agents” switch store a boolean considerFA and re-run analysis. Show a note when it’s on:
+
+“Including available free agents in optimal lineup.”
+
+Why your examples will be fixed
+
+QB: Lamar Jackson (0.0) had no projection and was chosen because FAs weren’t considered by the solver. After this patch the candidate pool includes Cooper Rush (~15); he’s eligible for QB and has >0 projection, so he wins the QB slot.
+
+WR: Mike Evans (0.0) vs JuJu Smith-Schuster (~9)—same story; JuJu becomes the optimal WR/FLEX over a 0.0.
+
+Safety & performance tips
+
+Cache the Sleeper players catalog per session; it’s big.
+
+Use trending add first to keep FA list small. If a league is deep and you want more, you can page in more FAs per position when needed.
+
+Keep a MIN_WAIVER_GAIN threshold (e.g., 1.5) for showing FA recs in the “Waiver Watchlist”, but don’t apply that threshold in the lineup solver—let the solver pick the absolute best starters.
+
+Add a banner when considerFA is on so users understand the optimal total might assume picking someone up.

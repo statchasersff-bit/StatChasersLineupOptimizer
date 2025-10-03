@@ -12,6 +12,7 @@ import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import type { Projection } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { summarizeStarters, type Starter } from "@/lib/availability";
 import { OptActCell } from "@/components/OptActCell";
 import {
   getFreeAgentsForLeague,
@@ -57,8 +58,10 @@ interface LeagueMetrics {
   optMinusAct: number;
   projectedResult: "W" | "L" | "N/A";
   margin: number;
+  notPlayingCount: number;
+  notPlayingList: Array<{ id?: string; name?: string; tag: "OUT" | "BYE" | "EMPTY" | null; slot: string }>;
   quesCount: number;
-  byeOutCount: number;
+  quesList: Array<{ id?: string; name?: string; slot: string }>;
   currentStarters: any[];
   optimalStarters: any[];
   recommendations: Array<{ out: any; in: any; slot: string; delta: number }>;
@@ -82,7 +85,7 @@ export default function MatchupsPage() {
   const [projections, setProjections] = useState<Projection[]>([]);
   const [leagueMetrics, setLeagueMetrics] = useState<LeagueMetrics[]>([]);
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<"optMinusAct" | "projectedResult" | "quesCount" | "byeOutCount">("optMinusAct");
+  const [sortBy, setSortBy] = useState<"optMinusAct" | "projectedResult" | "quesCount" | "notPlayingCount">("optMinusAct");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [redraftOnly, setRedraftOnly] = useState<boolean>(() => {
     const saved = localStorage.getItem(REDRAFT_KEY);
@@ -217,24 +220,24 @@ export default function MatchupsPage() {
           });
           const actPoints = sumProj(currentSlots as any);
 
-          // Count QUES and BYE/OUT starters
-          const quesCodes = new Set(["Q","D","SUS","SSPD","LP","DTD","DOUBTFUL","QUESTIONABLE"]);
-          const byeOutCodes = new Set(["O","IR","DNR","NA","OUT"]);
-          
-          let quesCount = 0;
-          let byeOutCount = 0;
-          
-          for (const starter of starterObjs) {
-            const status = (starter.injury_status || "").toUpperCase();
-            const opp = (starter.opp || "").toUpperCase();
-            
-            if (quesCodes.has(status) || status.includes("QUES") || status.includes("DOUB")) {
-              quesCount++;
-            }
-            if (byeOutCodes.has(status) || status.includes("OUT") || opp === "BYE") {
-              byeOutCount++;
-            }
-          }
+          // Use new availability classification system
+          const startersForClassification: Starter[] = fixedSlots.map((slot: string, i: number) => {
+            const pid = starters[i];
+            if (!pid) return { slot, player_id: undefined };
+            const player = starterObjs.find(s => s.player_id === pid) || addWithProj(pid);
+            return {
+              slot,
+              player_id: player?.player_id,
+              name: player?.name,
+              pos: player?.pos,
+              opp: player?.opp,
+              injury_status: player?.injury_status,
+              proj: player?.proj
+            };
+          });
+
+          const availabilitySummary = summarizeStarters(startersForClassification);
+          const { notPlayingCount, notPlayingList, quesCount, quesList } = availabilitySummary;
 
           // Find opponent and calculate projected result
           let opponentName = "N/A";
@@ -321,10 +324,10 @@ export default function MatchupsPage() {
             }
           }
 
-          // Build warnings
+          // Build warnings (keeping for backward compatibility, but will show in new format in UI)
           const warnings: string[] = [];
           if (quesCount > 0) warnings.push(`${quesCount} questionable starter${quesCount > 1 ? 's' : ''}`);
-          if (byeOutCount > 0) warnings.push(`${byeOutCount} bye/out starter${byeOutCount > 1 ? 's' : ''}`);
+          if (notPlayingCount > 0) warnings.push(`${notPlayingCount} not playing${notPlayingCount > 1 ? ' starters' : ' starter'}`);
 
           // Calculate waiver suggestions
           let waiverSuggestions: WaiverSuggestion[] = [];
@@ -385,8 +388,10 @@ export default function MatchupsPage() {
             optMinusAct: optPoints - actPoints,
             projectedResult,
             margin,
+            notPlayingCount,
+            notPlayingList,
             quesCount,
-            byeOutCount,
+            quesList,
             currentStarters: currentSlots,
             optimalStarters: optimalSlots,
             recommendations,
@@ -436,9 +441,9 @@ export default function MatchupsPage() {
           aVal = a.quesCount;
           bVal = b.quesCount;
           break;
-        case "byeOutCount":
-          aVal = a.byeOutCount;
-          bVal = b.byeOutCount;
+        case "notPlayingCount":
+          aVal = a.notPlayingCount;
+          bVal = b.notPlayingCount;
           break;
         default:
           aVal = a.optMinusAct;
@@ -609,15 +614,15 @@ export default function MatchupsPage() {
                   </TableHead>
                   <TableHead 
                     className="text-center cursor-pointer hover:bg-accent"
-                    onClick={() => handleSort("byeOutCount")}
-                    data-testid="header-bye-out"
+                    onClick={() => handleSort("notPlayingCount")}
+                    data-testid="header-not-playing"
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        BYE/OUT? {sortBy === "byeOutCount" && (sortOrder === "desc" ? "↓" : "↑")}
+                        OUT/BYE/EMPTY? {sortBy === "notPlayingCount" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
-                        Number of starters on bye or ruled Out/IR/NA
+                        Players who will score 0 unless changed (Out, Bye, or Empty slot)
                       </TooltipContent>
                     </Tooltip>
                   </TableHead>
@@ -683,20 +688,20 @@ export default function MatchupsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         {league.quesCount > 0 ? (
-                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800" data-testid={`badge-ques-${league.leagueId}`}>
+                          <span className="rounded-full bg-amber-50 text-amber-700 text-xs px-2 py-0.5" data-testid={`badge-ques-${league.leagueId}`}>
                             {league.quesCount}
-                          </Badge>
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {league.byeOutCount > 0 ? (
-                          <Badge variant="outline" className="bg-red-100 text-red-800" data-testid={`badge-bye-out-${league.leagueId}`}>
-                            {league.byeOutCount}
-                          </Badge>
+                        {league.notPlayingCount > 0 ? (
+                          <span className="rounded-full bg-red-50 text-red-700 text-xs px-2 py-0.5" data-testid={`badge-not-playing-${league.leagueId}`}>
+                            {league.notPlayingCount}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="rounded-full bg-green-50 text-green-600 text-xs px-2 py-0.5">0</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -706,12 +711,30 @@ export default function MatchupsPage() {
                       <TableRow data-testid={`expanded-${league.leagueId}`}>
                         <TableCell colSpan={7} className="bg-muted/50 p-6">
                           <div className="space-y-6">
-                            {/* Warnings */}
-                            {league.warnings.length > 0 && (
-                              <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg" data-testid={`warnings-${league.leagueId}`}>
-                                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                                <div className="text-sm text-yellow-800">
-                                  {league.warnings.join(", ")}
+                            {/* Not playing list */}
+                            {league.notPlayingCount > 0 && (
+                              <div className="my-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-800" data-testid={`not-playing-warning-${league.leagueId}`}>
+                                <div className="font-medium">OUT/BYE/EMPTY starters</div>
+                                <div className="text-sm">
+                                  {league.notPlayingList.map((p, i) => (
+                                    <span key={p.id || i}>
+                                      {p.name || "—"}{p.tag ? ` (${p.tag})` : ""}{i < league.notPlayingList.length - 1 ? ", " : ""}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Questionable list */}
+                            {league.quesCount > 0 && (
+                              <div className="my-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900" data-testid={`ques-warning-${league.leagueId}`}>
+                                <div className="font-medium">Questionable starters</div>
+                                <div className="text-sm">
+                                  {league.quesList.map((p, i) => (
+                                    <span key={p.id || i}>
+                                      {p.name}{i < league.quesList.length - 1 ? ", " : ""}
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
                             )}
