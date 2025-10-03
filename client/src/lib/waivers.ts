@@ -45,8 +45,10 @@ export function slotEligible(pos: string, slot: Slot): boolean {
 }
 
 // Build starter floors by slot (worst starter per slot)
+// Only calculates floors for slots that exist in the league's roster
 export function buildStarterFloors(
-  starters: StarterWithSlot[]
+  starters: StarterWithSlot[],
+  activeSlots: Set<Slot>
 ): Record<Slot, { player_id: string; proj: number } | null> {
   const floors: Record<Slot, { player_id: string; proj: number } | null> = {
     QB: null,
@@ -69,33 +71,37 @@ export function buildStarterFloors(
     }
   }
 
-  // FLEX floor should reflect the lowest eligible starter from the pool
-  const flexCandidates = starters.filter((s) =>
-    slotEligible(s.pos, "FLEX")
-  );
-  floors.FLEX = flexCandidates.length
-    ? flexCandidates.reduce(
-        (m, s) =>
-          m && m.proj <= (s.proj ?? 0)
-            ? m
-            : { player_id: s.player_id, proj: s.proj ?? 0 },
-        null as any
-      )
-    : null;
+  // Only calculate FLEX floor if league has FLEX position
+  if (activeSlots.has("FLEX")) {
+    const flexCandidates = starters.filter((s) =>
+      slotEligible(s.pos, "FLEX")
+    );
+    floors.FLEX = flexCandidates.length
+      ? flexCandidates.reduce(
+          (m, s) =>
+            m && m.proj <= (s.proj ?? 0)
+              ? m
+              : { player_id: s.player_id, proj: s.proj ?? 0 },
+          null as any
+        )
+      : null;
+  }
 
-  // SUPER_FLEX floor should reflect the lowest eligible starter from the pool
-  const sfCandidates = starters.filter((s) =>
-    slotEligible(s.pos, "SUPER_FLEX")
-  );
-  floors.SUPER_FLEX = sfCandidates.length
-    ? sfCandidates.reduce(
-        (m, s) =>
-          m && m.proj <= (s.proj ?? 0)
-            ? m
-            : { player_id: s.player_id, proj: s.proj ?? 0 },
-        null as any
-      )
-    : null;
+  // Only calculate SUPER_FLEX floor if league has SUPER_FLEX position
+  if (activeSlots.has("SUPER_FLEX")) {
+    const sfCandidates = starters.filter((s) =>
+      slotEligible(s.pos, "SUPER_FLEX")
+    );
+    floors.SUPER_FLEX = sfCandidates.length
+      ? sfCandidates.reduce(
+          (m, s) =>
+            m && m.proj <= (s.proj ?? 0)
+              ? m
+              : { player_id: s.player_id, proj: s.proj ?? 0 },
+          null as any
+        )
+      : null;
+  }
 
   return floors;
 }
@@ -151,13 +157,15 @@ export function scoreFreeAgents(
 }
 
 // Compare FAs to floors and pick top suggestions
+// Only checks against slots that exist in the league's roster
 export function pickWaiverUpgrades(
   scoredFAs: ScoredFreeAgent[],
   starters: StarterWithSlot[],
+  activeSlots: Set<Slot>,
   minGain: number = 1.5,
   maxSuggestions: number = 5
 ): WaiverSuggestion[] {
-  const floors = buildStarterFloors(starters);
+  const floors = buildStarterFloors(starters, activeSlots);
   const suggestions: WaiverSuggestion[] = [];
 
   // Build lookup of current starters by player_id for names/pos
@@ -167,9 +175,11 @@ export function pickWaiverUpgrades(
     if (!fa || !Number.isFinite(fa.proj)) continue;
     if (fa.isByeOrOut) continue; // Skip BYE/OUT players
 
-    // Check against each slot the FA can fill
+    // Check against each slot the FA can fill (only active slots in this league)
     (["QB", "RB", "WR", "TE", "K", "DEF", "FLEX", "SUPER_FLEX"] as Slot[]).forEach(
       (slot) => {
+        // Skip if league doesn't have this slot
+        if (!activeSlots.has(slot)) return;
         if (!slotEligible(fa.pos, slot)) return;
         const floor = floors[slot];
         if (!floor) return;

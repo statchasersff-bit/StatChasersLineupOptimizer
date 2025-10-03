@@ -19,6 +19,7 @@ import {
   pickWaiverUpgrades,
   type WaiverSuggestion,
   type StarterWithSlot,
+  type Slot,
 } from "@/lib/waivers";
 import {
   Table,
@@ -358,8 +359,17 @@ export default function MatchupsPage() {
                 proj: s.player.proj ?? 0,
               }));
 
-            // Pick top waiver upgrades
-            waiverSuggestions = pickWaiverUpgrades(scoredFAs, startersWithSlots);
+            // Extract active roster slots from league's roster_positions
+            // Only include slots we support (filter out IDP and other custom positions)
+            const supportedSlots: Slot[] = ["QB", "RB", "WR", "TE", "K", "DEF", "FLEX", "SUPER_FLEX"];
+            const activeSlots = new Set<Slot>(
+              (lg.roster_positions || [])
+                .filter((pos: string) => pos !== "BN" && pos !== "IR" && supportedSlots.includes(pos as Slot))
+                .map((pos: string) => pos as Slot)
+            );
+
+            // Pick top waiver upgrades (only for slots this league actually has)
+            waiverSuggestions = pickWaiverUpgrades(scoredFAs, startersWithSlots, activeSlots);
           } catch (waiverErr) {
             console.error(`[Waivers] Error calculating suggestions for league ${lg.league_id}:`, waiverErr);
           }
