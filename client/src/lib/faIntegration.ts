@@ -1,5 +1,6 @@
 import type { Projection } from "./types";
 import { scoreByLeague } from "./scoring";
+import { isPlayerLocked, type GameSchedule } from "./gameLocking";
 
 const EXCLUDE_FA_STATUSES = new Set(["O", "IR", "NA"]);
 const MAX_FA_PER_POS = 10;
@@ -31,7 +32,9 @@ export async function buildFACandidates(
   ownedPlayerIds: Set<string>,
   allPlayers: Record<string, any>,
   projMap: Record<string, Projection>,
-  leagueScoring: any
+  leagueScoring: any,
+  schedule?: GameSchedule,
+  playedPlayerIds?: Record<string, boolean>
 ): Promise<FACandidate[]> {
   // Fetch trending free agents from Sleeper API
   const trendingResponse = await fetch('https://api.sleeper.app/v1/players/nfl/trending/add?limit=300');
@@ -64,6 +67,11 @@ export async function buildFACandidates(
     const status = (p.injury_status || "").toUpperCase();
     if (EXCLUDE_FA_STATUSES.has(status)) continue;
 
+    // Exclude players whose game has already started/finished (locked players)
+    if (schedule && isPlayerLocked({ team: p.team, player_id: pid }, schedule, Date.now(), playedPlayerIds)) {
+      continue;
+    }
+
     // Calculate league-adjusted projection
     const stats = (row as any)?.stats || {};
     const proj = scoreByLeague(pos, stats, leagueScoring, row.proj);
@@ -85,12 +93,16 @@ export async function buildFACandidates(
     });
   }
 
-  // Cap per position by projection
+  // Cap per position by projection (sort DESC with stable tiebreaker)
   const shortlist: FACandidate[] = [];
   for (const pos of Object.keys(buckets)) {
-    shortlist.push(
-      ...buckets[pos].sort((a, b) => b.proj - a.proj).slice(0, MAX_FA_PER_POS)
-    );
+    const sorted = buckets[pos].sort((a, b) => {
+      // Primary: sort by projection DESC
+      if (a.proj !== b.proj) return b.proj - a.proj;
+      // Tiebreaker: stable sort by player_id
+      return a.player_id.localeCompare(b.player_id);
+    });
+    shortlist.push(...sorted.slice(0, MAX_FA_PER_POS));
   }
   return shortlist;
 }

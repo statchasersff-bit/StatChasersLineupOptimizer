@@ -266,7 +266,7 @@ export default function Home() {
                 (roster.players || []).forEach((pid: string) => owned.add(pid));
               });
 
-              const faCandidates = await buildFACandidates(owned, currentPlayersIndex, projIdx, scoring);
+              const faCandidates = await buildFACandidates(owned, currentPlayersIndex, projIdx, scoring, schedule, playedPlayerIds);
               
               // Merge FAs into allEligible, filtering out duplicates
               const existingIds = new Set(allEligible.map(p => p.player_id));
