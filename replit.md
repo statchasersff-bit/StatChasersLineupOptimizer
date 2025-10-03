@@ -15,10 +15,11 @@ The main page provides a detailed view of all leagues with comprehensive lineup 
 - Sleeper username input for fetching user leagues
 - Season and week selectors for projections data
 - CSV file upload for custom projections
+- **Consider Free Agents toggle** (updated Oct 3, 2025): When enabled (default), integrates trending free agents from Sleeper API into optimal lineup calculation
 - Detailed league cards showing:
-  - Current vs optimal lineups side-by-side
+  - Current vs optimal lineups side-by-side with availability badges (OUT, BYE, QUES)
   - Projected points and optimal improvements
-  - Recommended roster changes
+  - Recommended roster changes with "Add FA" labels for free agent pickups
   - Opponent analysis with win probability
   - Player risk indicators (injury status, bye weeks)
   - Export to CSV functionality
@@ -27,7 +28,7 @@ The main page provides a detailed view of all leagues with comprehensive lineup 
 A streamlined table-based view for quick summary analysis across all leagues. Features include:
 - Automatic data loading on page load (no analyze button needed)
 - Redraft filter toggle with localStorage persistence to show only non-dynasty leagues
-- Sortable columns: League, Record, Opt-Act, Proj Result, QUES?, BYE/OUT?
+- Sortable columns: League, Record, Opt-Act, Proj Result, QUES?, OUT/BYE/EMPTY?
 - Visual indicators: 
   - Green border for projected wins, red for losses
   - Green checkmark in Opt-Act column when lineup is already optimal
@@ -37,7 +38,10 @@ A streamlined table-based view for quick summary analysis across all leagues. Fe
   - Lineup recommendations showing only bench → starter promotions (excludes starter reshuffles)
   - Point improvement deltas for each recommendation
   - Opponent card with projected points
-  - Warning badges for risky starters
+  - **Player Availability Warnings** (updated Oct 3, 2025): Specific classification with player names
+    - OUT/BYE/EMPTY warnings (red/gray): Players who will score 0 points unless changed
+    - QUES warnings (orange): Questionable/Doubtful/Suspended players
+    - Each warning shows affected player names with their status tags
   - Waiver Watchlist with free agent pickup suggestions
 - "Back to Home" button for easy navigation
 - Best Ball leagues automatically filtered out
@@ -66,6 +70,13 @@ The application heavily integrates with the Sleeper Fantasy Football API for fet
 ### Optimization Engine
 The core lineup optimization logic implements a sophisticated algorithm that respects fantasy football roster construction rules including FLEX, SUPER_FLEX, and other specialty positions. The optimizer handles player eligibility across multiple positions, calculates optimal lineups based on projected points, and identifies risky starters based on injury status, bye weeks, and other factors. The system uses matchup.starters from Sleeper's matchups endpoint rather than roster.starters to accurately reflect in-week lineup changes and automatic substitutions.
 
+**Free Agent Integration** (updated Oct 3, 2025): When "Consider Free Agents" toggle is enabled:
+- Fetches trending free agents from Sleeper API (up to 300 players)
+- Scores FAs using league-specific scoring settings
+- Merges top 10 FAs per position into the candidate pool
+- Optimizer naturally selects best available players (roster or FA)
+- Enables identification of lineup improvements via free agent pickups
+
 ### Matchup Analysis System
 The matchups analysis component calculates key metrics for quick league assessment:
 - **Opt-Act**: Difference between optimal and actual projected points
@@ -82,6 +93,10 @@ The lineup recommendations system uses a greedy pairing algorithm to identify on
 - Pairs promotions with demotions by highest point gain
 - Filters out starter → starter reshuffles (position swaps with no bench involvement)
 - Each recommendation shows the outgoing player, incoming player, target slot, and projected point improvement
+- **Free Agent Detection** (updated Oct 3, 2025): Recommendations distinguish between roster moves and FA pickups:
+  - "Put [player] into [slot]" for roster moves (bench to starter)
+  - "Add FA [player] into [slot]" for free agent additions (shown in yellow/amber text)
+  - FA drops show "drop [player]" instead of "bench [player]"
 This approach focuses user attention on actionable roster changes rather than internal lineup rearrangements.
 
 ### League Filtering
