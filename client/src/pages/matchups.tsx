@@ -12,7 +12,7 @@ import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import type { Projection } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { summarizeStarters, type Starter } from "@/lib/availability";
+import { summarizeStarters, type Starter, type AvailTag } from "@/lib/availability";
 import { OptActCell } from "@/components/OptActCell";
 import {
   getFreeAgentsForLeague,
@@ -59,7 +59,7 @@ interface LeagueMetrics {
   projectedResult: "W" | "L" | "N/A";
   margin: number;
   notPlayingCount: number;
-  notPlayingList: Array<{ id?: string; name?: string; tag: "OUT" | "BYE" | "EMPTY" | null; slot: string }>;
+  notPlayingList: Array<{ id?: string; name?: string; tag: AvailTag; slot: string }>;
   quesCount: number;
   quesList: Array<{ id?: string; name?: string; slot: string }>;
   currentStarters: any[];
