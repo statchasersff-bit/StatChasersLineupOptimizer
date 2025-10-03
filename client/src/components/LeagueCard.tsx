@@ -176,7 +176,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                       {isFA ? (
                         <>
                           <span className="text-yellow-700 font-semibold">Add FA</span> <b>{m.in_name}</b> into <b>{m.slot}</b>
-                          {m.out_name && !isEmptySlot ? <> (drop <b>{m.out_name}</b>)</> : null}
+                          {m.out_name && !isEmptySlot ? <> (replace <b>{m.out_name}</b>)</> : null}
                           <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
                         </>
                       ) : (

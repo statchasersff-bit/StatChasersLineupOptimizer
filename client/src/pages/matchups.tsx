@@ -85,12 +85,13 @@ export default function MatchupsPage() {
   const [projections, setProjections] = useState<Projection[]>([]);
   const [leagueMetrics, setLeagueMetrics] = useState<LeagueMetrics[]>([]);
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<"optMinusAct" | "projectedResult" | "quesCount" | "notPlayingCount">("optMinusAct");
+  const [sortBy, setSortBy] = useState<"league" | "optMinusAct" | "projectedResult" | "quesCount" | "notPlayingCount">("optMinusAct");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [redraftOnly, setRedraftOnly] = useState<boolean>(() => {
     const saved = localStorage.getItem(REDRAFT_KEY);
     return saved ? saved === "1" : false;
   });
+  const [considerWaivers, setConsiderWaivers] = useState(true);
   const { toast } = useToast();
 
   // Persist redraft filter preference
@@ -329,52 +330,54 @@ export default function MatchupsPage() {
           if (quesCount > 0) warnings.push(`${quesCount} questionable starter${quesCount > 1 ? 's' : ''}`);
           if (notPlayingCount > 0) warnings.push(`${notPlayingCount} not playing${notPlayingCount > 1 ? ' starters' : ' starter'}`);
 
-          // Calculate waiver suggestions
+          // Calculate waiver suggestions (only if considerWaivers is enabled)
           let waiverSuggestions: WaiverSuggestion[] = [];
-          try {
-            // Build set of owned player IDs across all rosters
-            const ownedPlayerIds = new Set<string>();
-            rosters.forEach((roster: any) => {
-              (roster.players || []).forEach((pid: string) => ownedPlayerIds.add(pid));
-            });
+          if (considerWaivers) {
+            try {
+              // Build set of owned player IDs across all rosters
+              const ownedPlayerIds = new Set<string>();
+              rosters.forEach((roster: any) => {
+                (roster.players || []).forEach((pid: string) => ownedPlayerIds.add(pid));
+              });
 
-            // Fetch free agents for this league
-            const freeAgents = await getFreeAgentsForLeague(
-              lg.league_id,
-              playersIndex,
-              ownedPlayerIds
-            );
+              // Fetch free agents for this league
+              const freeAgents = await getFreeAgentsForLeague(
+                lg.league_id,
+                playersIndex,
+                ownedPlayerIds
+              );
 
-            // Convert projIdx to Map for scoreFreeAgents
-            const projMap = new Map(Object.entries(projIdx));
+              // Convert projIdx to Map for scoreFreeAgents
+              const projMap = new Map(Object.entries(projIdx));
 
-            // Score free agents with league-adjusted projections
-            const scoredFAs = scoreFreeAgents(freeAgents, scoring, projMap);
+              // Score free agents with league-adjusted projections
+              const scoredFAs = scoreFreeAgents(freeAgents, scoring, projMap);
 
-            // Convert optimal starters to StarterWithSlot format
-            const startersWithSlots: StarterWithSlot[] = optimalSlots
-              .filter((s: any) => s.player)
-              .map((s: any) => ({
-                player_id: s.player.player_id,
-                name: s.player.name,
-                pos: s.player.pos,
-                slot: s.slot,
-                proj: s.player.proj ?? 0,
-              }));
+              // Convert optimal starters to StarterWithSlot format
+              const startersWithSlots: StarterWithSlot[] = optimalSlots
+                .filter((s: any) => s.player)
+                .map((s: any) => ({
+                  player_id: s.player.player_id,
+                  name: s.player.name,
+                  pos: s.player.pos,
+                  slot: s.slot,
+                  proj: s.player.proj ?? 0,
+                }));
 
-            // Extract active roster slots from league's roster_positions
-            // Only include slots we support (filter out IDP and other custom positions)
-            const supportedSlots: Slot[] = ["QB", "RB", "WR", "TE", "K", "DEF", "FLEX", "SUPER_FLEX"];
-            const activeSlots = new Set<Slot>(
-              (lg.roster_positions || [])
-                .filter((pos: string) => pos !== "BN" && pos !== "IR" && supportedSlots.includes(pos as Slot))
-                .map((pos: string) => pos as Slot)
-            );
+              // Extract active roster slots from league's roster_positions
+              // Only include slots we support (filter out IDP and other custom positions)
+              const supportedSlots: Slot[] = ["QB", "RB", "WR", "TE", "K", "DEF", "FLEX", "SUPER_FLEX"];
+              const activeSlots = new Set<Slot>(
+                (lg.roster_positions || [])
+                  .filter((pos: string) => pos !== "BN" && pos !== "IR" && supportedSlots.includes(pos as Slot))
+                  .map((pos: string) => pos as Slot)
+              );
 
-            // Pick top waiver upgrades (only for slots this league actually has)
-            waiverSuggestions = pickWaiverUpgrades(scoredFAs, startersWithSlots, activeSlots);
-          } catch (waiverErr) {
-            console.error(`[Waivers] Error calculating suggestions for league ${lg.league_id}:`, waiverErr);
+              // Pick top waiver upgrades (only for slots this league actually has)
+              waiverSuggestions = pickWaiverUpgrades(scoredFAs, startersWithSlots, activeSlots);
+            } catch (waiverErr) {
+              console.error(`[Waivers] Error calculating suggestions for league ${lg.league_id}:`, waiverErr);
+            }
           }
 
           metrics.push({
@@ -417,7 +420,7 @@ export default function MatchupsPage() {
     };
     
     analyze();
-  }, [username, projections, season, week, projIdx, toast]);
+  }, [username, projections, season, week, projIdx, toast, considerWaivers]);
 
   const sortedMetrics = useMemo(() => {
     // Apply redraft filter if enabled (show only non-dynasty leagues)
@@ -429,6 +432,11 @@ export default function MatchupsPage() {
     const sorted = [...filtered].sort((a, b) => {
       let aVal, bVal;
       switch (sortBy) {
+        case "league":
+          // Alphabetical sorting by league name
+          return sortOrder === "desc" 
+            ? b.leagueName.localeCompare(a.leagueName)
+            : a.leagueName.localeCompare(b.leagueName);
         case "optMinusAct":
           aVal = a.optMinusAct;
           bVal = b.optMinusAct;
@@ -522,6 +530,18 @@ export default function MatchupsPage() {
               
               <div className="flex items-center gap-2 border-l pl-3">
                 <Switch 
+                  id="consider-waivers" 
+                  checked={considerWaivers} 
+                  onCheckedChange={setConsiderWaivers}
+                  data-testid="switch-waivers"
+                />
+                <Label htmlFor="consider-waivers" className="cursor-pointer text-sm" data-testid="label-waivers">
+                  Consider Free Agents
+                </Label>
+              </div>
+              
+              <div className="flex items-center gap-2 border-l pl-3">
+                <Switch 
                   id="redraft-only" 
                   checked={redraftOnly} 
                   onCheckedChange={setRedraftOnly}
@@ -568,7 +588,13 @@ export default function MatchupsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
-                  <TableHead>League</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-accent"
+                    onClick={() => handleSort("league")}
+                    data-testid="header-league"
+                  >
+                    League {sortBy === "league" && (sortOrder === "desc" ? "↓" : "↑")}
+                  </TableHead>
                   <TableHead className="text-center">Record</TableHead>
                   <TableHead 
                     className="text-center cursor-pointer hover:bg-accent"
