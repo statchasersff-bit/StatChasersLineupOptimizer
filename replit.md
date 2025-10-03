@@ -26,15 +26,19 @@ The main page provides a detailed view of all leagues with comprehensive lineup 
 ### Matchups Table View (/:username/matchups)
 A streamlined table-based view for quick summary analysis across all leagues. Features include:
 - Automatic data loading on page load (no analyze button needed)
-- Dynasty filter toggle with localStorage persistence to show/hide dynasty leagues
+- Redraft filter toggle with localStorage persistence to show only non-dynasty leagues
 - Sortable columns: League, Record, Opt-Act, Proj Result, QUES?, BYE/OUT?
-- Visual indicators: green border for projected wins, red for losses
+- Visual indicators: 
+  - Green border for projected wins, red for losses
+  - Green checkmark in Opt-Act column when lineup is already optimal
+  - Color-coded deltas (+/- with green/red) for non-optimal lineups
 - Expandable rows showing:
   - Current starters vs optimal starters comparison
   - Lineup recommendations showing only bench → starter promotions (excludes starter reshuffles)
   - Point improvement deltas for each recommendation
   - Opponent card with projected points
   - Warning badges for risky starters
+  - Waiver Watchlist with free agent pickup suggestions
 - "Back to Home" button for easy navigation
 - Best Ball leagues automatically filtered out
 - League count display showing filtered vs total leagues
@@ -83,10 +87,24 @@ This approach focuses user attention on actionable roster changes rather than in
 ### League Filtering
 The application provides intelligent filtering capabilities:
 - **Best Ball Filter**: Automatically excludes Best Ball leagues from all analysis (always active)
-- **Dynasty Filter**: Optional toggle to show only dynasty/keeper leagues in matchups view
+- **Redraft Filter**: Optional toggle to show only redraft (non-dynasty) leagues in matchups view
   - Detects dynasty leagues by checking league type settings and name/description keywords
   - Filter preference persists in localStorage across sessions
   - Shows filtered count vs total leagues when active
+
+### Waiver Watchlist System
+The waiver watchlist analyzes free agent availability and suggests optimal pickups for each league:
+- Fetches trending free agents from Sleeper API (up to 300 players)
+- Calculates league-adjusted projections using StatChasers data
+- Identifies worst starters by slot position (QB, RB, WR, TE, K, DEF, FLEX, SUPER_FLEX)
+- Suggests top 5 free agent upgrades with minimum +1.5 point improvement threshold
+- Automatically excludes players on BYE weeks or OUT/IR status
+- Each suggestion includes:
+  - Player to add with position and target slot
+  - Projected point improvement delta
+  - Current starter being replaced with their projection
+  - Direct link to player page on Sleeper for easy pickup
+- Displays "No obvious waiver upgrades" message when no qualifying suggestions found
 
 ### Build and Deployment
 The application uses a monorepo structure with shared types and schemas between client and server. Build process includes TypeScript compilation, Vite bundling for the frontend, and esbuild for the backend. The application is configured for easy deployment with proper environment variable handling and production optimizations.
