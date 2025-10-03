@@ -13,6 +13,7 @@ import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
 import { loadBuiltInOrSaved } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
+import { summarizeStarters, type Starter } from "@/lib/availability";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 
 // Calculate win probability based on point differential using realistic fantasy football variance
@@ -512,6 +513,22 @@ export default function Home() {
             // Continue without opponent data rather than failing the entire league
           }
 
+          // Calculate availability counts for current starters
+          const startersForAvailability: Starter[] = fixedSlots.map((slot: string, i: number) => {
+            const pid = starters[i];
+            const player = starterObjs.find((p: any) => p.player_id === pid);
+            return {
+              player_id: pid || undefined,
+              name: player?.name,
+              opp: player?.opp,
+              injury_status: player?.injury_status,
+              slot,
+              proj: player?.proj,
+              pos: player?.pos
+            };
+          });
+          const availSummary = summarizeStarters(startersForAvailability);
+
           out.push({
             league_id: lg.league_id,
             name: lg.name,
@@ -529,6 +546,8 @@ export default function Home() {
             benchCapacity,
             benchCount,
             benchEmpty,
+            outByeEmptyCount: availSummary.notPlayingCount,
+            quesCount: availSummary.quesCount,
             autoSubRecommendations,
             autoSubConfig,
             // Head-to-head matchup data

@@ -59,6 +59,8 @@ export type LeagueSummary = {
   benchCapacity: number;   // how many BN slots the league has
   benchCount: number;      // how many players currently on BN (excl. IR/Taxi)
   benchEmpty: number;      // benchCapacity - benchCount (min 0)
+  outByeEmptyCount?: number; // count of OUT/BYE/EMPTY starters
+  quesCount?: number;        // count of QUES/DOUB starters
   autoSubRecommendations?: import('./autoSubs').AutoSubRecommendation[]; // auto-sub suggestions for Q starters
   autoSubConfig?: import('./autoSubs').AutoSubConfig; // league auto-sub configuration
   // Head-to-head matchup data
