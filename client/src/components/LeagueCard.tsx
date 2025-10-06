@@ -264,17 +264,35 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                 .filter(Boolean) as string[]
             );
             
-            // Get all FAs not already in suggested changes, sorted by projection
-            const otherFAs = (lg.allEligible || [])
+            // Get all FAs not already in suggested changes, grouped by position
+            const allFAs = (lg.allEligible || [])
               .filter(p => {
                 // Must be a FA and not already suggested
                 if (!(p as any)?.isFA || suggestedFAIds.has(p.player_id)) return false;
                 // Exclude blocklisted players
                 if (WAIVER_BLOCKLIST.has(p.name)) return false;
                 return true;
-              })
-              .sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0))
-              .slice(0, 10);
+              });
+            
+            // Group by position and take top 3 per position
+            const byPosition = new Map<string, typeof allFAs>();
+            for (const fa of allFAs) {
+              const pos = fa.pos;
+              if (!byPosition.has(pos)) byPosition.set(pos, []);
+              byPosition.get(pos)!.push(fa);
+            }
+            
+            // Sort each position by projection and take top 3
+            const otherFAs: typeof allFAs = [];
+            for (const [pos, fas] of Array.from(byPosition.entries())) {
+              const topN = fas
+                .sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0))
+                .slice(0, 3);
+              otherFAs.push(...topN);
+            }
+            
+            // Sort final list by projection
+            otherFAs.sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
             
             return otherFAs.length > 0 && (
               <div className="mt-4">
