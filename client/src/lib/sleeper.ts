@@ -43,10 +43,14 @@ export async function getPlayersIndex() {
 
 /**
  * Get matchup data for all leagues to detect if players have already played/scored
- * This is more reliable than game start times for detecting locked players
+ * Returns both locked status and actual points scored
  */
-export async function getLeagueMatchupsForLocking(leagueIds: string[], week: string): Promise<Record<string, boolean>> {
+export async function getLeagueMatchupsForLocking(leagueIds: string[], week: string): Promise<{
+  playedPlayerIds: Record<string, boolean>;
+  actualPoints: Record<string, number>;
+}> {
   const playedPlayerIds: Record<string, boolean> = {};
+  const actualPoints: Record<string, number> = {};
   
   try {
     // Fetch matchup data for all leagues in parallel
@@ -62,28 +66,31 @@ export async function getLeagueMatchupsForLocking(leagueIds: string[], week: str
     
     const results = await Promise.all(matchupPromises);
     
-    // Process matchup data to identify players who have already played
+    // Process matchup data to identify players who have already played and their actual points
     for (const { matchups } of results) {
       for (const matchup of matchups) {
         // Check if this matchup has individual player scoring data
         if (matchup.players_points && typeof matchup.players_points === 'object') {
-          // Only mark players as played if they have POSITIVE points (indicating game has started)
-          // Players with 0 points might just be pre-game initialization
           for (const [playerId, points] of Object.entries(matchup.players_points)) {
-            if (playerId && playerId !== "0" && typeof points === 'number' && points > 0) {
-              playedPlayerIds[playerId] = true;
+            if (playerId && playerId !== "0" && typeof points === 'number') {
+              // Store actual points (can be 0, negative, or positive)
+              actualPoints[playerId] = points;
+              
+              // Only mark as played if they have scored (positive points indicates game has started)
+              if (points > 0) {
+                playedPlayerIds[playerId] = true;
+              }
             }
           }
         }
-        // Note: Removed fallback logic that incorrectly marked ALL starters as played
-        // if ANY player had points. This caused false positives for players who haven't played yet.
       }
     }
     
     console.log(`[Sleeper] Found ${Object.keys(playedPlayerIds).length} players who have already played`);
-    return playedPlayerIds;
+    console.log(`[Sleeper] Found ${Object.keys(actualPoints).length} players with actual points`);
+    return { playedPlayerIds, actualPoints };
   } catch (error) {
     console.error('Failed to fetch league matchups for locking:', error);
-    return {};
+    return { playedPlayerIds: {}, actualPoints: {} };
   }
 }

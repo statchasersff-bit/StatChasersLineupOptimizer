@@ -175,7 +175,7 @@ export default function Home() {
       // Fetch Sleeper matchup data for all leagues to detect played players (enhanced locking)
       const leagueIds = filteredLeagues.map(lg => lg.league_id);
       console.log(`[Home] Fetching matchup data for ${leagueIds.length} leagues to enhance player locking...`);
-      const playedPlayerIds = await getLeagueMatchupsForLocking(leagueIds, week);
+      const { playedPlayerIds, actualPoints } = await getLeagueMatchupsForLocking(leagueIds, week);
 
       for (const lg of filteredLeagues) {
         try {
@@ -251,7 +251,11 @@ export default function Home() {
             // Check if player is locked (team already played or has played in matchup)
             const locked = isPlayerLocked(lite, schedule, Date.now(), playedPlayerIds);
             
-            return { ...lite, proj: finalProj, opp: pr?.opp, locked };
+            // Use actual points if available and player is locked
+            const actual = actualPoints[pid];
+            const displayProj = (locked && actual !== undefined) ? actual : finalProj;
+            
+            return { ...lite, proj: displayProj, opp: pr?.opp, locked, actualPoints: actual };
           };
 
           const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];

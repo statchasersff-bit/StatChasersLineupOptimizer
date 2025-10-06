@@ -5,6 +5,12 @@ import { isPlayerLocked, type GameSchedule } from "./gameLocking";
 const EXCLUDE_FA_STATUSES = new Set(["O", "IR", "NA"]);
 const MAX_FA_PER_POS = 10;
 
+// Blocklist for players that should never appear in recommendations
+const WAIVER_BLOCKLIST = new Set([
+  "Donnie Ernsberger",
+  "Mark McNamee",
+]);
+
 type Slot = "QB" | "RB" | "WR" | "TE" | "K" | "DEF" | "FLEX" | "SUPER_FLEX";
 
 const isFlexEligible = (pos: string) => pos === "RB" || pos === "WR" || pos === "TE";
@@ -61,6 +67,10 @@ export async function buildFACandidates(
     
     const proj = projMap[pid];
     if (!proj) continue;
+    
+    // Skip blocklisted players
+    const playerName = p.full_name || p.first_name + " " + p.last_name || "";
+    if (WAIVER_BLOCKLIST.has(playerName.trim())) continue;
     
     const pos = p.position;
     if (!buckets[pos]) continue; // ignore IDP etc.

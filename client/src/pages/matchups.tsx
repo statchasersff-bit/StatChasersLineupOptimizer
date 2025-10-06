@@ -172,7 +172,7 @@ export default function MatchupsPage() {
 
       // STEP 2: Compute deep analysis progressively for each league
       const playersIndex = await getPlayersIndex();
-      const playedPlayerIds = await getLeagueMatchupsForLocking(leagues.map(lg => lg.league_id), week);
+      const { playedPlayerIds, actualPoints } = await getLeagueMatchupsForLocking(leagues.map(lg => lg.league_id), week);
       const schedule = await getWeekSchedule(season, week);
 
       for (const lg of leagues) {
@@ -223,7 +223,11 @@ export default function MatchupsPage() {
             const finalProj = isOut ? 0 : adj;
             const locked = isPlayerLocked(lite, schedule, Date.now(), playedPlayerIds);
             
-            return { ...lite, proj: finalProj, opp: pr?.opp, locked, injury_status: lite.injury_status };
+            // Use actual points if available and player is locked
+            const actual = actualPoints[pid];
+            const displayProj = (locked && actual !== undefined) ? actual : finalProj;
+            
+            return { ...lite, proj: displayProj, opp: pr?.opp, locked, injury_status: lite.injury_status, actualPoints: actual };
           };
 
           const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];
