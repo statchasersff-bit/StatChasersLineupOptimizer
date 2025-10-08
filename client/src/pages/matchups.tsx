@@ -684,7 +684,221 @@ export default function MatchupsPage() {
             <p className="text-muted-foreground">No leagues found. Make sure you have projections loaded.</p>
           </div>
         ) : (
-          <div className="border rounded-lg overflow-x-auto">
+          <>
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {sortedMetrics.map((league) => (
+              <div
+                key={league.leagueId}
+                className={`border rounded-lg ${
+                  league.projectedResult === "W" 
+                    ? "border-l-4 border-l-green-500" 
+                    : league.projectedResult === "L"
+                    ? "border-l-4 border-l-red-500"
+                    : ""
+                }`}
+                data-testid={`card-league-${league.leagueId}`}
+              >
+                <button
+                  className="w-full p-4 text-left"
+                  onClick={() => toggleExpanded(league.leagueId)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-sm break-words" data-testid={`text-league-name-${league.leagueId}`}>
+                          {league.leagueName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap text-xs">
+                        <Badge variant="secondary" className="text-xs" data-testid={`badge-format-${league.leagueId}`}>
+                          {league.format}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs" data-testid={`badge-size-${league.leagueId}`}>
+                          {league.size} teams
+                        </Badge>
+                        {league.record && (
+                          <span className="text-muted-foreground">{league.record}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {league.projectedResult && league.projectedResult !== "N/A" && (
+                        <Badge
+                          variant={league.projectedResult === "W" ? "default" : league.projectedResult === "L" ? "destructive" : "outline"}
+                          data-testid={`badge-result-${league.leagueId}`}
+                        >
+                          {league.projectedResult}
+                        </Badge>
+                      )}
+                      {expandedLeagues.has(league.leagueId) ? (
+                        <ChevronDown className="h-5 w-5 flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 flex-shrink-0" />
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Opt-Act</div>
+                      {league.isComputing || league.optPoints === undefined ? (
+                        <div className="h-4 bg-muted rounded w-16 animate-pulse" />
+                      ) : (
+                        <OptActCell optPoints={league.optPoints} actPoints={league.actPoints ?? 0} />
+                      )}
+                    </div>
+                    {league.projectedResult !== "N/A" && league.margin !== undefined && (
+                      <div>
+                        <div className="text-xs text-muted-foreground">Margin</div>
+                        <div className="font-medium">
+                          {league.margin > 0 ? "+" : ""}{league.margin.toFixed(1)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {((league.notPlayingCount && league.notPlayingCount > 0) || (league.quesCount && league.quesCount > 0)) && (
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      {league.notPlayingCount && league.notPlayingCount > 0 && (
+                        <span className="rounded-full bg-red-50 text-red-700 border border-red-200 text-xs px-2 py-0.5 font-medium" data-testid={`badge-not-playing-${league.leagueId}`}>
+                          OUT/BYE/EMPTY: {league.notPlayingCount}
+                        </span>
+                      )}
+                      {league.quesCount && league.quesCount > 0 && (
+                        <span className="rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs px-2 py-0.5 font-medium dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700" data-testid={`badge-ques-${league.leagueId}`}>
+                          QUES: {league.quesCount}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </button>
+                
+                {/* Expanded Content for Mobile */}
+                {expandedLeagues.has(league.leagueId) && (
+                  <div className="border-t bg-muted/50 p-4" data-testid={`expanded-${league.leagueId}`}>
+                    {league.isComputing ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Analyzing league...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Not playing list */}
+                        {league.notPlayingCount !== undefined && league.notPlayingCount > 0 && league.notPlayingList && (
+                          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-800 text-sm" data-testid={`not-playing-warning-${league.leagueId}`}>
+                            <div className="font-medium">OUT/BYE/EMPTY starters</div>
+                            <div className="text-xs mt-1">
+                              {(league.notPlayingList ?? []).map((p, i) => (
+                                <span key={p.id || i}>
+                                  {p.name || "—"}{p.tag ? ` (${p.tag})` : ""}{i < (league.notPlayingList ?? []).length - 1 ? ", " : ""}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Questionable list */}
+                        {league.quesCount !== undefined && league.quesCount > 0 && league.quesList && (
+                          <div className="rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700 text-sm" data-testid={`ques-warning-${league.leagueId}`}>
+                            <div className="font-medium">Questionable starters</div>
+                            <div className="text-xs mt-1">
+                              {(league.quesList ?? []).map((p, i) => (
+                                <span key={p.id || i}>
+                                  {p.name}{i < (league.quesList ?? []).length - 1 ? ", " : ""}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Opponent Info */}
+                        {league.opponentName && league.opponentPoints !== undefined && (
+                          <div className="p-3 bg-background rounded-lg border text-sm" data-testid={`opponent-card-${league.leagueId}`}>
+                            <div className="font-semibold">Opponent: {league.opponentName}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Projected: {league.opponentPoints.toFixed(1)} pts
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recommendations */}
+                        {league.recommendations && league.recommendations.length > 0 && (
+                          <div className="space-y-2" data-testid={`recommendations-${league.leagueId}`}>
+                            <h4 className="text-sm font-semibold">Recommended Changes:</h4>
+                            <div className="space-y-2">
+                              {league.recommendations.map((rec, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex flex-col gap-1 p-2 bg-background rounded-lg border text-xs"
+                                  data-testid={`recommendation-${league.leagueId}-${idx}`}
+                                >
+                                  {rec.out && (
+                                    <div className="text-red-600">
+                                      Out: {rec.out.name} ({rec.out.proj.toFixed(1)})
+                                    </div>
+                                  )}
+                                  <div className="text-green-600">
+                                    In: {rec.in.name} ({rec.in.proj.toFixed(1)})
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {league.recommendations && league.recommendations.length === 0 && (
+                          <div className="text-center text-muted-foreground py-4 text-sm" data-testid={`no-changes-${league.leagueId}`}>
+                            Your lineup is already optimal!
+                          </div>
+                        )}
+
+                        {/* Waiver Watchlist */}
+                        {league.waiverSuggestions && league.waiverSuggestions.length > 0 && (
+                          <div className="rounded-lg border p-3 bg-background" data-testid={`waiver-watchlist-${league.leagueId}`}>
+                            <h4 className="font-semibold text-sm mb-2">Waiver Watchlist</h4>
+                            <ul className="space-y-2">
+                              {league.waiverSuggestions.map((s, idx) => (
+                                <li
+                                  key={`${s.slot}-${s.inP.player_id}-${idx}`}
+                                  className="rounded-md border p-2 text-xs"
+                                  data-testid={`waiver-suggestion-${league.leagueId}-${idx}`}
+                                >
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-green-700 font-medium">
+                                      Add {s.inP.name}
+                                    </span>
+                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                                      +{s.delta.toFixed(1)} pts
+                                    </Badge>
+                                  </div>
+                                  <div className="text-muted-foreground mt-1">
+                                    over {s.outP.name} ({s.outP.pos}, {s.outP.proj.toFixed(1)} pts)
+                                  </div>
+                                  <a
+                                    className="text-primary hover:underline text-xs mt-1 inline-block"
+                                    href={`https://sleeper.com/leagues/${league.leagueId}/players/${s.inP.player_id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    View on Sleeper →
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Desktop Table View */}
+          <div className="hidden md:block border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -998,6 +1212,7 @@ export default function MatchupsPage() {
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </div>
     </div>

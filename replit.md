@@ -1,7 +1,7 @@
 # StatChasers Lineup Checker
 
 ## Overview
-StatChasers Lineup Checker is a fantasy football web application designed to optimize fantasy lineups by comparing current rosters against projection data. It integrates with the Sleeper API to fetch league, roster, and player information, then uses user-uploaded CSV projections to calculate optimal lineups. The application offers a detailed home page with comprehensive league cards and a streamlined matchups table for quick analysis. Key features include projected point differentials, win/loss predictions, identification of risky starters, and dynamic recommendations for roster changes, including free agent pickups. The project aims to provide fantasy football players with actionable insights to improve their team's performance.
+StatChasers Lineup Checker is a fantasy football web application designed to optimize user lineups by comparing current rosters against projection data. It integrates with the Sleeper API to fetch league, roster, and player information, then processes uploaded CSV projections to calculate optimal lineups. The application offers a detailed home page with comprehensive league analysis and a streamlined matchups table for quick summary views. Key features include projected point deltas, win/loss predictions, identification of risky starters, and free agent integration for lineup improvements and waiver watchlist suggestions. The ultimate goal is to provide users with actionable insights to gain a competitive edge in their fantasy football leagues.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -9,42 +9,60 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
-The frontend is a modern React-based application built with Vite and TypeScript, utilizing `shadcn/ui` components based on Radix UI for a consistent and accessible design system. TailwindCSS is used for styling, supporting dark mode and custom theming via CSS variables. The application features a responsive design, optimized for mobile devices with adaptive layouts, scalable typography, and touch-friendly interactive elements, ensuring no horizontal overflow and adhering to WCAG AAA guidelines for touch targets.
-
-- **Home Page**: Detailed league cards, Sleeper username input, season/week selectors, CSV projection upload, "Consider Free Agents" toggle, player availability badges (OUT/BYE/EMPTY, QUES), total potential points indicator, side-by-side current vs. optimal lineups, recommended roster changes (including "Add FA"), opponent analysis, and a waiver watchlist.
-- **Matchups Table View**: Streamlined table for quick summary across leagues, automatic data loading, redraft filter, sortable columns (League, Record, Opt-Act, Proj Result, QUES?, OUT/BYE/EMPTY?), visual win/loss indicators, expandable rows showing current vs. optimal starters, player availability warnings, and waiver watchlist.
-- **League Filtering**: Intelligent filtering for Best Ball leagues (always active) and Dynasty/Keeper leagues (with enhanced detection methods and localStorage persistence).
+The frontend is a modern React application built with Vite and TypeScript, utilizing `shadcn/ui` components based on Radix UI for a consistent and accessible design system. TailwindCSS handles styling, supporting dark mode and custom theming. The UI provides two main views: a detailed home page with league cards and a streamlined matchups table. Responsive design ensures optimal viewing across devices, with card-based layouts for mobile and table views for desktop. Visual indicators like color-coded deltas, win/loss badges, and player availability badges enhance user understanding.
 
 ### Technical Implementations
-- **Frontend**: React with Vite and TypeScript, `shadcn/ui`, Radix UI, TailwindCSS, TanStack React Query for server state management, React Hook Form with Zod for form handling, and wouter for routing.
-- **Backend**: Express.js with TypeScript, implementing a RESTful API with modular routes, middleware for logging and error handling.
-- **Data Storage**: Drizzle ORM for PostgreSQL as the primary database, with an in-memory solution for development.
-- **Optimization Engine**: Sophisticated algorithm respecting fantasy football roster rules (FLEX, SUPER_FLEX), calculates optimal lineups, identifies risky starters. Includes comprehensive free agent integration, scanning all available free agents, scoring them by league-specific settings, selecting top players (excluding kickers), and merging them into the candidate pool for optimal lineup calculation.
-- **Matchup Analysis**: Calculates Opt-Act (optimal vs. actual points), Proj Result (W/L), QUES Starters, BYE/OUT Starters, and Margin for quick league assessment.
-- **Recommendations Engine**: Uses a greedy pairing algorithm to identify actionable bench-to-starter promotions, distinguishing between roster moves and free agent pickups. Filters out starter-to-starter reshuffles and includes free agent detection for "Add FA" recommendations.
-- **Waiver Watchlist System**: Analyzes free agent availability from Sleeper API, calculates league-adjusted projections, filters out blocklisted players, excludes kickers, and provides slot-aware suggestions based on league roster configurations and position eligibility. Identifies top free agent upgrades with a minimum point improvement threshold, excluding players on BYE/OUT/IR status and enhancing QUES detection.
+The application follows a component-based architecture for the frontend and a RESTful API pattern for the Express.js (TypeScript) backend. Client-side state is managed with React Query for server state synchronization and caching, while local state uses React hooks. Form management is handled by React Hook Form with Zod for validation. The core logic includes a sophisticated lineup optimization engine that respects fantasy football roster rules (e.g., FLEX, SUPER_FLEX), integrates free agents, and identifies risky starters. A greedy pairing algorithm powers the recommendations engine, focusing on actionable bench-to-starter promotions and distinguishing between roster moves and free agent pickups. Advanced league filtering detects dynasty/keeper leagues using multiple criteria and persists preferences. A waiver watchlist system suggests optimal free agent pickups, considering league-specific roster slots, excluding kickers, and applying blocklist filters.
+
+### Feature Specifications
+- **Home Page**: Displays detailed league cards, Sleeper username input, season/week selectors, CSV projection upload, "Consider Free Agents" toggle, player availability badges (OUT, BYE, QUES), total potential points, current vs. optimal lineups, recommended roster changes (including "Add FA"), opponent analysis, and a waiver watchlist.
+- **Matchups Table View**: Provides a streamlined view with automatic data loading, redraft filter, responsive layouts (cards on mobile, table on desktop), visual win/loss indicators, expandable rows showing lineup comparisons, recommendations, point improvement deltas, player availability warnings, and a waiver watchlist.
+- **Lineup Optimization**: Calculates optimal lineups considering all roster rules and player eligibility.
+- **Free Agent Integration**: When enabled, scans available free agents, scores them using league-specific settings, and integrates them into optimal lineup calculations and waiver suggestions, excluding kickers and locked/unavailable players.
+- **Matchup Analysis**: Calculates Opt-Act, Proj Result (W/L), QUES Starters, BYE/OUT Starters, and Margin for quick assessment.
+- **Recommendations Engine**: Identifies meaningful bench → starter promotions and free agent pickups, filtering out internal lineup reshuffles.
+- **League Filtering**: Automatically excludes Best Ball leagues and provides robust filtering for Dynasty/Keeper leagues with persistence.
+- **Waiver Watchlist System**: Analyzes free agent availability, suggests top upgrades based on projections, considers roster slots, and filters problematic or low-impact players (like kickers).
 
 ### System Design Choices
-- **Monorepo Structure**: Shared types and schemas between client and server.
-- **Build Process**: TypeScript compilation, Vite for frontend, esbuild for backend.
-- **Authentication**: Basic username/password authentication implemented, though primary functionality relies on public API integration.
+A monorepo structure with shared types facilitates development. The build process uses Vite for the frontend and esbuild for the backend. A hybrid storage approach integrates Drizzle ORM with PostgreSQL for primary data, and in-memory storage for development. Authentication is basic, focusing on Sleeper API integration without requiring user credentials for core functionality.
 
 ## External Dependencies
 
 ### Core Frameworks
-- React, Express.js, Vite, Node.js
+- React 18
+- Express.js
+- Vite
+- Node.js
 
 ### Database & ORM
-- Drizzle ORM, PostgreSQL, `@neondatabase/serverless`
+- Drizzle ORM (with PostgreSQL)
+- @neondatabase/serverless
 
 ### UI & Styling
-- `shadcn/ui`, Radix UI, TailwindCSS, Lucide React, `class-variance-authority`
+- shadcn/ui
+- Radix UI
+- TailwindCSS
+- Lucide React
+- class-variance-authority
 
 ### State Management & API
-- TanStack React Query, React Hook Form, Zod, wouter
+- TanStack React Query
+- React Hook Form
+- Zod
+- wouter
 
 ### File Processing & Utilities
-- Papa Parse, `date-fns`, `clsx`, `tailwind-merge`
+- Papa Parse
+- date-fns
+- clsx
+- tailwind-merge
 
 ### External APIs
-- Sleeper Fantasy Football API (public API for user data, leagues, rosters, player info)
+- Sleeper Fantasy Football API (public, no authentication)
+
+### Development Tools
+- TypeScript
+- ESBuild
+- PostCSS
+- Replit development tools
