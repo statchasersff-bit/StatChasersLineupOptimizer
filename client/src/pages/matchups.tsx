@@ -571,7 +571,7 @@ export default function MatchupsPage() {
               </div>
               
               <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 py-2">
+                <label htmlFor="consider-waivers" className="flex items-center gap-2 py-3 cursor-pointer min-h-[44px]" data-testid="label-waivers">
                   <Switch 
                     id="consider-waivers" 
                     checked={considerWaivers} 
@@ -579,12 +579,10 @@ export default function MatchupsPage() {
                     className="data-[state=checked]:bg-primary"
                     data-testid="switch-waivers"
                   />
-                  <Label htmlFor="consider-waivers" className="cursor-pointer text-xs sm:text-sm py-2" data-testid="label-waivers">
-                    Free Agents
-                  </Label>
-                </div>
+                  <span className="text-xs sm:text-sm">Free Agents</span>
+                </label>
                 
-                <div className="flex items-center gap-2 py-2">
+                <label htmlFor="redraft-only" className="flex items-center gap-2 py-3 cursor-pointer min-h-[44px]" data-testid="label-redraft-filter">
                   <Switch 
                     id="redraft-only" 
                     checked={redraftOnly} 
@@ -592,10 +590,8 @@ export default function MatchupsPage() {
                     className="data-[state=checked]:bg-primary"
                     data-testid="switch-redraft-filter"
                   />
-                  <Label htmlFor="redraft-only" className="cursor-pointer text-xs sm:text-sm py-2" data-testid="label-redraft-filter">
-                    Redraft only
-                  </Label>
-                </div>
+                  <span className="text-xs sm:text-sm">Redraft only</span>
+                </label>
               </div>
             </div>
           </div>
