@@ -90,7 +90,7 @@ export default function MatchupsPage() {
   const [projections, setProjections] = useState<Projection[]>([]);
   const [leagueMetrics, setLeagueMetrics] = useState<LeagueMetrics[]>([]);
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<"league" | "optMinusAct" | "projectedResult" | "quesCount" | "notPlayingCount">("optMinusAct");
+  const [sortBy, setSortBy] = useState<"league" | "record" | "optMinusAct" | "projectedResult" | "quesCount" | "notPlayingCount">("optMinusAct");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [redraftOnly, setRedraftOnly] = useState<boolean>(() => {
     const saved = localStorage.getItem(REDRAFT_KEY);
@@ -476,6 +476,25 @@ export default function MatchupsPage() {
           return sortOrder === "desc" 
             ? b.leagueName.localeCompare(a.leagueName)
             : a.leagueName.localeCompare(b.leagueName);
+        case "record":
+          // Sort by win percentage, then by total games
+          const parseRecord = (record?: string) => {
+            if (!record) return { winPct: -1, games: 0 };
+            const [wins, losses] = record.split("-").map(Number);
+            const totalGames = wins + losses;
+            const winPct = totalGames > 0 ? wins / totalGames : 0;
+            return { winPct, games: totalGames };
+          };
+          const aRecord = parseRecord(a.record);
+          const bRecord = parseRecord(b.record);
+          if (aRecord.winPct !== bRecord.winPct) {
+            aVal = aRecord.winPct;
+            bVal = bRecord.winPct;
+          } else {
+            aVal = aRecord.games;
+            bVal = bRecord.games;
+          }
+          break;
         case "optMinusAct":
           aVal = a.optMinusAct ?? -Infinity;
           bVal = b.optMinusAct ?? -Infinity;
@@ -910,7 +929,13 @@ export default function MatchupsPage() {
                   >
                     League {sortBy === "league" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
-                  <TableHead className="text-center min-w-[80px]">Record</TableHead>
+                  <TableHead 
+                    className="text-center cursor-pointer hover:bg-accent min-w-[80px]"
+                    onClick={() => handleSort("record")}
+                    data-testid="header-record"
+                  >
+                    Record {sortBy === "record" && (sortOrder === "desc" ? "↓" : "↑")}
+                  </TableHead>
                   <TableHead 
                     className="text-center cursor-pointer hover:bg-accent"
                     onClick={() => handleSort("optMinusAct")}
