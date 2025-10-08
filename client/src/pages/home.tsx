@@ -658,15 +658,13 @@ export default function Home() {
       {/* Header */}
       <header className="bg-card border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <ChartLine className="text-primary text-2xl w-8 h-8" />
-                <h1 className="text-xl font-bold text-foreground" data-testid="text-app-title">StatChasers Lineup Checker</h1>
-              </div>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 gap-3">
+            <div className="flex items-center space-x-2">
+              <ChartLine className="text-primary w-6 h-6 sm:w-8 sm:h-8" />
+              <h1 className="text-lg sm:text-xl font-bold text-foreground" data-testid="text-app-title">StatChasers Lineup Checker</h1>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 text-sm">
                 <label className="text-muted-foreground">Season:</label>
                 <input
@@ -684,12 +682,12 @@ export default function Home() {
                 />
               </div>
               <button 
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+                className="bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
                 onClick={() => setShowAdminModal(true)}
                 data-testid="button-admin"
               >
                 <Settings className="w-4 h-4" />
-                Admin
+                <span className="hidden sm:inline">Admin</span>
               </button>
             </div>
           </div>
@@ -730,16 +728,18 @@ export default function Home() {
                 ) : (
                   <Search className="w-4 h-4" />
                 )}
-                {isAnalyzing ? "Analyzing..." : "Analyze Lineups"}
+                <span className="hidden sm:inline">{isAnalyzing ? "Analyzing..." : "Analyze Lineups"}</span>
+                <span className="sm:hidden">{isAnalyzing ? "..." : "Analyze"}</span>
               </button>
               {username.trim() && (
                 <button
-                  className="bg-secondary text-secondary-foreground px-4 py-2 rounded-md font-medium hover:bg-secondary/90 transition-colors flex items-center gap-2"
+                  className="bg-secondary text-secondary-foreground px-3 sm:px-4 py-2 rounded-md font-medium hover:bg-secondary/90 transition-colors flex items-center gap-2"
                   onClick={() => setLocation(`/${username.trim()}/matchups`)}
                   data-testid="button-table-view"
                   title="View Table Summary"
                 >
                   <TableIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Table</span>
                 </button>
               )}
             </div>
@@ -790,30 +790,30 @@ export default function Home() {
         </div>
 
         {/* Status Section */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <div className="card rounded-lg border border-border p-4 text-center">
-            <div className="text-2xl font-bold text-primary" data-testid="text-active-leagues">{summaries.length}</div>
-            <div className="text-sm text-muted-foreground">Active Leagues</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-8">
+          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center">
+            <div className="text-xl sm:text-2xl font-bold text-primary" data-testid="text-active-leagues">{summaries.length}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Active Leagues</div>
           </div>
-          <div className="card rounded-lg border border-border p-4 text-center">
-            <div className="text-2xl font-bold text-accent" data-testid="text-total-potential">+{totalPotentialPoints.toFixed(1)}</div>
-            <div className="text-sm text-muted-foreground">Total Potential Pts</div>
+          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center">
+            <div className="text-xl sm:text-2xl font-bold text-accent" data-testid="text-total-potential">+{totalPotentialPoints.toFixed(1)}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Total Potential Pts</div>
           </div>
-          <div className="card rounded-lg border border-border p-4 text-center">
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400" data-testid="text-out-bye-empty">{totalOutByeEmpty}</div>
-            <div className="text-sm text-muted-foreground">OUT/BYE/EMPTY Starters</div>
+          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center">
+            <div className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400" data-testid="text-out-bye-empty">{totalOutByeEmpty}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">OUT/BYE/EMPTY</div>
           </div>
-          <div className="card rounded-lg border border-border p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400" data-testid="text-ques-doub">{totalQues}</div>
-            <div className="text-sm text-muted-foreground">QUES/DOUB Starters</div>
+          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center">
+            <div className="text-xl sm:text-2xl font-bold text-yellow-600 dark:text-yellow-400" data-testid="text-ques-doub">{totalQues}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">QUES/DOUB</div>
           </div>
-          <div className="card rounded-lg border border-border p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-projected-record">
+          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center col-span-2 sm:col-span-1">
+            <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-projected-record">
               {projectedRecord.wins + projectedRecord.losses + projectedRecord.ties > 0 
                 ? `${projectedRecord.wins}-${projectedRecord.losses}${projectedRecord.ties > 0 ? `-${projectedRecord.ties}` : ''}` 
                 : '--'}
             </div>
-            <div className="text-sm text-muted-foreground">Projected Record</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Projected Record</div>
             {projectedRecord.noMatchup > 0 && (
               <div className="text-xs text-gray-500">{projectedRecord.noMatchup} no matchup</div>
             )}

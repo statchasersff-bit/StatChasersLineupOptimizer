@@ -24,15 +24,15 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
       
       {/* Header Row (always visible) */}
       <button
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 rounded-2xl transition-colors"
+        className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 rounded-2xl transition-colors gap-2 sm:gap-4"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         data-testid={`button-toggle-${lg.league_id}`}
       >
-        <div className="min-w-0">
-          <div className="text-sm text-gray-500 truncate" data-testid={`text-manager-${lg.league_id}`}>{lg.rosterUserDisplay}</div>
-          <div className="flex items-center gap-2 min-w-0">
-            <h3 className="text-base md:text-lg font-semibold truncate" data-testid={`text-league-name-${lg.league_id}`}>{lg.name}</h3>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs sm:text-sm text-gray-500 truncate" data-testid={`text-manager-${lg.league_id}`}>{lg.rosterUserDisplay}</div>
+          <div className="flex items-center gap-2 min-w-0 flex-wrap">
+            <h3 className="text-sm sm:text-base md:text-lg font-semibold break-words" data-testid={`text-league-name-${lg.league_id}`}>{lg.name}</h3>
             {(lg.outByeEmptyCount ?? 0) > 0 && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 whitespace-nowrap" data-testid={`text-out-bye-empty-${lg.league_id}`}>
                 OUT/BYE/EMPTY: {lg.outByeEmptyCount}
@@ -46,20 +46,20 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
           {/* potential points gain (delta) */}
-          <div className={`text-sm md:text-base font-semibold ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
+          <div className={`text-sm sm:text-base font-semibold ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
             {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
           </div>
 
           {/* Bench empties badge */}
           {(lg.benchEmpty ?? 0) > 0 && (
-            <span className="text-xs md:text-sm rounded-full px-2 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300" data-testid={`text-bench-empty-${lg.league_id}`}>
+            <span className="text-xs sm:text-sm rounded-full px-2 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 whitespace-nowrap" data-testid={`text-bench-empty-${lg.league_id}`}>
               {lg.benchEmpty} empty bench {lg.benchEmpty === 1 ? "spot" : "spots"}
             </span>
           )}
 
-          <svg className={`h-5 w-5 transition-transform ${open ? "rotate-180" : "rotate-0"}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+          <svg className={`h-4 w-4 sm:h-5 sm:w-5 transition-transform ${open ? "rotate-180" : "rotate-0"}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
             <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z" />
           </svg>
         </div>
@@ -67,19 +67,19 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
 
       {/* Detail (collapsible) */}
       {open && (
-        <div className="p-4 pt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="p-3 sm:p-4 pt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <div className="font-semibold mb-1">Current Starters</div>
-              <ul className="space-y-1">
+              <div className="text-sm sm:text-base font-semibold mb-1 sm:mb-2">Current Starters</div>
+              <ul className="space-y-0.5 sm:space-y-1">
                 {lg.starters.map((pid, i) => {
                   const slot = lg.roster_positions[i];
                   
                   // Handle empty slots
                   if (!pid || pid === "0" || pid === "") {
                     return (
-                      <li key={i} className="text-sm p-1 rounded" data-testid={`row-current-${i}`}>
-                        <span className="inline-block w-28 font-mono">{slot}</span>
+                      <li key={i} className="text-xs sm:text-sm p-1 rounded" data-testid={`row-current-${i}`}>
+                        <span className="inline-block w-20 sm:w-28 font-mono text-xs sm:text-sm">{slot}</span>
                         <span className="text-gray-400 italic">Empty</span>
                       </li>
                     );
@@ -95,11 +95,11 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                   const autoSubRec = lg.autoSubRecommendations?.find(rec => rec.starter.player_id === pid);
                   
                   return (
-                    <li key={i} className={`text-sm p-1 rounded ${isBeingBenched ? 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300' : ''}`} data-testid={`row-current-${i}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <span className="inline-block w-28 font-mono">{slot}</span>
-                          <span>{cur ? `${cur.name} (${cur.pos}) — ${cur.proj?.toFixed(2) ?? "0.00"}` : `player_id ${pid}`}</span>
+                    <li key={i} className={`text-xs sm:text-sm p-1 rounded ${isBeingBenched ? 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300' : ''}`} data-testid={`row-current-${i}`}>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center flex-wrap gap-1">
+                          <span className="inline-block w-20 sm:w-28 font-mono text-xs sm:text-sm">{slot}</span>
+                          <span className="text-xs sm:text-sm">{cur ? `${cur.name} (${cur.pos}) — ${cur.proj?.toFixed(2) ?? "0.00"}` : `player_id ${pid}`}</span>
                           <StarterBadge p={cur} />
                         </div>
                         {autoSubRec && (
@@ -116,16 +116,16 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             </div>
 
             <div>
-              <div className="font-semibold mb-1">Optimal Starters</div>
-              <ul className="space-y-1">
+              <div className="text-sm sm:text-base font-semibold mb-1 sm:mb-2">Optimal Starters</div>
+              <ul className="space-y-0.5 sm:space-y-1">
                 {lg.optimalSlots.map((s, i) => {
                   const p = s.player;
                   const flags = statusFlags(p);
                   
                   if (!p) {
                     return (
-                      <li key={i} className="text-sm p-1 rounded" data-testid={`row-optimal-${i}`}>
-                        <span className="inline-block w-28 font-mono">{s.slot}</span>
+                      <li key={i} className="text-xs sm:text-sm p-1 rounded" data-testid={`row-optimal-${i}`}>
+                        <span className="inline-block w-20 sm:w-28 font-mono text-xs sm:text-sm">{s.slot}</span>
                         —
                       </li>
                     );
@@ -145,10 +145,10 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                   }
                   
                   return (
-                    <li key={i} className={`text-sm p-1 rounded ${highlightClass}`} data-testid={`row-optimal-${i}`}>
-                      <div className="flex items-center">
-                        <span className="inline-block w-28 font-mono">{s.slot}</span>
-                        <span>{`${p.name} (${p.pos}) — ${p.proj?.toFixed(2) ?? "0.00"}`}</span>
+                    <li key={i} className={`text-xs sm:text-sm p-1 rounded ${highlightClass}`} data-testid={`row-optimal-${i}`}>
+                      <div className="flex items-center flex-wrap gap-1">
+                        <span className="inline-block w-20 sm:w-28 font-mono text-xs sm:text-sm">{s.slot}</span>
+                        <span className="text-xs sm:text-sm">{`${p.name} (${p.pos}) — ${p.proj?.toFixed(2) ?? "0.00"}`}</span>
                         <StarterBadge p={p} />
                       </div>
                     </li>

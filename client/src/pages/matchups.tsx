@@ -528,8 +528,9 @@ export default function MatchupsPage() {
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
-              size="sm"
+              size="default"
               onClick={() => setLocation("/")}
+              className="h-11"
               data-testid="button-back-home"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -537,58 +538,64 @@ export default function MatchupsPage() {
             </Button>
           </div>
           
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div>
-              <h1 className="text-3xl font-bold" data-testid="text-page-title">StatChasers Lineup Checker</h1>
-              <p className="text-muted-foreground mt-1" data-testid="text-username">
+              <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-page-title">StatChasers Lineup Checker</h1>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base" data-testid="text-username">
                 Analyzing leagues for <span className="font-semibold">{username}</span>
               </p>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Select value={season} onValueChange={setSeason}>
-                <SelectTrigger className="w-32" data-testid="select-season">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2025">2025</SelectItem>
-                  <SelectItem value="2024">2024</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={week} onValueChange={setWeek}>
-                <SelectTrigger className="w-32" data-testid="select-week">
-                  <SelectValue placeholder="Week" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => (
-                    <SelectItem key={w} value={String(w)}>Week {w}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <div className="flex items-center gap-2 border-l pl-3">
-                <Switch 
-                  id="consider-waivers" 
-                  checked={considerWaivers} 
-                  onCheckedChange={setConsiderWaivers}
-                  data-testid="switch-waivers"
-                />
-                <Label htmlFor="consider-waivers" className="cursor-pointer text-sm" data-testid="label-waivers">
-                  Consider Free Agents
-                </Label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-2">
+                <Select value={season} onValueChange={setSeason}>
+                  <SelectTrigger className="w-28 sm:w-32" data-testid="select-season">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2025">2025</SelectItem>
+                    <SelectItem value="2024">2024</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={week} onValueChange={setWeek}>
+                  <SelectTrigger className="w-28 sm:w-32" data-testid="select-week">
+                    <SelectValue placeholder="Week" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => (
+                      <SelectItem key={w} value={String(w)}>Week {w}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
-              <div className="flex items-center gap-2 border-l pl-3">
-                <Switch 
-                  id="redraft-only" 
-                  checked={redraftOnly} 
-                  onCheckedChange={setRedraftOnly}
-                  data-testid="switch-redraft-filter"
-                />
-                <Label htmlFor="redraft-only" className="cursor-pointer text-sm" data-testid="label-redraft-filter">
-                  Redraft only
-                </Label>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 py-2">
+                  <Switch 
+                    id="consider-waivers" 
+                    checked={considerWaivers} 
+                    onCheckedChange={setConsiderWaivers}
+                    className="data-[state=checked]:bg-primary"
+                    data-testid="switch-waivers"
+                  />
+                  <Label htmlFor="consider-waivers" className="cursor-pointer text-xs sm:text-sm py-2" data-testid="label-waivers">
+                    Free Agents
+                  </Label>
+                </div>
+                
+                <div className="flex items-center gap-2 py-2">
+                  <Switch 
+                    id="redraft-only" 
+                    checked={redraftOnly} 
+                    onCheckedChange={setRedraftOnly}
+                    className="data-[state=checked]:bg-primary"
+                    data-testid="switch-redraft-filter"
+                  />
+                  <Label htmlFor="redraft-only" className="cursor-pointer text-xs sm:text-sm py-2" data-testid="label-redraft-filter">
+                    Redraft only
+                  </Label>
+                </div>
               </div>
             </div>
           </div>
@@ -681,19 +688,19 @@ export default function MatchupsPage() {
             <p className="text-muted-foreground">No leagues found. Make sure you have projections loaded.</p>
           </div>
         ) : (
-          <div className="border rounded-lg">
+          <div className="border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-8 sm:w-12"></TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-accent"
+                    className="cursor-pointer hover:bg-accent min-w-[180px]"
                     onClick={() => handleSort("league")}
                     data-testid="header-league"
                   >
                     League {sortBy === "league" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
-                  <TableHead className="text-center">Record</TableHead>
+                  <TableHead className="text-center min-w-[80px]">Record</TableHead>
                   <TableHead 
                     className="text-center cursor-pointer hover:bg-accent"
                     onClick={() => handleSort("optMinusAct")}
@@ -860,7 +867,7 @@ export default function MatchupsPage() {
                     {/* Expanded Row Content */}
                     {expandedLeagues.has(league.leagueId) && (
                       <TableRow data-testid={`expanded-${league.leagueId}`}>
-                        <TableCell colSpan={7} className="bg-muted/50 p-6">
+                        <TableCell colSpan={7} className="bg-muted/50 p-3 sm:p-6">
                           {league.isComputing ? (
                             <div className="text-center py-8">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
@@ -909,21 +916,21 @@ export default function MatchupsPage() {
                               {/* Recommendations */}
                               {league.recommendations && league.recommendations.length > 0 && (
                               <div className="space-y-2" data-testid={`recommendations-${league.leagueId}`}>
-                                <h4 className="font-semibold">Recommended Changes:</h4>
+                                <h4 className="text-sm sm:text-base font-semibold">Recommended Changes:</h4>
                                 <div className="space-y-2">
                                   {league.recommendations.map((rec, idx) => (
                                     <div
                                       key={idx}
-                                      className="flex items-center gap-3 p-3 bg-background rounded-lg border"
+                                      className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 bg-background rounded-lg border"
                                       data-testid={`recommendation-${league.leagueId}-${idx}`}
                                     >
                                       {rec.out && (
-                                        <div className="text-sm text-red-600">
+                                        <div className="text-xs sm:text-sm text-red-600">
                                           Out: {rec.out.name} ({rec.out.proj.toFixed(1)})
                                         </div>
                                       )}
-                                      <span className="text-muted-foreground">→</span>
-                                      <div className="text-sm text-green-600">
+                                      <span className="text-muted-foreground hidden sm:inline">→</span>
+                                      <div className="text-xs sm:text-sm text-green-600">
                                         In: {rec.in.name} ({rec.in.proj.toFixed(1)})
                                       </div>
                                     </div>
