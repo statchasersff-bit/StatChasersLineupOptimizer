@@ -1,4 +1,4 @@
-export type AvailTag = "OUT" | "BYE" | "EMPTY" | "QUES" | null;
+export type AvailTag = "OUT" | "BYE" | "EMPTY" | "QUES" | "LOCKED" | null;
 
 const OUT_STATUSES = new Set(["O", "IR", "NA", "SUS", "SSPD"]);
 const Q_STATUSES = new Set(["Q", "D"]);
@@ -9,11 +9,13 @@ export function classifyStarter(p?: {
   pos?: string;
   opp?: string;
   injury_status?: string;
+  locked?: boolean;
 }): AvailTag {
   if (!p || !p.player_id) return "EMPTY";
   const s = (p.injury_status || "").toUpperCase();
   if (p.opp === "BYE") return "BYE";
   if (OUT_STATUSES.has(s)) return "OUT";
+  if (p.locked) return "LOCKED";
   // Check exact codes and partial string matches for questionable statuses
   if (Q_STATUSES.has(s) || s.includes("QUES") || s.includes("DOUBT")) return "QUES";
   return null;
@@ -27,6 +29,7 @@ export type Starter = {
   slot: string;
   proj?: number;
   pos?: string;
+  locked?: boolean;
 };
 
 export function summarizeStarters(starters: Starter[]) {

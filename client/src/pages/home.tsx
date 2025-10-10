@@ -528,7 +528,8 @@ export default function Home() {
               injury_status: player?.injury_status,
               slot,
               proj: player?.proj,
-              pos: player?.pos
+              pos: player?.pos,
+              locked: player?.locked
             };
           });
           const availSummary = summarizeStarters(startersForAvailability);

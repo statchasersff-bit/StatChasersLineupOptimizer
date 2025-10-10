@@ -14,6 +14,7 @@ import type { Projection } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { summarizeStarters, type Starter, type AvailTag } from "@/lib/availability";
 import { OptActCell } from "@/components/OptActCell";
+import { StarterBadge } from "@/components/StarterBadge";
 import {
   getFreeAgentsForLeague,
   scoreFreeAgents,
@@ -262,7 +263,8 @@ export default function MatchupsPage() {
               pos: player?.pos,
               opp: player?.opp,
               injury_status: player?.injury_status,
-              proj: player?.proj
+              proj: player?.proj,
+              locked: player?.locked
             };
           });
 
@@ -855,12 +857,14 @@ export default function MatchupsPage() {
                                   data-testid={`recommendation-${league.leagueId}-${idx}`}
                                 >
                                   {rec.out && (
-                                    <div className="text-red-600">
-                                      Out: {rec.out.name} ({rec.out.proj.toFixed(1)})
+                                    <div className="text-red-600 flex items-center">
+                                      <span>Out: {rec.out.name} ({rec.out.proj.toFixed(1)})</span>
+                                      <StarterBadge p={rec.out} />
                                     </div>
                                   )}
-                                  <div className="text-green-600">
-                                    In: {rec.in.name} ({rec.in.proj.toFixed(1)})
+                                  <div className="text-green-600 flex items-center">
+                                    <span>In: {rec.in.name} ({rec.in.proj.toFixed(1)})</span>
+                                    <StarterBadge p={rec.in} />
                                   </div>
                                 </div>
                               ))}
@@ -1162,13 +1166,15 @@ export default function MatchupsPage() {
                                       data-testid={`recommendation-${league.leagueId}-${idx}`}
                                     >
                                       {rec.out && (
-                                        <div className="text-xs sm:text-sm text-red-600">
-                                          Out: {rec.out.name} ({rec.out.proj.toFixed(1)})
+                                        <div className="text-xs sm:text-sm text-red-600 flex items-center">
+                                          <span>Out: {rec.out.name} ({rec.out.proj.toFixed(1)})</span>
+                                          <StarterBadge p={rec.out} />
                                         </div>
                                       )}
                                       <span className="text-muted-foreground hidden sm:inline">→</span>
-                                      <div className="text-xs sm:text-sm text-green-600">
-                                        In: {rec.in.name} ({rec.in.proj.toFixed(1)})
+                                      <div className="text-xs sm:text-sm text-green-600 flex items-center">
+                                        <span>In: {rec.in.name} ({rec.in.proj.toFixed(1)})</span>
+                                        <StarterBadge p={rec.in} />
                                       </div>
                                     </div>
                                   ))}

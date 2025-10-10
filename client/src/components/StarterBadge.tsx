@@ -7,11 +7,18 @@ interface StarterBadgeProps {
     pos?: string;
     opp?: string;
     injury_status?: string;
+    locked?: boolean;
   };
 }
 
 export function StarterBadge({ p }: StarterBadgeProps) {
   const tag = classifyStarter(p);
+  
+  // Debug logging
+  if (p && p.locked) {
+    console.log('[StarterBadge] Player with locked status:', p.name, 'locked:', p.locked, 'tag:', tag);
+  }
+  
   if (!tag) return null;
 
   const styles: Record<NonNullable<AvailTag>, string> = {
@@ -19,6 +26,7 @@ export function StarterBadge({ p }: StarterBadgeProps) {
     BYE: "bg-gray-500 text-white",
     EMPTY: "bg-gray-400 text-white",
     QUES: "bg-amber-500 text-white",
+    LOCKED: "bg-blue-600 text-white",
   };
 
   return (

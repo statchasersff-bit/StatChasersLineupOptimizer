@@ -20,7 +20,7 @@ export type PlayerLite = {
 
 export type RosterSlot = {
   slot: string;        // QB, RB, WR, TE, FLEX, SUPER_FLEX, K, DEF
-  player?: PlayerLite & { proj?: number; opp?: string };
+  player?: PlayerLite & { proj?: number; opp?: string; locked?: boolean };
 };
 
 export type WaiverSuggestion = {
@@ -54,8 +54,8 @@ export type LeagueSummary = {
   currentTotal: number;       // sum of proj of current starters
   delta: number;              // optimal - current
   waiverSuggestions?: WaiverSuggestion[]; // sorted by gain desc
-  starterObjs?: (PlayerLite & { proj?: number; opp?: string })[]; // enriched starter objects
-  allEligible?: (PlayerLite & { proj?: number; opp?: string })[]; // all eligible players for lookup
+  starterObjs?: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[]; // enriched starter objects
+  allEligible?: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[]; // all eligible players for lookup
   benchCapacity: number;   // how many BN slots the league has
   benchCount: number;      // how many players currently on BN (excl. IR/Taxi)
   benchEmpty: number;      // benchCapacity - benchCount (min 0)
