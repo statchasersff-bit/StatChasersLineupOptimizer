@@ -172,10 +172,8 @@ export default function Home() {
       const out: LeagueSummary[] = [];
       const currentPlayersIndex = playersIndex || await getPlayersIndex();
 
-      // Fetch Sleeper matchup data for all leagues to detect played players (enhanced locking)
-      const leagueIds = filteredLeagues.map(lg => lg.league_id);
-      console.log(`[Home] Fetching matchup data for ${leagueIds.length} leagues to enhance player locking...`);
-      const { playedPlayerIds, actualPoints } = await getLeagueMatchupsForLocking(leagueIds, week);
+      // Fetch game schedule once for all leagues
+      const schedule = await getWeekSchedule(season, week);
 
       for (const lg of filteredLeagues) {
         try {
@@ -185,6 +183,9 @@ export default function Home() {
             getLeagueDetails(lg.league_id),
             getLeagueMatchups(lg.league_id, week),
           ]);
+          
+          // Fetch matchup data for THIS league only to get correct actual points per league's scoring
+          const { playedPlayerIds, actualPoints } = await getLeagueMatchupsForLocking([lg.league_id], week);
 
           // Find user's roster
           const meRoster = rosters.find((r: any) => r.owner_id === user.user_id) || 
@@ -221,9 +222,6 @@ export default function Home() {
               rec_yd: scoring.rec_yd || "not set"
             });
           }
-
-          // Fetch current week's game schedule for player locking
-          const schedule = await getWeekSchedule(season, week);
 
           // Build enriched player list with league-adjusted projections
           const addWithProj = (pid: string) => {

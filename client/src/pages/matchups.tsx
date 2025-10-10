@@ -172,7 +172,6 @@ export default function MatchupsPage() {
 
       // STEP 2: Compute deep analysis progressively for each league
       const playersIndex = await getPlayersIndex();
-      const { playedPlayerIds, actualPoints } = await getLeagueMatchupsForLocking(leagues.map(lg => lg.league_id), week);
       const schedule = await getWeekSchedule(season, week);
 
       for (const lg of leagues) {
@@ -183,6 +182,9 @@ export default function MatchupsPage() {
             getLeagueDetails(lg.league_id),
             getLeagueMatchups(lg.league_id, week),
           ]);
+          
+          // Fetch matchup data for THIS league only to get correct actual points per league's scoring
+          const { playedPlayerIds, actualPoints } = await getLeagueMatchupsForLocking([lg.league_id], week);
 
           // Find user's roster
           const meRoster = rosters.find((r: any) => r.owner_id === user.user_id) || 

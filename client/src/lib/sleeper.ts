@@ -88,6 +88,14 @@ export async function getLeagueMatchupsForLocking(leagueIds: string[], week: str
     
     console.log(`[Sleeper] Found ${Object.keys(playedPlayerIds).length} players who have already played`);
     console.log(`[Sleeper] Found ${Object.keys(actualPoints).length} players with actual points`);
+    
+    // Log specific players for debugging
+    const debugPlayers = ['6904', '5022', '8126']; // Jalen Hurts, Dallas Goedert, Wan'Dale Robinson
+    debugPlayers.forEach(pid => {
+      if (actualPoints[pid] !== undefined) {
+        console.log(`[Sleeper] Player ${pid} actual points: ${actualPoints[pid]}, locked: ${playedPlayerIds[pid] || false}`);
+      }
+    });
     return { playedPlayerIds, actualPoints };
   } catch (error) {
     console.error('Failed to fetch league matchups for locking:', error);
