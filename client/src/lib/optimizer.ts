@@ -44,10 +44,10 @@ export function statusFlags(p?: PlayerLite & { proj?: number; opp?: string; lock
   const flags: string[] = [];
   if (!p) return flags;
   const s = (p.injury_status || "").toUpperCase();
-  if (s.includes("OUT")) flags.push("OUT");
+  // Match Sleeper's OUT status codes: O, IR, NA, SUS, SSPD, or string containing OUT
+  if (s === "O" || s === "IR" || s === "NA" || s === "SUS" || s === "SSPD" || s.includes("OUT")) flags.push("OUT");
   if (s.includes("DOU")) flags.push("DOUB");
-  if (s.includes("SUS")) flags.push("SUS");
-  if (s.includes("QUE")) flags.push("Q"); // Questionable
+  if (s.includes("QUE") || s === "Q" || s === "D") flags.push("Q"); // Questionable/Doubtful
   if ((p.opp || "").toUpperCase() === "BYE") flags.push("BYE");
   if (p.locked) flags.push("LOCKED");
   return flags;
