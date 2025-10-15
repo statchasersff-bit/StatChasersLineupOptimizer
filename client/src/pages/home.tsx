@@ -5,7 +5,7 @@ import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpre
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
-import { isPlayerLocked, getWeekSchedule, type GameSchedule } from "@/lib/gameLocking";
+import { isPlayerLocked, getWeekSchedule, isTeamOnBye, type GameSchedule } from "@/lib/gameLocking";
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
@@ -253,7 +253,13 @@ export default function Home() {
             const actual = actualPoints[pid];
             const displayProj = (locked && actual !== undefined) ? actual : finalProj;
             
-            return { ...lite, proj: displayProj, opp: pr?.opp, locked, actualPoints: actual };
+            // Determine opponent - for defenses without projections, check if team is on BYE
+            let opp = pr?.opp;
+            if (!opp && lite.pos === "DEF" && lite.team) {
+              opp = isTeamOnBye(lite.team, schedule) ? "BYE" : undefined;
+            }
+            
+            return { ...lite, proj: displayProj, opp, locked, actualPoints: actual };
           };
 
           const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];
