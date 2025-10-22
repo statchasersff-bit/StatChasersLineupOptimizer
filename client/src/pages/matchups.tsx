@@ -86,7 +86,7 @@ export default function MatchupsPage() {
   const [, setLocation] = useLocation();
   
   const [season, setSeason] = useState("2025");
-  const [week, setWeek] = useState("7");
+  const [week, setWeek] = useState("8");
   const [isLoading, setIsLoading] = useState(false);
   const [projections, setProjections] = useState<Projection[]>([]);
   const [leagueMetrics, setLeagueMetrics] = useState<LeagueMetrics[]>([]);
