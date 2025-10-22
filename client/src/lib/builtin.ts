@@ -2,6 +2,32 @@ import Papa from "papaparse";
 import { buildProjectionIndex } from "./projections";
 import { parseProjectionsFile, coerceProjectionRow } from "./csv-utils";
 
+/**
+ * Auto-detect the latest available week by probing from week 18 down to week 1
+ * Verifies the file is actually a CSV by checking content
+ */
+export async function findLatestWeek(season: string): Promise<number> {
+  for (let w = 18; w >= 1; w--) {
+    const url = `/projections/${season}/week${String(w).padStart(2, '0')}.csv?v=${Date.now()}`;
+    try {
+      // Use GET to check both status and content
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (res.ok) {
+        const text = await res.text();
+        // Verify it's actually CSV content (starts with header row, not HTML)
+        if (text && text.trim().startsWith('sleeper_id')) {
+          console.log(`[builtin] Found latest week: ${w} for season ${season}`);
+          return w;
+        }
+      }
+    } catch (e) {
+      // Continue to next week
+    }
+  }
+  console.log(`[builtin] No weeks found for season ${season}, defaulting to week 1`);
+  return 1; // Default fallback
+}
+
 export async function fetchBuiltInCSV(season: string, week: string | number) {
   const url = `/projections/${season}/week${String(week).padStart(2,"0")}.csv?v=${Date.now()}`;
   console.log(`[builtin] Fetching CSV from: ${url}`);

@@ -8,7 +8,7 @@ import { isPlayerLocked, getWeekSchedule, isTeamOnBye } from "@/lib/gameLocking"
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
-import { loadBuiltInOrSaved } from "@/lib/builtin";
+import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import type { Projection } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -86,7 +86,7 @@ export default function MatchupsPage() {
   const [, setLocation] = useLocation();
   
   const [season, setSeason] = useState("2025");
-  const [week, setWeek] = useState("8");
+  const [week, setWeek] = useState<string>(""); // Will be auto-detected
   const [isLoading, setIsLoading] = useState(false);
   const [projections, setProjections] = useState<Projection[]>([]);
   const [leagueMetrics, setLeagueMetrics] = useState<LeagueMetrics[]>([]);
@@ -102,6 +102,15 @@ export default function MatchupsPage() {
   const [loadedLeagues, setLoadedLeagues] = useState(0);
   const { toast } = useToast();
 
+  // Auto-detect the latest available week on mount
+  useEffect(() => {
+    (async () => {
+      const latestWeek = await findLatestWeek(season);
+      setWeek(String(latestWeek));
+      console.log(`[Matchups] Auto-detected latest week: ${latestWeek}`);
+    })();
+  }, [season]);
+
   // Persist redraft filter preference
   useEffect(() => {
     localStorage.setItem(REDRAFT_KEY, redraftOnly ? "1" : "0");
@@ -109,6 +118,9 @@ export default function MatchupsPage() {
 
   // Load projections on mount and when season/week changes
   useEffect(() => {
+    // Don't load projections until week is auto-detected
+    if (!week) return;
+    
     (async () => {
       const got = await loadBuiltInOrSaved({
         season,

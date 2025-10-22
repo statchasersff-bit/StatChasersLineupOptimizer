@@ -10,7 +10,7 @@ import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
 import { scoreByLeague } from "@/lib/scoring";
 import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
-import { loadBuiltInOrSaved } from "@/lib/builtin";
+import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
 import { summarizeStarters, type Starter } from "@/lib/availability";
@@ -45,7 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Home() {
   const [, setLocation] = useLocation();
   const [season, setSeason] = useState("2025");
-  const [week, setWeek] = useState("8"); // Current NFL week
+  const [week, setWeek] = useState<string>(""); // Will be auto-detected
   const [username, setUsername] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -59,8 +59,20 @@ export default function Home() {
   const [projections, setProjections] = useState<Projection[]>([]);
   const { toast } = useToast();
 
+  // Auto-detect the latest available week on mount
+  useEffect(() => {
+    (async () => {
+      const latestWeek = await findLatestWeek(season);
+      setWeek(String(latestWeek));
+      console.log(`[Home] Auto-detected latest week: ${latestWeek}`);
+    })();
+  }, [season]);
+
   // Built-in projections loader
   useEffect(() => {
+    // Don't load projections until week is auto-detected
+    if (!week) return;
+    
     (async () => {
       console.log(`[Home] Loading projections for season=${season}, week=${week}`);
       const got = await loadBuiltInOrSaved({
