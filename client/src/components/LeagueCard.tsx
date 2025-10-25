@@ -211,7 +211,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                 </div>
                 <div>
                   <div className="font-medium text-gray-900 dark:text-gray-100">{lg.opponent.teamName}</div>
-                  <div className="text-xs text-gray-500">Their Current</div>
+                  <div className="text-xs text-gray-500">Opponent</div>
                   <div className="font-bold text-lg">{lg.opponent.currentTotal.toFixed(1)}</div>
                 </div>
               </div>

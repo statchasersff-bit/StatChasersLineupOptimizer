@@ -55,6 +55,7 @@ export default function Home() {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [summaries, setSummaries] = useState<LeagueSummary[]>([]);
   const [considerWaivers, setConsiderWaivers] = useState(true);
+  const [oppOptimal, setOppOptimal] = useState(true); // Default to optimal like matchups page
   const [filterDynasty, setFilterDynasty] = useState(false);
   const [filterNonOptimal, setFilterNonOptimal] = useState(false);
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
@@ -516,7 +517,21 @@ export default function Home() {
                   return { slot, player };
                 });
                 
-                const opponentTotal = sumProj(opponentCurrentSlots as any);
+                const opponentCurrentTotal = sumProj(opponentCurrentSlots as any);
+                
+                // Calculate opponent's optimal lineup if using optimal mode
+                let opponentOptimalTotal = opponentCurrentTotal;
+                if (oppOptimal) {
+                  // Get opponent's full roster
+                  const oppPlayers = opponentRoster?.players || [];
+                  const oppAllEligible = oppPlayers.map((pid: string) => addWithProj(pid)).filter(Boolean);
+                  // Calculate opponent's optimal lineup
+                  const oppOptimalSlots = optimizeLineup(slotCounts, oppAllEligible, season, week, opponentStarters);
+                  opponentOptimalTotal = sumProj(oppOptimalSlots);
+                }
+                
+                // Use the appropriate total based on oppOptimal setting
+                const opponentTotal = oppOptimal ? opponentOptimalTotal : opponentCurrentTotal;
                 
                 // Calculate head-to-head comparison
                 pointDifferential = optimalTotal - opponentTotal;
@@ -792,6 +807,16 @@ export default function Home() {
                 className="rounded border-input"
               />
               Consider Free Agents
+            </label>
+            
+            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-opp-optimal">
+              <input
+                type="checkbox"
+                checked={oppOptimal}
+                onChange={(e) => setOppOptimal(e.target.checked)}
+                className="rounded border-input"
+              />
+              Opp Optimal
             </label>
             
             <label className="flex items-center gap-2 text-sm" data-testid="checkbox-dynasty">
