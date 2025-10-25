@@ -126,7 +126,10 @@ export function scoreByLeague(
   fallbackTotal?: number
 ) {
   const P = (pos || "").toUpperCase();
-  if (P === "K") return scoreK(stats, scoring);
+  
+  // For kickers (K), use ONLY the proj column directly
+  if (P === "K") return fallbackTotal ?? 0;
+  
   if (P === "DEF" || P === "DST" || P === "D/ST") return scoreDST(stats, scoring);
 
   const off = scoreOff(stats, scoring, pos);
