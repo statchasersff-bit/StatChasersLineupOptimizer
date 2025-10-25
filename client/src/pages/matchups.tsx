@@ -1045,16 +1045,6 @@ export default function MatchupsPage() {
                             <span className="font-medium" data-testid={`text-league-name-${league.leagueId}`}>
                               {league.leagueName}
                             </span>
-                            {!league.isComputing && league.notPlayingCount !== undefined && league.notPlayingCount > 0 && (
-                              <span className="rounded-full bg-red-50 text-red-700 border border-red-200 text-xs px-2 py-0.5 font-medium" data-testid={`badge-not-playing-${league.leagueId}`}>
-                                OUT/BYE/EMPTY: {league.notPlayingCount}
-                              </span>
-                            )}
-                            {!league.isComputing && league.quesCount !== undefined && league.quesCount > 0 && (
-                              <span className="rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs px-2 py-0.5 font-medium dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700" data-testid={`badge-ques-${league.leagueId}`}>
-                                QUES: {league.quesCount}
-                              </span>
-                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="secondary" className="text-xs" data-testid={`badge-format-${league.leagueId}`}>
