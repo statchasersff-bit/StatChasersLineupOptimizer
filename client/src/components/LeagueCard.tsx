@@ -70,7 +70,10 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
         <div className="p-3 sm:p-4 pt-0">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <div className="text-sm sm:text-base font-semibold mb-1 sm:mb-2">Current Starters</div>
+              <div className="text-sm sm:text-base font-semibold mb-1 sm:mb-2 flex items-center gap-2">
+                <span>Current Starters</span>
+                <span className="text-xs sm:text-sm font-normal text-muted-foreground">({lg.currentTotal.toFixed(1)} pts)</span>
+              </div>
               <ul className="space-y-0.5 sm:space-y-1">
                 {lg.starters.map((pid, i) => {
                   const slot = lg.roster_positions[i];
@@ -116,7 +119,10 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             </div>
 
             <div>
-              <div className="text-sm sm:text-base font-semibold mb-1 sm:mb-2">Optimal Starters</div>
+              <div className="text-sm sm:text-base font-semibold mb-1 sm:mb-2 flex items-center gap-2">
+                <span>Optimal Starters</span>
+                <span className="text-xs sm:text-sm font-normal text-muted-foreground">({lg.optimalTotal.toFixed(1)} pts)</span>
+              </div>
               <ul className="space-y-0.5 sm:space-y-1">
                 {lg.optimalSlots.map((s, i) => {
                   const p = s.player;
