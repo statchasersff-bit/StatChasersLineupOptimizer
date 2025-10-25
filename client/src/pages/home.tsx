@@ -828,7 +828,7 @@ export default function Home() {
                 onChange={(e) => setOppOptimal(e.target.checked)}
                 className="rounded border-input"
               />
-              Use Opp Optimal
+              Show Opponent's Optimal
             </label>
             
             <label className="flex items-center gap-2 text-sm" data-testid="checkbox-dynasty">

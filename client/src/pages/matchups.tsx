@@ -688,7 +688,7 @@ export default function MatchupsPage() {
                     className="data-[state=checked]:bg-primary"
                     data-testid="switch-opp-optimal"
                   />
-                  <span className="text-xs sm:text-sm">Use Opp Optimal</span>
+                  <span className="text-xs sm:text-sm">Show Opponent's Optimal</span>
                 </label>
                 
                 <label htmlFor="redraft-only" className="flex items-center gap-2 py-3 cursor-pointer min-h-[44px]" data-testid="label-redraft-filter">
