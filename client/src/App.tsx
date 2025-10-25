@@ -10,6 +10,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/:username/matchups" component={MatchupsPage} />
+      <Route path="/:username" component={Home} />
       <Route path="/" component={Home} />
       <Route path="*" component={Home} />
     </Switch>

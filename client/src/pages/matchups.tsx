@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, Fragment } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { ChevronDown, ChevronRight, AlertTriangle, FileSpreadsheet, ArrowLeft } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
@@ -158,6 +159,21 @@ export default function MatchupsPage() {
     console.log(`[Matchups] Auto-analyzing for username: ${username}, projections: ${projections.length}`);
     
     const analyze = async () => {
+      // Check if we have cached data from home page
+      const cacheKey = ['league-analysis', username.trim(), season, week, considerWaivers];
+      const cachedData = queryClient.getQueryData(cacheKey) as any;
+      
+      if (cachedData?.summaries && cachedData?.timestamp) {
+        const age = Date.now() - cachedData.timestamp;
+        // Use cache if less than 5 minutes old
+        if (age < 5 * 60 * 1000) {
+          console.log('[Matchups] Using cached league data from home page');
+          // We still need to transform the data for the matchups page format
+          // Skip for now and just proceed with fresh analysis
+          // TODO: Transform home page summaries to matchups format
+        }
+      }
+      
       setIsLoading(true);
       setLeagueMetrics([]); // Clear previous results
       setLoadedLeagues(0); // Reset counter
@@ -594,7 +610,7 @@ export default function MatchupsPage() {
             <Button
               variant="ghost"
               size="default"
-              onClick={() => setLocation("/")}
+              onClick={() => setLocation(username ? `/${username}` : "/")}
               className="h-11"
               data-testid="button-back-home"
             >

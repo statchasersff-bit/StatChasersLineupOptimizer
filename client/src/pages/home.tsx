@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
+import { queryClient } from "@/lib/queryClient";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
@@ -44,9 +45,10 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const params = useParams<{ username?: string }>();
   const [season, setSeason] = useState("2025");
   const [week, setWeek] = useState<string>(""); // Will be auto-detected
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(params.username || "");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [playersIndex, setPlayersIndex] = useState<Record<string, any> | null>(null);
@@ -595,6 +597,17 @@ export default function Home() {
       }
 
       setSummaries(out);
+      
+      // Store in React Query cache for sharing with matchups page
+      queryClient.setQueryData(['league-analysis', username.trim(), season, week, considerWaivers], {
+        summaries: out,
+        leagues: filteredLeagues,
+        timestamp: Date.now()
+      });
+      
+      // Update URL to include username for preservation across navigation
+      setLocation(`/${username.trim()}`);
+      
       const failedCount = filteredLeagues.length - out.length;
       if (failedCount > 0) {
         console.warn(`⚠️  ${failedCount} leagues failed processing and were dropped from results`);
