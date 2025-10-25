@@ -56,6 +56,7 @@ export default function Home() {
   const [summaries, setSummaries] = useState<LeagueSummary[]>([]);
   const [considerWaivers, setConsiderWaivers] = useState(true);
   const [filterDynasty, setFilterDynasty] = useState(false);
+  const [filterNonOptimal, setFilterNonOptimal] = useState(false);
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
   const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
@@ -106,12 +107,19 @@ export default function Home() {
     return buildProjectionIndex(projections);
   }, [projections]);
 
-  // Re-sort summaries when alphabetical sort preference changes
+  // Re-sort and filter summaries
   const sortedSummaries = useMemo(() => {
+    let filtered = summaries;
+    
+    // Filter non-optimal lineups (where improvements can be made)
+    if (filterNonOptimal) {
+      filtered = filtered.filter(s => s.delta > 0.01); // More than 0.01 points improvement available
+    }
+    
     return sortAlphabetical 
-      ? [...summaries].sort((a, b) => a.name.localeCompare(b.name))
-      : [...summaries].sort((a, b) => b.delta - a.delta);
-  }, [summaries, sortAlphabetical]);
+      ? [...filtered].sort((a, b) => a.name.localeCompare(b.name))
+      : [...filtered].sort((a, b) => b.delta - a.delta);
+  }, [summaries, sortAlphabetical, filterNonOptimal]);
 
   const handleAnalyzeLineups = async () => {
     if (!username.trim()) {
@@ -804,6 +812,16 @@ export default function Home() {
                 className="rounded border-input"
               />
               Sort Alphabetically
+            </label>
+            
+            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-non-optimal">
+              <input
+                type="checkbox"
+                checked={filterNonOptimal}
+                onChange={(e) => setFilterNonOptimal(e.target.checked)}
+                className="rounded border-input"
+              />
+              Show Non-Optimal Only
             </label>
 
           </div>

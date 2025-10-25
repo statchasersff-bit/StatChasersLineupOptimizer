@@ -81,6 +81,7 @@ interface LeagueMetrics {
 
 const REDRAFT_KEY = "stc:filter:redraft:on";
 const OPP_OPTIMAL_KEY = "stc:opponent:optimal";
+const NON_OPTIMAL_KEY = "stc:filter:non-optimal:on";
 
 export default function MatchupsPage() {
   const params = useParams<{ username: string }>();
@@ -97,6 +98,10 @@ export default function MatchupsPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [redraftOnly, setRedraftOnly] = useState<boolean>(() => {
     const saved = localStorage.getItem(REDRAFT_KEY);
+    return saved ? saved === "1" : false;
+  });
+  const [nonOptimalOnly, setNonOptimalOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem(NON_OPTIMAL_KEY);
     return saved ? saved === "1" : false;
   });
   const [oppOptimal, setOppOptimal] = useState<boolean>(() => {
@@ -121,6 +126,11 @@ export default function MatchupsPage() {
   useEffect(() => {
     localStorage.setItem(REDRAFT_KEY, redraftOnly ? "1" : "0");
   }, [redraftOnly]);
+
+  // Persist non-optimal filter preference
+  useEffect(() => {
+    localStorage.setItem(NON_OPTIMAL_KEY, nonOptimalOnly ? "1" : "0");
+  }, [nonOptimalOnly]);
 
   // Persist opponent optimal preference
   useEffect(() => {
@@ -524,10 +534,17 @@ export default function MatchupsPage() {
   }, [username, projections, season, week, projIdx, toast, considerWaivers, oppOptimal]);
 
   const sortedMetrics = useMemo(() => {
-    // Apply redraft filter if enabled (show only non-dynasty leagues)
+    // Apply filters
     let filtered = leagueMetrics;
+    
+    // Redraft filter - show only non-dynasty leagues
     if (redraftOnly) {
-      filtered = leagueMetrics.filter((metric) => !isDynastyLeague(metric.league));
+      filtered = filtered.filter((metric) => !isDynastyLeague(metric.league));
+    }
+    
+    // Non-optimal filter - show only leagues where improvements can be made
+    if (nonOptimalOnly) {
+      filtered = filtered.filter((metric) => (metric.optMinusAct ?? 0) > 0.01);
     }
     
     const sorted = [...filtered].sort((a, b) => {
@@ -580,7 +597,7 @@ export default function MatchupsPage() {
       return sortOrder === "desc" ? bVal - aVal : aVal - bVal;
     });
     return sorted;
-  }, [leagueMetrics, sortBy, sortOrder, redraftOnly]);
+  }, [leagueMetrics, sortBy, sortOrder, redraftOnly, nonOptimalOnly]);
 
   const toggleExpanded = (leagueId: string) => {
     const newSet = new Set(expandedLeagues);
@@ -684,6 +701,17 @@ export default function MatchupsPage() {
                   />
                   <span className="text-xs sm:text-sm">Redraft only</span>
                 </label>
+                
+                <label htmlFor="non-optimal-only" className="flex items-center gap-2 py-3 cursor-pointer min-h-[44px]" data-testid="label-non-optimal-filter">
+                  <Switch 
+                    id="non-optimal-only" 
+                    checked={nonOptimalOnly} 
+                    onCheckedChange={setNonOptimalOnly}
+                    className="data-[state=checked]:bg-primary"
+                    data-testid="switch-non-optimal-filter"
+                  />
+                  <span className="text-xs sm:text-sm">Non-optimal only</span>
+                </label>
               </div>
             </div>
           </div>
@@ -699,12 +727,14 @@ export default function MatchupsPage() {
                 Analyzing: {loadedLeagues} / {totalLeagues}
               </Badge>
             )}
-            {redraftOnly && leagueMetrics.length > 0 && (
-              <Badge variant="secondary" className="w-fit" data-testid="badge-redraft-filter">
-                Showing redraft leagues only ({sortedMetrics.length} of {leagueMetrics.length})
+            {(redraftOnly || nonOptimalOnly) && leagueMetrics.length > 0 && (
+              <Badge variant="secondary" className="w-fit" data-testid="badge-filters-active">
+                {redraftOnly && nonOptimalOnly && `Redraft + Non-optimal: ${sortedMetrics.length} of ${leagueMetrics.length}`}
+                {redraftOnly && !nonOptimalOnly && `Redraft only: ${sortedMetrics.length} of ${leagueMetrics.length}`}
+                {!redraftOnly && nonOptimalOnly && `Non-optimal only: ${sortedMetrics.length} of ${leagueMetrics.length}`}
               </Badge>
             )}
-            {!redraftOnly && leagueMetrics.length > 0 && !isLoading && (
+            {!redraftOnly && !nonOptimalOnly && leagueMetrics.length > 0 && !isLoading && (
               <span className="text-xs text-muted-foreground" data-testid="text-league-count">
                 {sortedMetrics.length} {sortedMetrics.length === 1 ? 'league' : 'leagues'}
               </span>
