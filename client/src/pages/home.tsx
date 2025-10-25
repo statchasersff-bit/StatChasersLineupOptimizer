@@ -816,7 +816,7 @@ export default function Home() {
                 onChange={(e) => setOppOptimal(e.target.checked)}
                 className="rounded border-input"
               />
-              Opp Optimal
+              Use Opp Optimal
             </label>
             
             <label className="flex items-center gap-2 text-sm" data-testid="checkbox-dynasty">
@@ -826,7 +826,7 @@ export default function Home() {
                 onChange={(e) => setFilterDynasty(e.target.checked)}
                 className="rounded border-input"
               />
-              Filter Dynasty Leagues
+              Redraft Only
             </label>
             
             <label className="flex items-center gap-2 text-sm" data-testid="checkbox-alphabetical">
@@ -846,7 +846,7 @@ export default function Home() {
                 onChange={(e) => setFilterNonOptimal(e.target.checked)}
                 className="rounded border-input"
               />
-              Show Non-Optimal Only
+              Show only Non-Optimal Leagues
             </label>
 
           </div>

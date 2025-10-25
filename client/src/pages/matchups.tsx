@@ -688,7 +688,7 @@ export default function MatchupsPage() {
                     className="data-[state=checked]:bg-primary"
                     data-testid="switch-opp-optimal"
                   />
-                  <span className="text-xs sm:text-sm">Opp Optimal</span>
+                  <span className="text-xs sm:text-sm">Use Opp Optimal</span>
                 </label>
                 
                 <label htmlFor="redraft-only" className="flex items-center gap-2 py-3 cursor-pointer min-h-[44px]" data-testid="label-redraft-filter">
@@ -699,7 +699,7 @@ export default function MatchupsPage() {
                     className="data-[state=checked]:bg-primary"
                     data-testid="switch-redraft-filter"
                   />
-                  <span className="text-xs sm:text-sm">Redraft only</span>
+                  <span className="text-xs sm:text-sm">Redraft Only</span>
                 </label>
                 
                 <label htmlFor="non-optimal-only" className="flex items-center gap-2 py-3 cursor-pointer min-h-[44px]" data-testid="label-non-optimal-filter">
@@ -710,7 +710,7 @@ export default function MatchupsPage() {
                     className="data-[state=checked]:bg-primary"
                     data-testid="switch-non-optimal-filter"
                   />
-                  <span className="text-xs sm:text-sm">Non-optimal only</span>
+                  <span className="text-xs sm:text-sm">Show only Non-Optimal Leagues</span>
                 </label>
               </div>
             </div>
