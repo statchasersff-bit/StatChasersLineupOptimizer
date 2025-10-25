@@ -807,8 +807,8 @@ export default function MatchupsPage() {
           </div>
         ) : (
           <>
-          {/* Mobile Card View */}
-          <div className="md:hidden space-y-3">
+          {/* Mobile Card View - HIDDEN, using table on all screen sizes */}
+          <div className="hidden space-y-3">
             {sortedMetrics.map((league) => (
               <div
                 key={league.leagueId}
@@ -1021,8 +1021,8 @@ export default function MatchupsPage() {
             ))}
           </div>
           
-          {/* Desktop Table View */}
-          <div className="hidden md:block border rounded-lg overflow-x-auto">
+          {/* Table View - shown on all screen sizes */}
+          <div className="border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
