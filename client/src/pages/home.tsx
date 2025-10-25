@@ -61,6 +61,8 @@ export default function Home() {
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
   const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
+  const [totalLeagues, setTotalLeagues] = useState(0);
+  const [loadedLeagues, setLoadedLeagues] = useState(0);
   const { toast } = useToast();
 
   // Auto-detect the latest available week on mount
@@ -185,6 +187,10 @@ export default function Home() {
       
       console.log(`[Home] Processing ${filteredLeagues.length} leagues after filtering`);
       setLeagues(filteredLeagues);
+      
+      // Set total leagues count for progress tracking
+      setTotalLeagues(filteredLeagues.length);
+      setLoadedLeagues(0); // Reset counter
       
       if (!playersIndex) {
         const idx = await getPlayersIndex();
@@ -604,6 +610,9 @@ export default function Home() {
             pointDifferential,
             winProbability
           });
+          
+          // Update progress counter
+          setLoadedLeagues(count => count + 1);
         } catch (err) {
           console.warn("League failed", lg?.name, {
             error: err,
@@ -616,6 +625,9 @@ export default function Home() {
           if (lg?.name) {
             console.error(`❌ League "${lg.name}" failed processing and was dropped from results`);
           }
+          
+          // Still increment counter even on error
+          setLoadedLeagues(count => count + 1);
         }
       }
 
@@ -893,10 +905,29 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Loading Progress Badge */}
+        {isAnalyzing && totalLeagues > 0 && (
+          <div className="mb-4 flex justify-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground animate-pulse" data-testid="badge-loading-progress">
+              <div className="loading-spinner w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+              <span className="font-medium">Analyzing: {loadedLeagues} / {totalLeagues}</span>
+            </div>
+          </div>
+        )}
+
         {/* Leagues Analysis Section */}
         <section className="space-y-3">
           {isAnalyzing ? (
-            <LeagueListSkeleton />
+            <>
+              {totalLeagues > 0 && (
+                <div className="text-center mb-4" data-testid="text-loading-progress">
+                  <p className="text-muted-foreground">
+                    Processing leagues: {loadedLeagues} / {totalLeagues}
+                  </p>
+                </div>
+              )}
+              <LeagueListSkeleton />
+            </>
           ) : sortedSummaries.length > 0 ? (
             <>
               {sortedSummaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)}
