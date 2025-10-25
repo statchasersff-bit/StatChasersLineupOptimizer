@@ -79,6 +79,7 @@ interface LeagueMetrics {
 }
 
 const REDRAFT_KEY = "stc:filter:redraft:on";
+const OPP_OPTIMAL_KEY = "stc:opponent:optimal";
 
 export default function MatchupsPage() {
   const params = useParams<{ username: string }>();
@@ -96,6 +97,10 @@ export default function MatchupsPage() {
   const [redraftOnly, setRedraftOnly] = useState<boolean>(() => {
     const saved = localStorage.getItem(REDRAFT_KEY);
     return saved ? saved === "1" : false;
+  });
+  const [oppOptimal, setOppOptimal] = useState<boolean>(() => {
+    const saved = localStorage.getItem(OPP_OPTIMAL_KEY);
+    return saved ? saved === "1" : true; // Default to optimal
   });
   const [considerWaivers, setConsiderWaivers] = useState(true);
   const [totalLeagues, setTotalLeagues] = useState(0);
@@ -115,6 +120,11 @@ export default function MatchupsPage() {
   useEffect(() => {
     localStorage.setItem(REDRAFT_KEY, redraftOnly ? "1" : "0");
   }, [redraftOnly]);
+
+  // Persist opponent optimal preference
+  useEffect(() => {
+    localStorage.setItem(OPP_OPTIMAL_KEY, oppOptimal ? "1" : "0");
+  }, [oppOptimal]);
 
   // Load projections on mount and when season/week changes
   useEffect(() => {
@@ -305,7 +315,7 @@ export default function MatchupsPage() {
               const oppUser = users.find((u: any) => u.user_id === oppRoster?.owner_id);
               opponentName = oppUser?.metadata?.team_name || oppUser?.display_name || "Unknown";
 
-              // Calculate opponent's optimal points
+              // Calculate opponent's points (optimal or current based on toggle)
               const oppActualStarters = (oppMatchup.starters && oppMatchup.starters.length > 0) 
                 ? oppMatchup.starters 
                 : (oppRoster?.starters || []);
@@ -313,11 +323,25 @@ export default function MatchupsPage() {
               const oppBench: string[] = (oppRoster?.players || []).filter((p: string) => p && !oppValidStarters.includes(p));
               const oppStarterObjs = oppValidStarters.map(addWithProj).filter(Boolean) as any[];
               const oppBenchObjs = oppBench.map(addWithProj).filter(Boolean) as any[];
-              const oppAllEligible = [...oppStarterObjs, ...oppBenchObjs];
-              const oppOptimalSlots = optimizeLineup(slotCounts, oppAllEligible, season, week, oppActualStarters);
-              opponentPoints = sumProj(oppOptimalSlots);
+              
+              if (oppOptimal) {
+                // Use opponent's optimal lineup
+                const oppAllEligible = [...oppStarterObjs, ...oppBenchObjs];
+                const oppOptimalSlots = optimizeLineup(slotCounts, oppAllEligible, season, week, oppActualStarters);
+                opponentPoints = sumProj(oppOptimalSlots);
+              } else {
+                // Use opponent's current lineup
+                const oppFixedSlots = roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s));
+                const oppCurrentSlots = oppActualStarters.slice(0, oppFixedSlots.length).map((pid: any, i: number) => {
+                  if (!pid) return { slot: oppFixedSlots[i] };
+                  const player = addWithProj(pid);
+                  if (!player) return { slot: oppFixedSlots[i] };
+                  return { slot: oppFixedSlots[i], player };
+                });
+                opponentPoints = sumProj(oppCurrentSlots as any);
+              }
 
-              // Compare optimal vs optimal
+              // Compare optimal vs opponent (optimal or current)
               margin = optPoints - opponentPoints;
               projectedResult = optPoints >= opponentPoints ? "W" : "L";
             }
@@ -481,7 +505,7 @@ export default function MatchupsPage() {
     };
     
     analyze();
-  }, [username, projections, season, week, projIdx, toast, considerWaivers]);
+  }, [username, projections, season, week, projIdx, toast, considerWaivers, oppOptimal]);
 
   const sortedMetrics = useMemo(() => {
     // Apply redraft filter if enabled (show only non-dynasty leagues)
@@ -621,6 +645,17 @@ export default function MatchupsPage() {
                     data-testid="switch-waivers"
                   />
                   <span className="text-xs sm:text-sm">Free Agents</span>
+                </label>
+                
+                <label htmlFor="opp-optimal" className="flex items-center gap-2 py-3 cursor-pointer min-h-[44px]" data-testid="label-opp-optimal">
+                  <Switch 
+                    id="opp-optimal" 
+                    checked={oppOptimal} 
+                    onCheckedChange={setOppOptimal}
+                    className="data-[state=checked]:bg-primary"
+                    data-testid="switch-opp-optimal"
+                  />
+                  <span className="text-xs sm:text-sm">Opp Optimal</span>
                 </label>
                 
                 <label htmlFor="redraft-only" className="flex items-center gap-2 py-3 cursor-pointer min-h-[44px]" data-testid="label-redraft-filter">
