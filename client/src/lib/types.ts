@@ -68,4 +68,5 @@ export type LeagueSummary = {
   projectedWin?: boolean;     // true if user's optimal > opponent's current
   pointDifferential?: number; // user optimal - opponent current (positive = user favored)
   winProbability?: number;    // probability of winning based on point differential (0-100%)
+  irList?: string[];          // IR/reserve player IDs for tracking moves from IR
 };

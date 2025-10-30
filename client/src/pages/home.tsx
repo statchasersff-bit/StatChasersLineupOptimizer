@@ -293,7 +293,17 @@ export default function Home() {
 
           const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];
           const benchObjs = bench.map(addWithProj).filter(Boolean) as any[];
-          let allEligible = [...starterObjs, ...benchObjs];
+          
+          // Include IR players if they're healthy (not OUT/injured)
+          const irList: string[] = (meRoster?.reserve || []).filter(Boolean);
+          const irObjs = irList.map(addWithProj).filter(Boolean) as any[];
+          // Only include IR players who are healthy enough to play (not OUT)
+          const healthyIRObjs = irObjs.filter((p: any) => {
+            const flags = statusFlags(p);
+            return !flags.includes("OUT");
+          });
+          
+          let allEligible = [...starterObjs, ...benchObjs, ...healthyIRObjs];
 
           // If considerWaivers is enabled, fetch and merge free agents into the candidate pool
           if (considerWaivers) {
@@ -449,8 +459,7 @@ export default function Home() {
           }
 
           // Calculate bench capacity and empty spots
-          // Identify IR and Taxi players (don't count them toward BN)
-          const irList: string[] = (meRoster?.reserve || []).filter(Boolean);
+          // Identify Taxi players (don't count them toward BN) - irList already defined above
           const taxiList: string[] = (meRoster?.taxi || []).filter(Boolean);
           
           // All rostered players on the team
@@ -608,7 +617,8 @@ export default function Home() {
             opponent,
             projectedWin,
             pointDifferential,
-            winProbability
+            winProbability,
+            irList, // Include IR list for tracking moves from IR
           });
           
           // Update progress counter

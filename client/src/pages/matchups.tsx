@@ -289,7 +289,17 @@ export default function MatchupsPage() {
 
           const starterObjs = validStarters.map(addWithProj).filter(Boolean) as any[];
           const benchObjs = bench.map(addWithProj).filter(Boolean) as any[];
-          const allEligible = [...starterObjs, ...benchObjs];
+          
+          // Include IR players if they're healthy (not OUT/injured)
+          const irList: string[] = (meRoster?.reserve || []).filter(Boolean);
+          const irObjs = irList.map(addWithProj).filter(Boolean) as any[];
+          // Only include IR players who are healthy enough to play (not OUT)
+          const healthyIRObjs = irObjs.filter((p: any) => {
+            const flags = statusFlags(p);
+            return !flags.includes("OUT");
+          });
+          
+          const allEligible = [...starterObjs, ...benchObjs, ...healthyIRObjs];
 
           // Calculate optimal lineup
           const optimalSlots = optimizeLineup(slotCounts, allEligible, season, week, starters);

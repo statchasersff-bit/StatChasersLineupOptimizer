@@ -4,11 +4,11 @@ export type LineupDiff = {
   ins: { player_id: string; name: string; pos: string; proj: number }[];
   outs: { player_id: string; name: string; pos: string; proj: number }[];
   // Best-effort mapping of which player should move into which slot
-  moves: { slot: string; in_pid: string; in_name: string; out_pid?: string; out_name?: string; gain: number }[];
+  moves: { slot: string; in_pid: string; in_name: string; out_pid?: string; out_name?: string; gain: number; fromIR?: boolean }[];
   delta: number;
 };
 
-export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[]): LineupDiff {
+export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?: string[]): LineupDiff {
   const fixedSlots = lg.roster_positions;
 
   // current starters (by player_id -> info)
@@ -74,6 +74,9 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[]): LineupD
       // Calculate actual gain (difference between incoming and outgoing player)
       const gain = (inP.proj ?? 0) - outProj;
       
+      // Check if the incoming player is from IR
+      const fromIR = irList ? irList.includes(inP.player_id) : false;
+      
       moves.push({
         slot,
         in_pid: inP.player_id,
@@ -81,6 +84,7 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[]): LineupD
         out_pid: currentIsOptimalSomewhere ? undefined : curPidAtSlot,
         out_name: outName,
         gain,
+        fromIR,
       });
       usedIn.add(inP.player_id);
       if (curPidAtSlot && !currentIsOptimalSomewhere) usedOut.add(curPidAtSlot);
