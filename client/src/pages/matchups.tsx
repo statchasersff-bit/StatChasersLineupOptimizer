@@ -69,11 +69,12 @@ interface LeagueMetrics {
   quesList?: Array<{ id?: string; name?: string; slot: string }>;
   currentStarters?: any[];
   optimalStarters?: any[];
-  recommendations?: Array<{ out: any; in: any; slot: string; delta: number }>;
+  recommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>;
   opponentName?: string;
   opponentPoints?: number;
   warnings?: string[];
   waiverSuggestions?: WaiverSuggestion[];
+  irList?: string[]; // List of player IDs in IR for tracking moves from IR
   
   // Loading state
   isComputing?: boolean;
@@ -384,7 +385,10 @@ export default function MatchupsPage() {
           }
 
           // Build recommendations - only show bench → starter promotions
-          const recommendations: Array<{ out: any; in: any; slot: string; delta: number }> = [];
+          const recommendations: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }> = [];
+          
+          // Create set of IR player IDs for tracking moves from IR
+          const irPlayerIds = new Set(irList);
           
           // Identify which players are in current starters vs optimal starters
           const currStarterIds = new Set(validStarters);
@@ -428,7 +432,8 @@ export default function MatchupsPage() {
                 out: bestOut,
                 in: inPlayer,
                 slot: inPlayer.slot,
-                delta: bestGain
+                delta: bestGain,
+                fromIR: irPlayerIds.has(inPlayer.player_id) // Mark if this player is coming from IR
               });
               demotedPool.splice(bestIdx, 1);
             }
@@ -511,6 +516,7 @@ export default function MatchupsPage() {
                   opponentPoints,
                   warnings,
                   waiverSuggestions,
+                  irList, // Include IR list for tracking moves from IR
                   isComputing: false, // Done computing
                 }
               : metric
