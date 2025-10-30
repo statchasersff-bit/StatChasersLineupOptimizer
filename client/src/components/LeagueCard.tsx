@@ -173,6 +173,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                   // Check if the incoming player is a FA
                   const inPlayer = lg.allEligible?.find(p => p.player_id === m.in_pid);
                   const isFA = (inPlayer as any)?.isFA === true;
+                  const fromIR = m.fromIR === true;
                   
                   // Check if out_name is an empty slot (starts with "player_id" or out_pid is "0")
                   const isEmptySlot = !m.out_name || m.out_pid === "0" || m.out_name.startsWith("player_id");
@@ -183,6 +184,12 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                         <>
                           <span className="text-yellow-700 font-semibold">Add FA</span> <b>{m.in_name}</b> into <b>{m.slot}</b>
                           {m.out_name && !isEmptySlot ? <> (replace <b>{m.out_name}</b>)</> : null}
+                          <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
+                        </>
+                      ) : fromIR ? (
+                        <>
+                          <span className="text-purple-700 dark:text-purple-400 font-semibold">Move from IR</span> <b>{m.in_name}</b> into <b>{m.slot}</b>
+                          {m.out_name && !isEmptySlot ? <> (bench <b>{m.out_name}</b>)</> : null}
                           <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
                         </>
                       ) : (
