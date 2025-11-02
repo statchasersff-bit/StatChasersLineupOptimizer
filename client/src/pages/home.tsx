@@ -734,9 +734,12 @@ export default function Home() {
       <header className="bg-card border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 gap-3">
-            <div className="flex items-center space-x-2">
-              <ChartLine className="text-primary w-6 h-6 sm:w-8 sm:h-8" />
-              <h1 className="text-lg sm:text-xl font-bold text-foreground" data-testid="text-app-title">StatChasers Lineup Checker</h1>
+            <div className="flex flex-col">
+              <div className="text-xs text-muted-foreground mb-1">Last Update: 11/2/2025 7:57am EDT</div>
+              <div className="flex items-center space-x-2">
+                <ChartLine className="text-primary w-6 h-6 sm:w-8 sm:h-8" />
+                <h1 className="text-lg sm:text-xl font-bold text-foreground" data-testid="text-app-title">StatChasers Lineup Checker</h1>
+              </div>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
