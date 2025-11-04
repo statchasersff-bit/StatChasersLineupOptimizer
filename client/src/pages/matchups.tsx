@@ -433,7 +433,7 @@ export default function MatchupsPage() {
                 in: inPlayer,
                 slot: inPlayer.slot,
                 delta: bestGain,
-                fromIR: irPlayerIds.has(inPlayer.player_id) // Mark if this player is coming from IR
+                fromIR: inPlayer.player_id ? irPlayerIds.has(inPlayer.player_id) : false // Mark if this player is coming from IR
               });
               demotedPool.splice(bestIdx, 1);
             }
@@ -654,7 +654,7 @@ export default function MatchupsPage() {
           
           <div className="flex flex-col gap-4">
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Last Update: 11/2/2025 7:57am EDT</div>
+              <div className="text-xs text-muted-foreground mb-1">Last Update: 11/4/2025 7:50pm EDT</div>
               <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-page-title">StatChasers Lineup Checker</h1>
               <p className="text-muted-foreground mt-1 text-sm sm:text-base" data-testid="text-username">
                 Analyzing leagues for <span className="font-semibold">{username}</span>
