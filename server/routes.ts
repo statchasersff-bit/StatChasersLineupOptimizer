@@ -41,6 +41,27 @@ async function fetchESPNSchedule(season: string, week: string): Promise<Record<s
     }
     
     const data = await response.json();
+    
+    // Check what week ESPN is actually returning
+    const espnWeek = data.week?.number;
+    const espnSeason = data.season?.year;
+    const requestedWeek = parseInt(week, 10);
+    const requestedSeason = parseInt(season, 10);
+    
+    // If the requested week is in the future compared to ESPN's current data,
+    // return an empty schedule (no games locked, all players available)
+    if (espnWeek && espnSeason) {
+      if (requestedSeason > espnSeason || (requestedSeason === espnSeason && requestedWeek > espnWeek)) {
+        console.log(`Requested week ${requestedWeek} is in the future (ESPN shows week ${espnWeek}), returning empty schedule`);
+        const emptySchedule = {};
+        scheduleCache.set(cacheKey, {
+          data: emptySchedule,
+          expiry: Date.now() + 5 * 60 * 1000
+        });
+        return emptySchedule;
+      }
+    }
+    
     const schedule: Record<string, { start: number; state: 'pre' | 'in' | 'post' }> = {};
     
     // Parse ESPN scoreboard data
