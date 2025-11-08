@@ -8,7 +8,7 @@ import { StarterBadge } from "./StarterBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { LineupComparison } from "./LineupComparison";
-import { UserPlus, Activity, RefreshCw, ArrowRight, Users, TrendingUp, TrendingDown } from "lucide-react";
+import { Activity, ArrowRight, Users, TrendingUp, TrendingDown, UserPlus, RefreshCw } from "lucide-react";
 import { InfoTooltip } from "./InfoTooltip";
 import { StatChasersWatermark } from "./StatChasersWatermark";
 
@@ -238,7 +238,7 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                           </div>
 
                           {/* Player Swap Visual */}
-                          <div className="flex items-center gap-3 pr-24">
+                          <div className="flex items-center gap-3">
                             {!isEmptySlot && m.out_name && (
                               <>
                                 <div className="flex-1 text-sm">
@@ -254,24 +254,6 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                               <div className="text-xs text-muted-foreground mt-0.5">{m.slot}</div>
                             </div>
                           </div>
-
-                          {/* Action Button */}
-                          <button
-                            className="mt-3 w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                            data-testid={`button-${isFA ? 'add-fa' : 'swap'}-${i}`}
-                          >
-                            {isFA ? (
-                              <>
-                                <UserPlus className="w-4 h-4" />
-                                Add Free Agent
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="w-4 h-4" />
-                                Make Swap
-                              </>
-                            )}
-                          </button>
                         </motion.div>
                       );
                     })}
@@ -488,7 +470,7 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                                 </div>
 
                                 {/* Projected Points */}
-                                <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center justify-between">
                                   <span className="text-xs text-muted-foreground">Proj Pts</span>
                                   <span className={`text-lg font-bold ${
                                     isStrongAdd 
@@ -500,15 +482,6 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                                     {projection.toFixed(1)}
                                   </span>
                                 </div>
-
-                                {/* Add Button */}
-                                <button
-                                  className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white text-xs font-semibold py-1.5 px-2 rounded flex items-center justify-center gap-1 transition-colors"
-                                  data-testid={`button-add-waiver-${i}`}
-                                >
-                                  <UserPlus className="w-3 h-3" />
-                                  Add
-                                </button>
                               </motion.div>
                             );
                           })}
