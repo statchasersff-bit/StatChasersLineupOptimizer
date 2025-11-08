@@ -90,7 +90,6 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<'delta' | 'winProbability' | 'injuries' | 'alphabetical'>(() => loadSetting('statChasers_sortBy', 'delta'));
   const [filterInjuries, setFilterInjuries] = useState(() => loadSetting('statChasers_filterInjuries', false));
   const [filterBigDelta, setFilterBigDelta] = useState(() => loadSetting('statChasers_filterBigDelta', false));
-  const [filterWithRecs, setFilterWithRecs] = useState(() => loadSetting('statChasers_filterWithRecs', false));
   const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
   const [totalLeagues, setTotalLeagues] = useState(0);
@@ -150,10 +149,6 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem('statChasers_filterBigDelta', JSON.stringify(filterBigDelta));
   }, [filterBigDelta]);
-  
-  useEffect(() => {
-    localStorage.setItem('statChasers_filterWithRecs', JSON.stringify(filterWithRecs));
-  }, [filterWithRecs]);
   
   // Persist checked leagues to localStorage
   useEffect(() => {
@@ -224,13 +219,6 @@ export default function Home() {
       filtered = filtered.filter(s => s.delta >= 5);
     }
     
-    // Filter leagues with actionable recommendations
-    if (filterWithRecs) {
-      filtered = filtered.filter(s => 
-        s.recommendations && s.recommendations.length > 0
-      );
-    }
-    
     // Sort based on selected option
     let sorted = [...filtered];
     switch (sortBy) {
@@ -258,7 +246,7 @@ export default function Home() {
     }
     
     return sorted;
-  }, [summaries, sortBy, filterNonOptimal, filterInjuries, filterBigDelta, filterWithRecs]);
+  }, [summaries, sortBy, filterNonOptimal, filterInjuries, filterBigDelta]);
 
   const handleAnalyzeLineups = async () => {
     if (!username.trim()) {
@@ -1291,18 +1279,6 @@ export default function Home() {
                   <Filter className="w-4 h-4 text-muted-foreground" />
                   <button
                     className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
-                      filterWithRecs
-                        ? 'bg-secondary text-secondary-foreground shadow-md border-2 border-primary'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                    onClick={() => setFilterWithRecs(!filterWithRecs)}
-                    data-testid="button-filter-with-recs"
-                  >
-                    {filterWithRecs && <X className="w-3 h-3 inline mr-1" />}
-                    Fix Suggestions
-                  </button>
-                  <button
-                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
                       filterInjuries
                         ? 'bg-red-500 text-white shadow-md'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -1325,11 +1301,10 @@ export default function Home() {
                     {filterBigDelta && <X className="w-3 h-3 inline mr-1" />}
                     5+ Pts Improvement
                   </button>
-                  {(filterWithRecs || filterInjuries || filterBigDelta) && (
+                  {(filterInjuries || filterBigDelta) && (
                     <button
                       className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
                       onClick={() => {
-                        setFilterWithRecs(false);
                         setFilterInjuries(false);
                         setFilterBigDelta(false);
                       }}
