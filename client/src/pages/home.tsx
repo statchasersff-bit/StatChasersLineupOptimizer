@@ -102,6 +102,24 @@ export default function Home() {
   const [currentLeagueIndex, setCurrentLeagueIndex] = useState(0);
   const [showPersistentBackBar, setShowPersistentBackBar] = useState(false);
   const { toast } = useToast();
+  
+  // Refs array for league cards to enable smooth scrolling on mobile
+  const leagueCardRefs = React.useRef<(HTMLDivElement | null)[]>([]);
+
+  // Helper function to scroll to a specific league card with sticky UI offset
+  const scrollToLeague = (index: number) => {
+    const element = leagueCardRefs.current[index];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+      // Adjust for sticky header (approximately 200px) + small padding
+      requestAnimationFrame(() => {
+        window.scrollBy({ top: -220, behavior: 'smooth' });
+      });
+    } else {
+      // Fallback if ref is missing
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Track scroll position for persistent back bar
   useEffect(() => {
@@ -248,6 +266,13 @@ export default function Home() {
     
     return sorted;
   }, [summaries, sortBy, filterNonOptimal, filterInjuries, filterBigDelta]);
+
+  // Clamp currentLeagueIndex when sortedSummaries changes (filters applied, etc.)
+  useEffect(() => {
+    if (currentLeagueIndex >= sortedSummaries.length && sortedSummaries.length > 0) {
+      setCurrentLeagueIndex(sortedSummaries.length - 1);
+    }
+  }, [sortedSummaries.length, currentLeagueIndex]);
 
   const handleAnalyzeLineups = async () => {
     if (!username.trim()) {
@@ -1355,6 +1380,7 @@ export default function Home() {
                     return (
                       <motion.div
                         key={lg.league_id}
+                        ref={(el) => { leagueCardRefs.current[index] = el; }}
                         className="animate-fadeIn relative"
                         style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
                         drag="x"
@@ -1502,14 +1528,15 @@ export default function Home() {
           onReanalyze={handleAnalyzeLineups}
           onNextLeague={() => {
             if (currentLeagueIndex < sortedSummaries.length - 1) {
-              setCurrentLeagueIndex(currentLeagueIndex + 1);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              const nextIndex = currentLeagueIndex + 1;
+              setCurrentLeagueIndex(nextIndex);
+              scrollToLeague(nextIndex);
             }
           }}
           onBackToAll={() => {
             setCurrentLeagueIndex(0);
             setShowPersistentBackBar(false);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            scrollToLeague(0);
           }}
           currentIndex={currentLeagueIndex}
           totalLeagues={sortedSummaries.length}
@@ -1522,7 +1549,7 @@ export default function Home() {
         onClick={() => {
           setCurrentLeagueIndex(0);
           setShowPersistentBackBar(false);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          scrollToLeague(0);
         }}
         visible={showPersistentBackBar && sortedSummaries.length > 1}
       />

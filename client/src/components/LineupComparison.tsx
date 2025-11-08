@@ -12,14 +12,14 @@ interface LineupComparisonProps {
 }
 
 const POSITION_COLORS: Record<string, string> = {
-  QB: "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700",
+  QB: "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700",
   RB: "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700",
-  WR: "bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700",
-  TE: "bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700",
+  WR: "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700",
+  TE: "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700",
   FLEX: "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600",
-  SUPER_FLEX: "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700",
-  K: "bg-pink-100 dark:bg-pink-900/30 border-pink-300 dark:border-pink-700",
-  DEF: "bg-cyan-100 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700",
+  SUPER_FLEX: "bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700",
+  K: "bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700",
+  DEF: "bg-amber-100 dark:bg-amber-900/30 border-amber-400 dark:border-amber-700",
 };
 
 function getPositionColor(slot: string): string {
