@@ -1,0 +1,257 @@
+Core logic fixes
+
+
+Compute deltas from full lineup diffs, not slot labels
+
+
+Build optimal “before” and optimal “after” lineups from the same roster snapshot and same projection table.
+
+
+Diff by playerId sets:
+
+
+added: new starters
+
+
+removed: starters pushed to bench
+
+
+moved: starters whose slot changed
+
+
+
+
+Delta = sum(proj(after)) – sum(proj(before)).
+
+
+Attribute per-step effects from this diff, not “same slot” comparisons.
+
+
+
+
+Respect lock state everywhere
+
+
+Treat any player whose game has started (or status says in-progress/final) as fixed in their current slot.
+
+
+Exclude locked bench players from consideration.
+
+
+If a change would touch a lock, mark it as blocked and omit from “Apply” steps.
+
+
+
+
+Enforce slot legality consistently
+
+
+Centralize a canFillSlot(position, slot) and an interchangeable(posA,posB) helper.
+
+
+Optimizer, diff explainer, and waiver simulation must all use these rules.
+
+
+
+
+One projection source, one timestamp
+
+
+Pin both “before” and “after” calculations to the same projectionVersionId.
+
+
+Keep full precision internally; round only for display.
+
+
+
+
+Handle cascades deterministically
+
+
+When multiple players move, order the suggestion steps as:
+
+
+Add (FA or bench → starter)
+
+
+Move (slot changes)
+
+
+Bench (who leaves)
+
+
+
+
+If multiple players are removed, tie-break by:
+
+
+eligible-slot overlap, then
+
+
+higher projected points (the real displacement), then
+
+
+stable id order.
+
+
+
+
+
+
+De-duplicate waiver outputs
+
+
+Group recommendations per FA per league; keep the highest net gain.
+
+
+Merge reasons (e.g., FA upgrades FLEX and WR) into a single row with subpoints.
+
+
+
+
+UI/UX fixes
+
+
+Explain the cascade
+
+
+Render steps as:
+
+
+➕ Add {Player} → {Slot}
+
+
+🔁 Move {Player} {from} → {to}
+
+
+⬇️ Bench {Player}
+
+
+Net: +X.X pts
+
+
+
+
+Gray out blocked steps with a lock icon and reason.
+
+
+
+
+Reachable vs theoretical
+
+
+Show Reachable Δ (respects locks) as the main number.
+
+
+Optional: show smaller “Full Δ” (ignores locks) for hindsight only.
+
+
+
+
+Compact, consistent badges
+
+
+Use short labels: REC, Δ, RES, and chips for Q / OUT / BYE / EMPTY.
+
+
+Keep chips below the league name on mobile to prevent truncation.
+
+
+
+
+League name readability
+
+
+Give the title its own column/row.
+
+
+Add min-width:0 to every ancestor of the name container.
+
+
+Use a two-line clamp on mobile; expand fully when the card opens.
+
+
+
+
+Reliability & tests
+
+
+Unit tests
+
+
+
+
+Locked starter cannot be moved/benched.
+
+
+Cross-position add triggers legal cascades only.
+
+
+Delta sign correctness (optimal - current).
+
+
+Duplicate FA recs collapse to one unique item per league.
+
+
+Rounding only at display.
+
+
+
+
+Diagnostics
+
+
+
+
+Log for each simulation: projection version, before/after totals, diff counts (added/moved/removed), lock count, and legality violations skipped.
+
+
+Reference skeletons (generic)
+Lineup diff
+function diffLineups(before: Starter[], after: Starter[]){
+  const b = new Map(before.map(s => [s.playerId, s]));
+  const a = new Map(after.map(s => [s.playerId, s]));
+  const added   = [...a.values()].filter(s => !b.has(s.playerId));
+  const removed = [...b.values()].filter(s => !a.has(s.playerId));
+  const moved   = [...a.values()]
+    .map(s => ({...s, prev: b.get(s.playerId)?.slot}))
+    .filter(x => x.prev && x.prev !== x.slot);
+  return { added, removed, moved };
+}
+
+Lock-aware optimization wrapper
+function optimizeRespectingLocks(starters, bench, slots, nowUtc, canFillSlot, solve){
+  const fixed = starters.filter(s => s.locked);
+  const openSlots = slots.filter(slot => !fixed.some(f => f.slot === slot));
+  const pool = [...starters.filter(s => !s.locked).map(s=>s.player), ...bench.filter(p=>!p.locked)];
+  const reassigned = solve(pool, openSlots, canFillSlot); // your DP/greedy
+  return [...fixed, ...reassigned];
+}
+
+Slot rules (example shape)
+const SLOT_RULES: Record<Position, Slot[]> = {
+  QB:['QB','SUPER_FLEX'], RB:['RB','FLEX','SUPER_FLEX'],
+  WR:['WR','FLEX','SUPER_FLEX'], TE:['TE','FLEX','SUPER_FLEX'],
+  K:['K'], DEF:['DEF']
+};
+const canFillSlot = (pos: Position, slot: Slot) => (SLOT_RULES[pos]||[]).includes(slot);
+const interchangeable = (a: Position, b: Position) => {
+  const A = new Set(SLOT_RULES[a]||[]);
+  return (SLOT_RULES[b]||[]).some(s => A.has(s));
+};
+
+
+Implement those twelve items and your tool will:
+
+
+surface the correct displaced player,
+
+
+never suggest illegal or lock-blocked swaps,
+
+
+show accurate, comprehensible deltas,
+
+
+and avoid duplicate waiver spam—while keeping the mobile UI readable.
+

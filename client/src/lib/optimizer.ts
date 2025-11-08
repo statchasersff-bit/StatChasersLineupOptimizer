@@ -55,12 +55,21 @@ export function statusFlags(p?: PlayerLite & { proj?: number; opp?: string; lock
 
 function byProjDesc(a: any, b: any) { return (b.proj ?? 0) - (a.proj ?? 0); }
 
+export interface OptimizationResult {
+  lineup: RosterSlot[];
+  total: number;
+  reachableTotal?: number; // Total respecting locks
+  fullTotal?: number; // Total ignoring locks (for comparison)
+  hasLockedPlayers?: boolean;
+}
+
 export function optimizeLineup(
   slotsMap: Record<string, number>,
-  players: (PlayerLite & { proj?: number; opp?: string })[],
+  players: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[],
   season?: string,
   week?: string,
-  currentStarters?: (string | null)[]
+  currentStarters?: (string | null)[],
+  respectLocks: boolean = true
 ): RosterSlot[] {
   const slotList: string[] = [];
   Object.entries(slotsMap).forEach(([slot, n]) => { for (let i=0;i<n;i++) slotList.push(slot); });
@@ -68,14 +77,14 @@ export function optimizeLineup(
   const filled: RosterSlot[] = slotList.map((s) => ({ slot: s }));
   const used = new Set<string>();
 
-  // Step 1: If we have current starters, preserve any locked players in their current positions
-  if (currentStarters && season && week) {
+  // Step 1: If respecting locks, freeze locked starters in their EXACT current slots
+  if (respectLocks && currentStarters && season && week) {
     for (let i = 0; i < Math.min(currentStarters.length, filled.length); i++) {
       const starterId = currentStarters[i];
       if (!starterId || starterId === "0" || starterId === "") continue;
       
       const player = players.find(p => p.player_id === starterId);
-      if (player && (player as any).locked) {
+      if (player && player.locked) {
         // Keep locked player in their current position
         filled[i].player = player;
         used.add(player.player_id);
@@ -83,9 +92,10 @@ export function optimizeLineup(
     }
   }
 
-  // Step 2: For remaining slots, optimize using only unlocked players
-  // Locked players should stay in their current positions and not be moved
-  const availablePlayers = players.filter(p => !(p as any).locked || used.has(p.player_id));
+  // Step 2: Build pool of movable players (exclude locked starters if respecting locks)
+  const availablePlayers = respectLocks 
+    ? players.filter(p => !p.locked || used.has(p.player_id))
+    : players;
   const sorted = [...availablePlayers].sort(byProjDesc);
 
   // fill fixed positions first (skip already filled locked positions)
@@ -114,6 +124,39 @@ export function optimizeLineup(
     if (idx !== -1) { filled[i].player = sorted[idx]; used.add(sorted[idx].player_id); }
   }
   return filled;
+}
+
+/**
+ * Optimize lineup and calculate both reachable (respects locks) and full optimal (ignores locks)
+ */
+export function optimizeLineupWithLockComparison(
+  slotsMap: Record<string, number>,
+  players: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[],
+  season?: string,
+  week?: string,
+  currentStarters?: (string | null)[]
+): OptimizationResult {
+  const hasLockedPlayers = players.some(p => p.locked);
+  
+  // Calculate reachable optimal (respects locks)
+  const reachableLineup = optimizeLineup(slotsMap, players, season, week, currentStarters, true);
+  const reachableTotal = sumProj(reachableLineup);
+  
+  let fullTotal = reachableTotal;
+  
+  // If there are locked players, also calculate full optimal (ignores locks) for comparison
+  if (hasLockedPlayers) {
+    const fullLineup = optimizeLineup(slotsMap, players, season, week, currentStarters, false);
+    fullTotal = sumProj(fullLineup);
+  }
+  
+  return {
+    lineup: reachableLineup,
+    total: reachableTotal,
+    reachableTotal,
+    fullTotal,
+    hasLockedPlayers
+  };
 }
 
 export function sumProj(slots: RosterSlot[]) {
