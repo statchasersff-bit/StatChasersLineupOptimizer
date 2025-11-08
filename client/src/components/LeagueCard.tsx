@@ -244,14 +244,18 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                             {!isEmptySlot && m.out_name && (
                               <>
                                 <div className="flex-1 text-sm">
-                                  <div className="text-muted-foreground text-xs mb-0.5">Out</div>
+                                  <div className="text-red-600 dark:text-red-400 text-xs font-semibold mb-0.5">
+                                    Remove from starting lineup
+                                  </div>
                                   <div className="font-medium line-through opacity-60">{m.out_name}</div>
                                 </div>
                                 <ArrowRight className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
                               </>
                             )}
                             <div className="flex-1 text-sm">
-                              <div className="text-muted-foreground text-xs mb-0.5">In</div>
+                              <div className="text-green-600 dark:text-green-400 text-xs font-semibold mb-0.5">
+                                {!isEmptySlot && m.out_name ? 'Add to starting lineup' : 'Start'}
+                              </div>
                               <div className="font-bold text-green-700 dark:text-green-300">{m.in_name}</div>
                               <div className="text-xs text-muted-foreground mt-0.5">{m.slot}</div>
                             </div>
