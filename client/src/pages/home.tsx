@@ -14,6 +14,7 @@ import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
 import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
+import { detectGlobalAutoSubSettings } from "@/lib/autoSubsGlobal";
 import { summarizeStarters, type Starter } from "@/lib/availability";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 
@@ -1376,6 +1377,20 @@ export default function Home() {
                 </>
               ) : sortedSummaries.length > 0 ? (
                 <>
+                  {/* Global Auto-Sub Banner */}
+                  {(() => {
+                    const globalSettings = detectGlobalAutoSubSettings(sortedSummaries);
+                    if (globalSettings.isUniform && globalSettings.enabled) {
+                      return (
+                        <div className="auto-subs-global-banner mb-4" data-testid="global-auto-subs-banner">
+                          Auto-subs: ON • {globalSettings.allowedPerWeek}/wk cap
+                          {globalSettings.requireLaterStart && <span className="text-amber-600"> • Must start at/after</span>}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
                   {sortedSummaries.map((lg, index) => {
                     const isChecked = checkedLeagues.has(lg.league_id);
                     
