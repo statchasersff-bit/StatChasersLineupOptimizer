@@ -1,0 +1,68 @@
+function CompactLeagueRow({
+  leagueName, formatText, myRecord,
+  myProj, oppProj, oppName, oppAvatar,
+  winPct, locked, deltaOptAct, projResult, // projResult can be + / -
+  quesCount, outCount, byeEmptyCount      // combine BYE+EMPTY if you prefer
+}) {
+  const pct = Math.round(winPct * 100);
+  const resIsPos = projResult >= 0;
+  const deltaIsPos = deltaOptAct >= 0;
+
+  return (
+    <button className="lc-row" aria-label={`${leagueName}, ${formatText}, win ${pct}%`}>
+      <div className="lc-left">
+        <div className="lc-logo">{/* optional league icon */}</div>
+        <div className="lc-main">
+          <div className="lc-title clamp1" title={leagueName}>{leagueName}</div>
+          <div className="lc-sub clamp1">{formatText}</div>
+        </div>
+      </div>
+
+      <div className="lc-numblock">
+        {locked && <span className="lc-lock" aria-label="Lineup locked">🔒</span>}
+        <span className="lc-num">{myProj.toFixed(2)}</span>
+      </div>
+
+      <div className="lc-center">
+        <div className="lc-bar"><div className="lc-bar-fill" style={{width: `${pct}%`}} /></div>
+        <div className="lc-pct">{pct}%</div>
+      </div>
+
+      <div className="lc-right">
+        <span className="lc-num">{oppProj.toFixed(2)}</span>
+        <img className="lc-opp-ava" src={oppAvatar} alt={oppName} />
+      </div>
+
+      {/* mini stats strip */}
+      <div className="lc-strip" aria-label="row details">
+        <span className="k">REC</span> <span className="v">{myRecord}</span>
+        <span className="sep">·</span>
+        <span className="k">Δ</span>
+        <span className={`pill ${deltaIsPos ? 'pos' : 'neg'}`}>
+          {deltaIsPos ? '↑' : '↓'} {Math.abs(deltaOptAct).toFixed(1)}
+        </span>
+        <span className="sep">·</span>
+        <span className="k">RES</span>
+        <span className={`pill ${resIsPos ? 'pos' : 'neg'}`}>
+          {resIsPos ? '↑' : '↓'} {Math.abs(projResult).toFixed(1)}
+        </span>
+        {/* injury/byes */}
+        {typeof quesCount === 'number' && (
+          <span className="chip chip-ques" title="Questionable">
+            <span className="dot dot-yellow"></span>{quesCount}
+          </span>
+        )}
+        {typeof outCount === 'number' && (
+          <span className="chip chip-out" title="Out">
+            <span className="dot dot-red"></span>{outCount}
+          </span>
+        )}
+        {typeof byeEmptyCount === 'number' && (
+          <span className="chip chip-bye" title="Bye/Empty">
+            <span className="dot dot-green"></span>{byeEmptyCount}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
