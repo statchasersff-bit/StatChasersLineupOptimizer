@@ -1044,6 +1044,26 @@ export default function MatchupsPage() {
             ))}
           </div>
           
+          {/* Summary Header - shown only on mobile */}
+          <div className="sm:hidden summary-header" data-testid="summary-header">
+            <span className="count">{sortedMetrics.length}</span> leagues
+            <span className="sep">•</span>
+            <span className="count">
+              +{sortedMetrics.reduce((sum, l) => sum + (l.optMinusAct ?? 0), 0).toFixed(1)}
+            </span> potential pts
+            {sortedMetrics.some(l => (l.notPlayingCount ?? 0) > 0 || (l.quesCount ?? 0) > 0) && (
+              <>
+                <span className="sep">•</span>
+                <span 
+                  className="alerts"
+                  onClick={() => setSortBy("notPlayingCount")}
+                >
+                  {sortedMetrics.filter(l => (l.notPlayingCount ?? 0) > 0 || (l.quesCount ?? 0) > 0).length} alerts
+                </span>
+              </>
+            )}
+          </div>
+
           {/* Mobile Help & Explainer - shown only on mobile */}
           <div className="sm:hidden mb-4">
             <button 
@@ -1056,8 +1076,8 @@ export default function MatchupsPage() {
             
             <div className={`help-panel ${showHelp ? '' : 'hidden'}`}>
               <p><strong>Record:</strong> Your current win-loss record</p>
-              <p><strong>Δ (Delta):</strong> Points your optimal lineup beats your active lineup by</p>
-              <p><strong>RES (Result):</strong> Expected margin of victory (+) or loss (-)</p>
+              <p><strong>Δ (Delta):</strong> Points gained if you apply suggested changes</p>
+              <p><strong>MRGN (Margin):</strong> Expected margin of victory (+) or loss (-)</p>
               <p><strong>Win Bar:</strong> Your probability of winning this week</p>
               <p><strong>Dots:</strong> 🟡 Questionable · 🔴 Out/Bye/Empty · 🟢 All clear</p>
             </div>
@@ -1102,7 +1122,7 @@ export default function MatchupsPage() {
           </div>
 
           {/* Compact Mobile View - shown only on mobile */}
-          <div className="sm:hidden space-y-2 mb-6" data-testid="compact-mobile-view">
+          <div className="sm:hidden space-y-2 mb-6 page-content" data-testid="compact-mobile-view">
             {sortedMetrics.map((league) => {
               const myProj = league.optPoints ?? 0;
               const oppProj = league.opponentPoints ?? 0;

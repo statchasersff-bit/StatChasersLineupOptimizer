@@ -1,3 +1,5 @@
+import { ChevronDown } from "lucide-react";
+
 interface CompactLeagueRowProps {
   leagueName: string;
   formatText: string;
@@ -58,6 +60,7 @@ export function CompactLeagueRow({
         <div className="m-name clamp2" title={leagueName}>
           {displayName}
         </div>
+        <ChevronDown className={`chev h-5 w-5 text-muted-foreground flex-shrink-0`} />
       </div>
 
       <div className="m-left">
@@ -82,26 +85,26 @@ export function CompactLeagueRow({
 
       <div className="m-strip">
         <span className="k">REC</span> <span className="v">{myRecord}</span>
-        <span className="k">Δ</span>
-        <span className={`pill ${deltaIsPos ? 'pos' : 'neg'}`}>
-          {deltaIsPos ? '↑' : '↓'} {Math.abs(deltaOptAct).toFixed(1)}
+        <span className="k" title="Points gained vs current lineup">Δ</span>
+        <span className={`pill ${deltaIsPos ? 'pill-pos' : 'pill-neg'}`} title="Points gained vs current lineup">
+          {deltaIsPos ? '+' : ''}{deltaOptAct.toFixed(1)} pts
         </span>
-        <span className="k">RES</span>
-        <span className={`pill ${resIsPos ? 'pos' : 'neg'}`}>
-          {resIsPos ? '↑' : '↓'} {Math.abs(projResult).toFixed(1)}
+        <span className="k" title="Projected margin vs opponent">MRGN</span>
+        <span className={`pill ${resIsPos ? 'pill-pos' : 'pill-neg'}`} title="Projected margin vs opponent">
+          {resIsPos ? '+' : ''}{projResult.toFixed(1)}
         </span>
         {typeof quesCount === 'number' && quesCount > 0 && (
-          <span className="chip" title="Questionable">
+          <span className="chip" title="Questionable starters">
             <span className="dot y"></span>{quesCount}
           </span>
         )}
         {typeof outByeEmptyCount === 'number' && outByeEmptyCount > 0 && (
-          <span className="chip" title="Out/Bye/Empty">
+          <span className="chip" title="Out/Bye/Empty starters">
             <span className="dot r"></span>{outByeEmptyCount}
           </span>
         )}
         {typeof outByeEmptyCount === 'number' && outByeEmptyCount === 0 && (
-          <span className="chip" title="All clear">
+          <span className="chip" title="All starters available">
             <span className="dot g"></span>0
           </span>
         )}
