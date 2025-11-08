@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { queryClient } from "@/lib/queryClient";
-import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target, Filter, ArrowUpDown, X } from "lucide-react";
+import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target, Filter, ArrowUpDown, X, Check, RotateCcw } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
@@ -37,6 +37,7 @@ function calculateWinProbability(pointDifferential: number): number {
   // Convert to percentage and clamp between 1-99%
   return Math.max(1, Math.min(99, Math.round(cdf * 100)));
 }
+import { motion, AnimatePresence } from "framer-motion";
 import LeagueCard from "@/components/LeagueCard";
 import { LeagueListSkeleton } from "@/components/ui/league-skeleton";
 import { AutoSubBanner } from "@/components/ui/auto-sub-chip";
@@ -74,7 +75,16 @@ export default function Home() {
   const [projections, setProjections] = useState<Projection[]>([]);
   const [totalLeagues, setTotalLeagues] = useState(0);
   const [loadedLeagues, setLoadedLeagues] = useState(0);
+  const [checkedLeagues, setCheckedLeagues] = useState<Set<string>>(() => {
+    const stored = localStorage.getItem('checkedLeagues');
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  });
   const { toast } = useToast();
+
+  // Persist checked leagues to localStorage
+  useEffect(() => {
+    localStorage.setItem('checkedLeagues', JSON.stringify(Array.from(checkedLeagues)));
+  }, [checkedLeagues]);
 
   // Auto-detect the latest available week on mount
   useEffect(() => {
@@ -1200,15 +1210,49 @@ export default function Home() {
                 </>
               ) : sortedSummaries.length > 0 ? (
                 <>
-                  {sortedSummaries.map((lg, index) => (
-                    <div
-                      key={lg.league_id}
-                      className="animate-fadeIn"
-                      style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
-                    >
-                      <LeagueCard lg={lg} />
-                    </div>
-                  ))}
+                  {sortedSummaries.map((lg, index) => {
+                    const isChecked = checkedLeagues.has(lg.league_id);
+                    
+                    return (
+                      <motion.div
+                        key={lg.league_id}
+                        className="animate-fadeIn relative"
+                        style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 0 }}
+                        dragElastic={0.2}
+                        onDragEnd={(e, info) => {
+                          // Swipe left (negative offset) = check/hide
+                          if (info.offset.x < -100) {
+                            setCheckedLeagues(prev => new Set([...prev, lg.league_id]));
+                          }
+                          // Swipe right (positive offset) = uncheck
+                          else if (info.offset.x > 100 && isChecked) {
+                            setCheckedLeagues(prev => {
+                              const next = new Set(prev);
+                              next.delete(lg.league_id);
+                              return next;
+                            });
+                          }
+                        }}
+                        data-testid={`swipeable-card-${lg.league_id}`}
+                      >
+                        {/* Checked indicator overlay */}
+                        {isChecked && (
+                          <div className="absolute inset-0 bg-green-100 dark:bg-green-900/20 rounded-2xl border-2 border-green-500 z-10 flex items-center justify-center pointer-events-none">
+                            <div className="bg-green-500 text-white rounded-full p-3 shadow-lg">
+                              <Check className="w-8 h-8" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* League Card */}
+                        <div className={isChecked ? 'opacity-50' : ''}>
+                          <LeagueCard lg={lg} />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </>
               ) : null}
             </section>
@@ -1248,6 +1292,25 @@ export default function Home() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Floating Action Button (FAB) for Re-analyze */}
+        {sortedSummaries.length > 0 && !isAnalyzing && (
+          <motion.button
+            className="fixed bottom-6 right-6 bg-primary text-primary-foreground rounded-full p-4 shadow-2xl hover:shadow-3xl transition-all z-50 flex items-center gap-2 group"
+            onClick={handleAnalyzeLineups}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            data-testid="button-fab-reanalyze"
+          >
+            <RotateCcw className="w-6 h-6" />
+            <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap font-medium">
+              Re-analyze
+            </span>
+          </motion.button>
         )}
       </main>
 
