@@ -48,6 +48,7 @@ import { ShareSummaryCard } from "@/components/ShareSummaryCard";
 import { useToast } from "@/hooks/use-toast";
 import { MobileStickyFooter } from "@/components/MobileStickyFooter";
 import { PersistentBackBar } from "@/components/PersistentBackBar";
+import { StatChasersLoader } from "@/components/StatChasersLoader";
 import {
   Tooltip,
   TooltipContent,
@@ -1320,11 +1321,28 @@ export default function Home() {
             <section className="space-y-3 md:space-y-4">
               {isAnalyzing ? (
                 <>
+                  <StatChasersLoader 
+                    message={totalLeagues > 0 
+                      ? `Analyzing ${totalLeagues} ${totalLeagues === 1 ? "league" : "leagues"}...` 
+                      : "Analyzing lineups..."
+                    } 
+                  />
                   {totalLeagues > 0 && (
-                    <div className="text-center mb-4" data-testid="text-loading-progress">
-                      <p className="text-muted-foreground">
-                        Processing leagues: {loadedLeagues} / {totalLeagues}
+                    <div className="mt-6">
+                      <p className="text-sm text-center text-muted-foreground mb-3">
+                        Loaded {loadedLeagues} / {totalLeagues}
                       </p>
+                      <div className="max-w-md mx-auto">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                          <motion.div
+                            className="bg-gold-gradient h-2.5 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(loadedLeagues / totalLeagues) * 100}%` }}
+                            transition={{ duration: 0.3 }}
+                            data-testid="progress-bar"
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
                   <LeagueListSkeleton />

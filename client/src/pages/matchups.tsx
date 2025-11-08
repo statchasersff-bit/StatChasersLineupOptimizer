@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { summarizeStarters, type Starter, type AvailTag } from "@/lib/availability";
 import { OptActCell } from "@/components/OptActCell";
 import { StarterBadge } from "@/components/StarterBadge";
+import { StatChasersLoader } from "@/components/StatChasersLoader";
 import {
   getFreeAgentsForLeague,
   scoreFreeAgents,
@@ -1219,10 +1220,7 @@ export default function MatchupsPage() {
                       <TableRow data-testid={`expanded-${league.leagueId}`}>
                         <TableCell colSpan={7} className="bg-muted/50 p-3 sm:p-6">
                           {league.isComputing ? (
-                            <div className="text-center py-8">
-                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
-                              <p className="text-sm text-muted-foreground">Analyzing league...</p>
-                            </div>
+                            <StatChasersLoader message="Analyzing league..." />
                           ) : (
                             <div className="space-y-6">
                               {/* Not playing list */}
