@@ -10,6 +10,19 @@ export interface WaiverSuggestion {
   delta: number;
 }
 
+export interface GroupedWaiverSuggestion {
+  player_id: string;
+  name: string;
+  pos: string;
+  proj: number;
+  bestDelta: number;
+  alternatives: {
+    outP: { player_id: string; name: string; pos: string; proj: number };
+    slot: Slot;
+    delta: number;
+  }[];
+}
+
 export interface StarterWithSlot {
   player_id: string;
   name: string;
@@ -284,4 +297,62 @@ export function pickWaiverUpgrades(
 
   // Return all results sorted by delta
   return result.sort((a: WaiverSuggestion, b: WaiverSuggestion) => b.delta - a.delta);
+}
+
+// Group waiver suggestions by player to avoid showing the same FA multiple times
+// Returns one entry per player with the best delta and all alternatives listed
+export function groupWaiverSuggestions(
+  suggestions: WaiverSuggestion[],
+  maxPlayers: number = 8
+): GroupedWaiverSuggestion[] {
+  // Group all suggestions by incoming player_id
+  const byPlayer = new Map<string, WaiverSuggestion[]>();
+  
+  for (const s of suggestions) {
+    const pid = s.inP.player_id;
+    if (!byPlayer.has(pid)) {
+      byPlayer.set(pid, []);
+    }
+    byPlayer.get(pid)!.push(s);
+  }
+  
+  // For each player, create a grouped suggestion
+  const grouped: GroupedWaiverSuggestion[] = [];
+  
+  for (const [playerId, playerSuggestions] of Array.from(byPlayer.entries())) {
+    // Sort by delta to find best
+    const sorted = playerSuggestions.sort((a: WaiverSuggestion, b: WaiverSuggestion) => b.delta - a.delta);
+    const best = sorted[0];
+    
+    // Create alternatives list (all unique out players, sorted by delta)
+    const uniqueOuts = new Map<string, { outP: typeof best.outP; slot: Slot; delta: number }>();
+    
+    for (const s of sorted) {
+      const outId = s.outP.player_id;
+      if (!uniqueOuts.has(outId) || uniqueOuts.get(outId)!.delta < s.delta) {
+        uniqueOuts.set(outId, {
+          outP: s.outP,
+          slot: s.slot,
+          delta: s.delta,
+        });
+      }
+    }
+    
+    const alternatives = Array.from(uniqueOuts.values())
+      .sort((a, b) => b.delta - a.delta);
+    
+    grouped.push({
+      player_id: playerId,
+      name: best.inP.name,
+      pos: best.inP.pos,
+      proj: best.inP.proj,
+      bestDelta: best.delta,
+      alternatives,
+    });
+  }
+  
+  // Sort by best delta and limit
+  return grouped
+    .sort((a, b) => b.bestDelta - a.bestDelta)
+    .slice(0, maxPlayers);
 }

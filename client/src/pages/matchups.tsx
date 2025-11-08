@@ -22,7 +22,9 @@ import {
   getFreeAgentsForLeague,
   scoreFreeAgents,
   pickWaiverUpgrades,
+  groupWaiverSuggestions,
   type WaiverSuggestion,
+  type GroupedWaiverSuggestion,
   type StarterWithSlot,
   type Slot,
 } from "@/lib/waivers";
@@ -75,7 +77,7 @@ interface LeagueMetrics {
   opponentName?: string;
   opponentPoints?: number;
   warnings?: string[];
-  waiverSuggestions?: WaiverSuggestion[];
+  waiverSuggestions?: GroupedWaiverSuggestion[];
   irList?: string[]; // List of player IDs in IR for tracking moves from IR
   
   // Loading state
@@ -448,7 +450,7 @@ export default function MatchupsPage() {
           if (notPlayingCount > 0) warnings.push(`${notPlayingCount} not playing${notPlayingCount > 1 ? ' starters' : ' starter'}`);
 
           // Calculate waiver suggestions (only if considerWaivers is enabled)
-          let waiverSuggestions: WaiverSuggestion[] = [];
+          let waiverSuggestions: GroupedWaiverSuggestion[] = [];
           if (considerWaivers) {
             try {
               // Build set of owned player IDs across all rosters
@@ -491,7 +493,10 @@ export default function MatchupsPage() {
               );
 
               // Pick top waiver upgrades (only for slots this league actually has)
-              waiverSuggestions = pickWaiverUpgrades(scoredFAs, startersWithSlots, activeSlots);
+              const rawSuggestions = pickWaiverUpgrades(scoredFAs, startersWithSlots, activeSlots);
+              
+              // Group suggestions to avoid showing same player multiple times
+              waiverSuggestions = groupWaiverSuggestions(rawSuggestions, 8);
             } catch (waiverErr) {
               console.error(`[Waivers] Error calculating suggestions for league ${lg.league_id}:`, waiverErr);
             }
@@ -1003,28 +1008,37 @@ export default function MatchupsPage() {
                         {/* Waiver Watchlist */}
                         {league.waiverSuggestions && league.waiverSuggestions.length > 0 && (
                           <div className="rounded-lg border p-3 bg-background" data-testid={`waiver-watchlist-${league.leagueId}`}>
-                            <h4 className="font-semibold text-sm mb-2">Waiver Watchlist</h4>
+                            <h4 className="font-semibold text-sm mb-2">
+                              Waiver Watchlist <span className="text-muted-foreground font-normal">(Top Free Agents)</span>
+                            </h4>
                             <ul className="space-y-2">
                               {league.waiverSuggestions.map((s, idx) => (
                                 <li
-                                  key={`${s.slot}-${s.inP.player_id}-${idx}`}
+                                  key={`${s.player_id}-${idx}`}
                                   className="rounded-md border p-2 text-xs"
                                   data-testid={`waiver-suggestion-${league.leagueId}-${idx}`}
                                 >
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-green-700 font-medium">
-                                      Add {s.inP.name}
+                                      Add {s.name} ({s.pos})
                                     </span>
                                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                      +{s.delta.toFixed(1)} pts
+                                      +{s.bestDelta.toFixed(1)} pts
                                     </Badge>
                                   </div>
-                                  <div className="text-muted-foreground mt-1">
-                                    over {s.outP.name} ({s.outP.pos}, {s.outP.proj.toFixed(1)} pts)
+                                  <div className="text-muted-foreground mt-1 space-y-0.5">
+                                    {s.alternatives.map((alt, altIdx) => (
+                                      <div key={altIdx}>
+                                        • Over {alt.outP.name} ({alt.outP.pos}, {alt.outP.proj.toFixed(1)} pts)
+                                        {alt.delta !== s.bestDelta && (
+                                          <span className="text-xs ml-1">+{alt.delta.toFixed(1)}</span>
+                                        )}
+                                      </div>
+                                    ))}
                                   </div>
                                   <a
                                     className="text-primary hover:underline text-xs mt-1 inline-block"
-                                    href={`https://sleeper.com/leagues/${league.leagueId}/players/${s.inP.player_id}`}
+                                    href={`https://sleeper.com/leagues/${league.leagueId}/players/${s.player_id}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
@@ -1221,13 +1235,14 @@ export default function MatchupsPage() {
                             <div>
                               <h4 className="font-semibold text-sm mb-2">Waiver Watchlist</h4>
                               <div className="space-y-2">
-                                {league.waiverSuggestions.slice(0, 3).map((s: WaiverSuggestion, idx: number) => (
+                                {league.waiverSuggestions.slice(0, 3).map((s: GroupedWaiverSuggestion, idx: number) => (
                                   <div key={idx} className="text-xs bg-green-50 dark:bg-green-900/20 rounded p-2 border border-green-200 dark:border-green-800">
                                     <div className="font-medium text-green-700 dark:text-green-300">
-                                      Add {s.inP.name}
+                                      Add {s.name} ({s.pos}) +{s.bestDelta.toFixed(1)}
                                     </div>
                                     <div className="text-muted-foreground">
-                                      over {s.outP.name} (+{s.delta.toFixed(1)} pts)
+                                      {s.alternatives[0] && `over ${s.alternatives[0].outP.name}`}
+                                      {s.alternatives.length > 1 && ` (+${s.alternatives.length - 1} more)`}
                                     </div>
                                   </div>
                                 ))}
@@ -1548,39 +1563,45 @@ export default function MatchupsPage() {
                             {/* Waiver Watchlist */}
                             {league.waiverSuggestions && league.waiverSuggestions.length > 0 && (
                               <div className="mt-4 rounded-lg border p-4 bg-background" data-testid={`waiver-watchlist-${league.leagueId}`}>
-                                <h4 className="font-semibold mb-3">Waiver Watchlist</h4>
-                                <ul className="space-y-2">
+                                <h4 className="font-semibold mb-3">
+                                  Waiver Watchlist <span className="text-sm text-muted-foreground font-normal">(Top Free Agents)</span>
+                                </h4>
+                                <ul className="space-y-3">
                                   {league.waiverSuggestions.map((s, idx) => (
                                     <li
-                                      key={`${s.slot}-${s.inP.player_id}-${idx}`}
-                                      className="flex flex-wrap items-center justify-between rounded-md border p-3 hover:bg-muted/50 transition-colors"
+                                      key={`${s.player_id}-${idx}`}
+                                      className="rounded-md border p-3 hover:bg-muted/50 transition-colors"
                                       data-testid={`waiver-suggestion-${league.leagueId}-${idx}`}
                                     >
-                                      <div className="flex-1">
+                                      <div className="flex items-center justify-between flex-wrap gap-2">
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <span className="text-green-700 font-medium">
-                                            Add {s.inP.name}
-                                          </span>
-                                          <span className="text-xs text-muted-foreground">
-                                            ({s.inP.pos} → {s.slot})
+                                            Add {s.name} ({s.pos})
                                           </span>
                                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                            +{s.delta.toFixed(1)} pts
+                                            +{s.bestDelta.toFixed(1)} pts
                                           </Badge>
                                         </div>
-                                        <div className="text-xs text-muted-foreground mt-1">
-                                          over {s.outP.name} ({s.outP.pos}, {s.outP.proj.toFixed(1)} pts)
-                                        </div>
+                                        <a
+                                          className="text-sm underline text-primary hover:text-primary/80 whitespace-nowrap"
+                                          href={`https://sleeper.com/leagues/${league.leagueId}/players/${s.player_id}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          data-testid={`waiver-link-${league.leagueId}-${idx}`}
+                                        >
+                                          View in Sleeper
+                                        </a>
                                       </div>
-                                      <a
-                                        className="text-sm underline text-primary hover:text-primary/80 whitespace-nowrap"
-                                        href={`https://sleeper.com/leagues/${league.leagueId}/players/${s.inP.player_id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        data-testid={`waiver-link-${league.leagueId}-${idx}`}
-                                      >
-                                        View in Sleeper
-                                      </a>
+                                      <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                                        {s.alternatives.map((alt, altIdx) => (
+                                          <div key={altIdx}>
+                                            • Over {alt.outP.name} ({alt.outP.pos}, {alt.outP.proj.toFixed(1)} pts)
+                                            {alt.delta !== s.bestDelta && (
+                                              <span className="ml-1 text-green-600">+{alt.delta.toFixed(1)}</span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
                                     </li>
                                   ))}
                                 </ul>
