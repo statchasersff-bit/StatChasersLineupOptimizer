@@ -679,60 +679,187 @@
   }
 }
 
-/* Compact League Header (mobile-friendly) */
-.league-card-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* Compact League Row - Mobile First */
+.match-row {
   min-width: 0;
 }
 
-.league-avatar {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #142a40;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #fff;
-  font-weight: 700;
-}
-
-.league-info {
-  flex: 1 1 auto;
+.league-card-header,
+.card-head,
+.title-wrap,
+.name-wrap {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }
 
-.league-name {
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--foreground);
-  line-height: 1.2;
-  white-space: normal;
-  overflow-wrap: break-word;
+/* Mobile layout: name gets its own row */
+@media (max-width: 480px) {
+  .league-card-header {
+    display: grid;
+    gap: 8px;
+    grid-template-areas:
+      "head"
+      "bar"
+      "meta";
+    min-width: 0;
+  }
+
+  /* Header row: avatar | name | chevron */
+  .card-head {
+    grid-area: head;
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    column-gap: 10px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .league-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #142a40;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  /* Name gets full middle column with 2-line clamp */
+  .league-name {
+    min-width: 0;
+    font-weight: 800;
+    font-size: 15px;
+    line-height: 1.15;
+    color: var(--foreground);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+  }
+
+  /* Chevron in last column */
+  .chevron {
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+    transition: transform 0.2s ease;
+  }
+
+  .match-row-expanded .chevron {
+    transform: rotate(180deg);
+  }
+
+  /* Chips below name (under columns 2-3) */
+  .card-chips {
+    grid-column: 2 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  /* Scores + win bar (separate row) */
+  .card-barrow {
+    grid-area: bar;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    column-gap: 10px;
+    align-items: center;
+  }
+
+  .my-score,
+  .opp-score {
+    font-weight: 800;
+    font-size: 14.5px;
+  }
+
+  .winbar {
+    height: 8px;
+    border-radius: 999px;
+    background: #2a3a52;
+    overflow: hidden;
+  }
+
+  .winfill {
+    height: 100%;
+    background: linear-gradient(90deg, #20d18a, #1fb97a);
+  }
+
+  /* Mini strip: REC · Δ · RES · Q/O/B */
+  .card-meta {
+    grid-area: meta;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    color: #9fb2c8;
+  }
+
+  /* Show full name when expanded */
+  .match-row-expanded .league-name {
+    -webkit-line-clamp: unset;
+    max-height: none;
+  }
 }
 
-.league-meta {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+/* Desktop layout: traditional flex */
+@media (min-width: 481px) {
+  .league-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
 
-.chevron {
-  flex-shrink: 0;
-  color: var(--muted-foreground);
-  transition: transform 0.2s ease;
-}
+  .league-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #142a40;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-weight: 700;
+  }
 
-.match-row-expanded .chevron {
-  transform: rotate(180deg);
+  .league-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .league-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--foreground);
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  .league-meta {
+    font-size: 12px;
+    color: var(--muted-foreground);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chevron {
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+    transition: transform 0.2s ease;
+  }
+
+  .match-row-expanded .chevron {
+    transform: rotate(180deg);
+  }
 }
 
 /* Global Auto-Subs Banner */

@@ -65,70 +65,75 @@ export function CompactLeagueRow({
       data-testid={`compact-row-${leagueName.replace(/\s/g, '-').toLowerCase()}`}
     >
       <div className="league-card-header">
-        <div className="league-avatar">{getInitials()}</div>
-        
-        <div className="league-info">
+        {/* Header: avatar | name | chevron */}
+        <div className="card-head league-info">
+          <div className="league-avatar">{getInitials()}</div>
+          
           <div className="league-name" title={leagueName}>
             {displayName}
           </div>
-          {formatText && (
-            <div className="league-meta">
-              <span>{formatText}</span>
-              <span>•</span>
-              <span>{myRecord}</span>
+          
+          <ChevronDown className="chevron" />
+        </div>
+
+        {/* Chips below name (mobile) / next to name (desktop) */}
+        {formatText && (
+          <div className="card-chips league-meta">
+            <span>{formatText}</span>
+            <span>•</span>
+            <span>{myRecord}</span>
+          </div>
+        )}
+
+        {/* Scores + win bar */}
+        <div className="card-barrow m-barrow">
+          <div className="my-score m-left">
+            {locked && <span className="m-lock" aria-label="Lineup locked">🔒</span>}
+            <span className="m-num">{myProj.toFixed(1)}</span>
+          </div>
+
+          <div className="winbar m-center">
+            <div className="winfill m-bar">
+              <div 
+                className="m-fill" 
+                style={{width: `${pct}%`}} 
+              />
             </div>
+            <div className="m-pct">{pct}%</div>
+          </div>
+
+          <div className="opp-score m-right">
+            <span className="m-num">{oppProj.toFixed(1)}</span>
+            <img className="m-opp" src={getAvatarUrl()} alt={oppName} />
+          </div>
+        </div>
+
+        {/* Mini strip: Δ · MRGN · chips */}
+        <div className="card-meta m-strip">
+          <span className="k" title="Points gained vs current lineup">Δ</span>
+          <span className={`pill ${deltaIsPos ? 'pill-pos' : 'pill-neg'}`} title="Points gained vs current lineup">
+            {deltaIsPos ? '+' : ''}{deltaOptAct.toFixed(1)} pts
+          </span>
+          <span className="k" title="Projected margin vs opponent">MRGN</span>
+          <span className={`pill ${resIsPos ? 'pill-pos' : 'pill-neg'}`} title="Projected margin vs opponent">
+            {resIsPos ? '+' : ''}{projResult.toFixed(1)}
+          </span>
+          {typeof quesCount === 'number' && quesCount > 0 && (
+            <span className="chip" title="Questionable starters">
+              <span className="dot y"></span>{quesCount}
+            </span>
+          )}
+          {typeof outByeEmptyCount === 'number' && outByeEmptyCount > 0 && (
+            <span className="chip" title="Out/Bye/Empty starters">
+              <span className="dot r"></span>{outByeEmptyCount}
+            </span>
+          )}
+          {typeof outByeEmptyCount === 'number' && outByeEmptyCount === 0 && (
+            <span className="chip" title="All starters available">
+              <span className="dot g"></span>0
+            </span>
           )}
         </div>
-        
-        <ChevronDown className="chevron" />
-      </div>
-
-      <div className="m-barrow">
-        <div className="m-left">
-          {locked && <span className="m-lock" aria-label="Lineup locked">🔒</span>}
-          <span className="m-num">{myProj.toFixed(1)}</span>
-        </div>
-
-        <div className="m-center">
-          <div className="m-bar">
-            <div 
-              className="m-fill" 
-              style={{width: `${pct}%`}} 
-            />
-          </div>
-          <div className="m-pct">{pct}%</div>
-        </div>
-
-        <div className="m-right">
-          <span className="m-num">{oppProj.toFixed(1)}</span>
-          <img className="m-opp" src={getAvatarUrl()} alt={oppName} />
-        </div>
-      </div>
-
-      <div className="m-strip">
-        <span className="k" title="Points gained vs current lineup">Δ</span>
-        <span className={`pill ${deltaIsPos ? 'pill-pos' : 'pill-neg'}`} title="Points gained vs current lineup">
-          {deltaIsPos ? '+' : ''}{deltaOptAct.toFixed(1)} pts
-        </span>
-        <span className="k" title="Projected margin vs opponent">MRGN</span>
-        <span className={`pill ${resIsPos ? 'pill-pos' : 'pill-neg'}`} title="Projected margin vs opponent">
-          {resIsPos ? '+' : ''}{projResult.toFixed(1)}
-        </span>
-        {typeof quesCount === 'number' && quesCount > 0 && (
-          <span className="chip" title="Questionable starters">
-            <span className="dot y"></span>{quesCount}
-          </span>
-        )}
-        {typeof outByeEmptyCount === 'number' && outByeEmptyCount > 0 && (
-          <span className="chip" title="Out/Bye/Empty starters">
-            <span className="dot r"></span>{outByeEmptyCount}
-          </span>
-        )}
-        {typeof outByeEmptyCount === 'number' && outByeEmptyCount === 0 && (
-          <span className="chip" title="All starters available">
-            <span className="dot g"></span>0
-          </span>
-        )}
       </div>
     </button>
   );

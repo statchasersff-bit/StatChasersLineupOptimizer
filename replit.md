@@ -27,7 +27,7 @@ The application follows a component-based architecture for the frontend and a RE
 - **League Filtering**: Automatically excludes Best Ball leagues and provides robust filtering for Dynasty/Keeper leagues with persistence.
 - **Waiver Watchlist System**: Analyzes free agent availability, suggests top upgrades based on projections, considers roster slots, and filters problematic or low-impact players (like kickers). Deduplicates suggestions by player, showing highest delta with multiple swap alternatives.
 - **Auto-Subs Intelligence**: Smart detection of uniform auto-sub settings across leagues. Shows global banner when all leagues share the same configuration; displays per-league chips only when settings differ, auto-subs are OFF, or league is at capacity. Prevents duplicate information and reduces visual noise.
-- **Compact League Header Design**: Mobile-optimized header with circular avatar showing league initials, wrapping league name, and metadata (format + record). Chevron rotates on expand/collapse.
+- **Compact League Header Design**: Mobile-optimized grid layout gives league name its own row (no width competition with chips/scores). On mobile: 3-row grid (header: avatar|name|chevron, bar: scores+win%, meta: stats). Name uses 2-line clamp that expands when row opens. Desktop uses traditional flex layout. Chevron rotates on expand/collapse.
 
 ### System Design Choices
 A monorepo structure with shared types facilitates development. The build process uses Vite for the frontend and esbuild for the backend. A hybrid storage approach integrates Drizzle ORM with PostgreSQL for primary data, and in-memory storage for development. Authentication is basic, focusing on Sleeper API integration without requiring user credentials for core functionality.
