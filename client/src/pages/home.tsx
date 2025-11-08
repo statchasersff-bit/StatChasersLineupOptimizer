@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { queryClient } from "@/lib/queryClient";
-import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target } from "lucide-react";
+import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target, Filter, ArrowUpDown, X } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
@@ -67,6 +67,9 @@ export default function Home() {
   const [filterDynasty, setFilterDynasty] = useState(false);
   const [filterNonOptimal, setFilterNonOptimal] = useState(false);
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
+  const [sortBy, setSortBy] = useState<'delta' | 'winProbability' | 'injuries' | 'alphabetical'>('delta');
+  const [filterInjuries, setFilterInjuries] = useState(false); // 3+ injuries
+  const [filterBigDelta, setFilterBigDelta] = useState(false); // 5+ pts improvement
   const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
   const [totalLeagues, setTotalLeagues] = useState(0);
@@ -127,10 +130,44 @@ export default function Home() {
       filtered = filtered.filter(s => s.delta > 0.01); // More than 0.01 points improvement available
     }
     
-    return sortAlphabetical 
-      ? [...filtered].sort((a, b) => a.name.localeCompare(b.name))
-      : [...filtered].sort((a, b) => b.delta - a.delta);
-  }, [summaries, sortAlphabetical, filterNonOptimal]);
+    // Filter by injuries (3+)
+    if (filterInjuries) {
+      filtered = filtered.filter(s => (s.outByeEmptyCount || 0) + (s.quesCount || 0) >= 3);
+    }
+    
+    // Filter by big delta (5+ pts)
+    if (filterBigDelta) {
+      filtered = filtered.filter(s => s.delta >= 5);
+    }
+    
+    // Sort based on selected option
+    let sorted = [...filtered];
+    switch (sortBy) {
+      case 'alphabetical':
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'winProbability':
+        sorted.sort((a, b) => {
+          const aProb = a.winProbability ?? 0;
+          const bProb = b.winProbability ?? 0;
+          return bProb - aProb; // Highest win% first
+        });
+        break;
+      case 'injuries':
+        sorted.sort((a, b) => {
+          const aInjuries = (a.outByeEmptyCount || 0) + (a.quesCount || 0);
+          const bInjuries = (b.outByeEmptyCount || 0) + (b.quesCount || 0);
+          return bInjuries - aInjuries; // Most injuries first
+        });
+        break;
+      case 'delta':
+      default:
+        sorted.sort((a, b) => b.delta - a.delta); // Biggest delta first
+        break;
+    }
+    
+    return sorted;
+  }, [summaries, sortBy, filterNonOptimal, filterInjuries, filterBigDelta]);
 
   const handleAnalyzeLineups = async () => {
     if (!username.trim()) {
@@ -1080,6 +1117,69 @@ export default function Home() {
               <div className="h-6 w-1 bg-primary rounded-full"></div>
               <h2 className="text-xl sm:text-2xl font-bold text-foreground">League Insights</h2>
             </div>
+
+            {/* Filter and Sort Controls */}
+            {!isAnalyzing && sortedSummaries.length > 0 && (
+              <div className="mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                {/* Sort Dropdown */}
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                  <select
+                    className="text-sm border rounded-md px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    data-testid="select-sort"
+                  >
+                    <option value="delta">Sort by: Biggest Improvements</option>
+                    <option value="winProbability">Sort by: Win Probability</option>
+                    <option value="injuries">Sort by: Most Injuries</option>
+                    <option value="alphabetical">Sort by: A-Z</option>
+                  </select>
+                </div>
+
+                {/* Filter Chips */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <button
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                      filterInjuries
+                        ? 'bg-red-500 text-white shadow-md'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                    onClick={() => setFilterInjuries(!filterInjuries)}
+                    data-testid="button-filter-injuries"
+                  >
+                    {filterInjuries && <X className="w-3 h-3 inline mr-1" />}
+                    3+ Injuries
+                  </button>
+                  <button
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                      filterBigDelta
+                        ? 'bg-green-500 text-white shadow-md'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                    onClick={() => setFilterBigDelta(!filterBigDelta)}
+                    data-testid="button-filter-big-delta"
+                  >
+                    {filterBigDelta && <X className="w-3 h-3 inline mr-1" />}
+                    5+ Pts Improvement
+                  </button>
+                  {(filterInjuries || filterBigDelta) && (
+                    <button
+                      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
+                      onClick={() => {
+                        setFilterInjuries(false);
+                        setFilterBigDelta(false);
+                      }}
+                      data-testid="button-clear-filters"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <section className="space-y-4">
               {isAnalyzing ? (
                 <>
