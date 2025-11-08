@@ -31,7 +31,32 @@ export interface ScoredFreeAgent extends FreeAgent {
   isByeOrOut: boolean;
 }
 
-// Slot eligibility helpers
+// Position -> Legal Slots mapping
+// Defines which roster slots each position can legally fill
+export const SLOT_RULES: Record<string, Slot[]> = {
+  QB: ["QB", "SUPER_FLEX"],
+  RB: ["RB", "FLEX", "SUPER_FLEX"],
+  WR: ["WR", "FLEX", "SUPER_FLEX"],
+  TE: ["TE", "FLEX", "SUPER_FLEX"],
+  K: ["K"], // Kickers can ONLY fill K slots
+  DEF: ["DEF"], // Defense can ONLY fill DEF slots
+};
+
+// Check if a player's position can legally fill a specific slot
+export function canFillSlot(playerPos: string, slot: Slot): boolean {
+  const legalSlots = SLOT_RULES[playerPos] || [];
+  return legalSlots.includes(slot);
+}
+
+// Check if two positions can compete for the same slot (interchangeable)
+// Returns true if there exists a slot both positions could legally occupy
+export function interchangeable(posA: string, posB: string): boolean {
+  const slotsA = new Set(SLOT_RULES[posA] || []);
+  const slotsB = SLOT_RULES[posB] || [];
+  return slotsB.some((slot) => slotsA.has(slot));
+}
+
+// Legacy helpers (kept for backward compatibility)
 export const isFlexEligible = (pos: string): boolean =>
   pos === "RB" || pos === "WR" || pos === "TE";
 
@@ -39,9 +64,7 @@ export const isSuperFlexEligible = (pos: string): boolean =>
   pos === "QB" || isFlexEligible(pos);
 
 export function slotEligible(pos: string, slot: Slot): boolean {
-  if (slot === "FLEX") return isFlexEligible(pos);
-  if (slot === "SUPER_FLEX") return isSuperFlexEligible(pos);
-  return pos === slot; // strict for primary slots
+  return canFillSlot(pos, slot);
 }
 
 // Build starter floors by slot (worst starter per slot)
@@ -196,12 +219,23 @@ export function pickWaiverUpgrades(
       (slot) => {
         // Skip if league doesn't have this slot
         if (!activeSlots.has(slot)) return;
-        if (!slotEligible(fa.pos, slot)) return;
+        
+        // Check 1: Can the FA legally fill this slot?
+        if (!canFillSlot(fa.pos, slot)) return;
+        
         const floor = floors[slot];
         if (!floor) return;
+        
+        const outS = byId.get(floor.player_id);
+        const outPos = outS?.pos ?? "";
+        
+        // Check 2: Can the player being replaced be swapped with the FA?
+        // They must be interchangeable (compete for the same slot types)
+        // This prevents illegal cross-position swaps like "Replace K with RB"
+        if (outPos && !interchangeable(fa.pos, outPos)) return;
+        
         const delta = fa.proj - floor.proj;
         if (delta >= minGain) {
-          const outS = byId.get(floor.player_id);
           suggestions.push({
             slot,
             inP: {
@@ -213,7 +247,7 @@ export function pickWaiverUpgrades(
             outP: {
               player_id: floor.player_id,
               name: outS?.name ?? "(starter)",
-              pos: outS?.pos ?? "",
+              pos: outPos,
               proj: floor.proj,
             },
             delta,

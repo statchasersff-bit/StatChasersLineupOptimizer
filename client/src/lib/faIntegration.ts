@@ -1,6 +1,7 @@
 import type { Projection } from "./types";
 import { scoreByLeague } from "./scoring";
 import { isPlayerLocked, type GameSchedule } from "./gameLocking";
+import { SLOT_RULES, canFillSlot, type Slot } from "./waivers";
 
 const EXCLUDE_FA_STATUSES = new Set(["O", "IR", "NA"]);
 const MAX_FA_PER_POS = 10;
@@ -10,17 +11,6 @@ const WAIVER_BLOCKLIST = new Set([
   "Donnie Ernsberger",
   "Mark McNamee",
 ]);
-
-type Slot = "QB" | "RB" | "WR" | "TE" | "K" | "DEF" | "FLEX" | "SUPER_FLEX";
-
-const isFlexEligible = (pos: string) => pos === "RB" || pos === "WR" || pos === "TE";
-const isSuperFlexEligible = (pos: string) => pos === "QB" || isFlexEligible(pos);
-
-const slotEligible = (pos: string, slot: Slot) => {
-  if (slot === "FLEX") return isFlexEligible(pos);
-  if (slot === "SUPER_FLEX") return isSuperFlexEligible(pos);
-  return pos === slot;
-};
 
 export interface FACandidate {
   player_id: string;
@@ -94,7 +84,7 @@ export async function buildFACandidates(
     if (!(adjProj > 0)) continue;
 
     const eligible: Slot[] = (["QB", "RB", "WR", "TE", "K", "DEF", "FLEX", "SUPER_FLEX"] as Slot[])
-      .filter((s) => slotEligible(pos, s));
+      .filter((s) => canFillSlot(pos, s));
 
     buckets[pos].push({
       player_id: pid,
