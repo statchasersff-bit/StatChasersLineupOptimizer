@@ -1088,6 +1088,12 @@ export default function MatchupsPage() {
               if (league.format) formatParts.push(league.format);
               const formatText = formatParts.join(' ');
 
+              // Calculate stats for mini-strip
+              const deltaOptAct = league.optMinusAct ?? 0;
+              const projResult = league.margin ?? 0;
+              const quesCount = league.quesCount ?? 0;
+              const outByeEmptyCount = league.notPlayingCount ?? 0;
+
               return (
                 <Fragment key={league.leagueId}>
                   <CompactLeagueRow
@@ -1099,6 +1105,10 @@ export default function MatchupsPage() {
                     oppName={league.opponentName ?? 'Opponent'}
                     locked={false}
                     winPct={winPct}
+                    deltaOptAct={deltaOptAct}
+                    projResult={projResult}
+                    quesCount={quesCount}
+                    outByeEmptyCount={outByeEmptyCount}
                     onClick={() => toggleExpanded(league.leagueId)}
                     isExpanded={expandedLeagues.has(league.leagueId)}
                   />
