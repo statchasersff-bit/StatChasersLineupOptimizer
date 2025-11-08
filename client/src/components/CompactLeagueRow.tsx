@@ -37,9 +37,16 @@ export function CompactLeagueRow({
   isExpanded = false,
   username,
 }: CompactLeagueRowProps) {
-  const pct = Math.round(winPct * 100);
-  const resIsPos = projResult >= 0;
-  const deltaIsPos = deltaOptAct >= 0;
+  // Defensive checks for undefined/null values
+  const safeMyProj = typeof myProj === 'number' && isFinite(myProj) ? myProj : 0;
+  const safeOppProj = typeof oppProj === 'number' && isFinite(oppProj) ? oppProj : 0;
+  const safeWinPct = typeof winPct === 'number' && isFinite(winPct) ? winPct : 0;
+  const safeDeltaOptAct = typeof deltaOptAct === 'number' && isFinite(deltaOptAct) ? deltaOptAct : 0;
+  const safeProjResult = typeof projResult === 'number' && isFinite(projResult) ? projResult : 0;
+  
+  const pct = Math.round(safeWinPct * 100);
+  const resIsPos = safeProjResult >= 0;
+  const deltaIsPos = safeDeltaOptAct >= 0;
 
   // Extract format tag like [REDRAFT] from the league name
   const formatTagMatch = leagueName.match(/\[(.*?)\]$/);
@@ -107,7 +114,7 @@ export function CompactLeagueRow({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-sm font-semibold">
             {locked && <span aria-label="Lineup locked">🔒</span>}
-            <span>{myProj.toFixed(1)}</span>
+            <span>{safeMyProj.toFixed(1)}</span>
           </div>
 
           <div className="flex-1 flex items-center gap-2">
@@ -123,8 +130,8 @@ export function CompactLeagueRow({
           </div>
 
           <div className="flex items-center gap-1 text-sm font-semibold">
-            <span>{oppProj.toFixed(1)}</span>
-            <img className="w-6 h-6 rounded-full" src={getAvatarUrl()} alt={oppName} />
+            <span>{safeOppProj.toFixed(1)}</span>
+            <img className="w-6 h-6 rounded-full" src={getAvatarUrl()} alt={oppName || 'Opponent'} />
           </div>
         </div>
 
@@ -132,11 +139,11 @@ export function CompactLeagueRow({
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <span className="text-muted-foreground">Δ</span>
           <span className={`px-2 py-0.5 rounded font-semibold ${deltaIsPos ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-            {deltaIsPos ? '+' : ''}{deltaOptAct.toFixed(1)} pts
+            {deltaIsPos ? '+' : ''}{safeDeltaOptAct.toFixed(1)} pts
           </span>
           <span className="text-muted-foreground">MRGN</span>
           <span className={`px-2 py-0.5 rounded font-semibold ${resIsPos ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-            {resIsPos ? '+' : ''}{projResult.toFixed(1)}
+            {resIsPos ? '+' : ''}{safeProjResult.toFixed(1)}
           </span>
           {typeof quesCount === 'number' && quesCount > 0 && (
             <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 font-semibold">
