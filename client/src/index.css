@@ -562,6 +562,73 @@
   }
 }
 
+/* View Explainer */
+.view-explainer {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  margin: 8px 0 12px;
+  line-height: 1.4;
+}
+
+.view-explainer .highlight {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+/* Help Toggle */
+.help-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.help-toggle:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.help-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.help-panel.hidden {
+  display: none;
+}
+
+.help-panel p {
+  margin: 8px 0;
+  color: var(--muted-foreground);
+}
+
+.help-panel p:first-child {
+  margin-top: 0;
+}
+
+.help-panel p:last-child {
+  margin-bottom: 0;
+}
+
+.help-panel strong {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
 /* Responsive Table Cards - Mobile View */
 @media screen and (max-width: 640px) {
   /* Hide table header on mobile */

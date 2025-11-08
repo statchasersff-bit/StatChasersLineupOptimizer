@@ -97,6 +97,7 @@ export default function MatchupsPage() {
   const [projections, setProjections] = useState<Projection[]>([]);
   const [leagueMetrics, setLeagueMetrics] = useState<LeagueMetrics[]>([]);
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
+  const [showHelp, setShowHelp] = useState(false);
   const [sortBy, setSortBy] = useState<"league" | "record" | "optMinusAct" | "projectedResult" | "quesCount" | "notPlayingCount">("optMinusAct");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [redraftOnly, setRedraftOnly] = useState<boolean>(() => {
@@ -1043,6 +1044,31 @@ export default function MatchupsPage() {
             ))}
           </div>
           
+          {/* Mobile Help & Explainer - shown only on mobile */}
+          <div className="sm:hidden mb-4">
+            <button 
+              className="help-toggle"
+              onClick={() => setShowHelp(!showHelp)}
+              data-testid="button-toggle-help"
+            >
+              <span>ℹ️</span> Help / Legend
+            </button>
+            
+            <div className={`help-panel ${showHelp ? '' : 'hidden'}`}>
+              <p><strong>Record:</strong> Your current win-loss record</p>
+              <p><strong>Δ (Delta):</strong> Points your optimal lineup beats your active lineup by</p>
+              <p><strong>RES (Result):</strong> Expected margin of victory (+) or loss (-)</p>
+              <p><strong>Win Bar:</strong> Your probability of winning this week</p>
+              <p><strong>Dots:</strong> 🟡 Questionable · 🔴 Out/Bye/Empty · 🟢 All clear</p>
+            </div>
+
+            <p className="view-explainer">
+              <strong>Matchup Overview:</strong> Each row shows your team's projected score (<span className="highlight">left</span>), 
+              opponent score (<span className="highlight">right</span>), and win probability (<span className="highlight">bar</span>) — 
+              plus lineup efficiency and injury alerts below.
+            </p>
+          </div>
+
           {/* Mobile Sorting Controls - shown only on mobile */}
           <div className="sm:hidden mb-4 flex items-center gap-3 bg-card border rounded-lg p-3" data-testid="mobile-sort-controls">
             <label className="text-sm font-medium text-muted-foreground flex-shrink-0">Sort by:</label>
@@ -1056,9 +1082,9 @@ export default function MatchupsPage() {
               <SelectContent>
                 <SelectItem value="league">League Name</SelectItem>
                 <SelectItem value="record">Record</SelectItem>
-                <SelectItem value="optMinusAct">Opt-Act</SelectItem>
-                <SelectItem value="projectedResult">Proj Result</SelectItem>
-                <SelectItem value="quesCount">Questionable</SelectItem>
+                <SelectItem value="optMinusAct">Lineup Efficiency (+Δ)</SelectItem>
+                <SelectItem value="projectedResult">Projected Margin (RES)</SelectItem>
+                <SelectItem value="quesCount">Questionable Players</SelectItem>
                 <SelectItem value="notPlayingCount">Out/Bye/Empty</SelectItem>
               </SelectContent>
             </Select>
