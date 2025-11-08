@@ -66,6 +66,7 @@ function PlayerRow({
                   ? 'text-green-600 dark:text-green-400' 
                   : 'text-red-600 dark:text-red-400'
               }`}
+              data-testid="player-delta"
             >
               ({delta > 0 ? '+' : ''}{delta.toFixed(1)})
             </span>
@@ -73,20 +74,20 @@ function PlayerRow({
         </div>
         
         {isEmpty ? (
-          <div className="text-sm italic text-muted-foreground">Empty slot</div>
+          <div className="text-sm italic text-muted-foreground" data-testid="player-empty">Empty slot</div>
         ) : player ? (
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm">{player.name}</span>
-              <span className="text-xs text-muted-foreground">({player.pos})</span>
+              <span className="font-bold text-sm" data-testid="player-name">{player.name}</span>
+              <span className="text-xs text-muted-foreground" data-testid="player-position">({player.pos})</span>
               <StarterBadge p={player} />
             </div>
-            <div className="text-sm text-muted-foreground mt-0.5">
+            <div className="text-sm text-muted-foreground mt-0.5" data-testid="player-points">
               {points.toFixed(1)} pts
             </div>
           </div>
         ) : (
-          <div className="text-sm italic text-muted-foreground">—</div>
+          <div className="text-sm italic text-muted-foreground" data-testid="player-none">—</div>
         )}
       </div>
 
@@ -251,12 +252,12 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
                     delta={item.delta}
                   />
                   {item.isFreeAgent && (
-                    <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                    <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" data-testid="badge-free-agent">
                       Free Agent
                     </span>
                   )}
                   {item.isBenchPlayer && (
-                    <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" data-testid="badge-from-bench">
                       From Bench
                     </span>
                   )}
@@ -310,12 +311,12 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
                   delta={item.delta}
                 />
                 {item.isFreeAgent && (
-                  <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                  <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" data-testid="badge-free-agent">
                     Free Agent
                   </span>
                 )}
                 {item.isBenchPlayer && (
-                  <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" data-testid="badge-from-bench">
                     From Bench
                   </span>
                 )}
