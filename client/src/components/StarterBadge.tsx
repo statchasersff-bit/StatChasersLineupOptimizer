@@ -1,4 +1,5 @@
 import { classifyStarter, type AvailTag } from "@/lib/availability";
+import { Lock, AlertCircle, Calendar, Minus, AlertTriangle } from "lucide-react";
 
 interface StarterBadgeProps {
   p?: {
@@ -14,24 +15,50 @@ interface StarterBadgeProps {
 export function StarterBadge({ p }: StarterBadgeProps) {
   const tag = classifyStarter(p);
   
-  // Debug logging
-  if (p && p.locked) {
-    console.log('[StarterBadge] Player with locked status:', p.name, 'locked:', p.locked, 'tag:', tag);
-  }
-  
   if (!tag) return null;
 
-  const styles: Record<NonNullable<AvailTag>, string> = {
-    OUT: "bg-red-600 text-white",
-    BYE: "bg-gray-500 text-white",
-    EMPTY: "bg-gray-400 text-white",
-    QUES: "bg-amber-500 text-white",
-    LOCKED: "bg-blue-600 text-white",
+  const badgeConfig: Record<NonNullable<AvailTag>, { icon: JSX.Element; bg: string; text: string; label: string }> = {
+    OUT: {
+      icon: <AlertCircle className="w-3 h-3" />,
+      bg: "bg-red-100 dark:bg-red-900/30",
+      text: "text-red-700 dark:text-red-300",
+      label: "O"
+    },
+    BYE: {
+      icon: <Calendar className="w-3 h-3" />,
+      bg: "bg-gray-100 dark:bg-gray-800",
+      text: "text-gray-700 dark:text-gray-300",
+      label: "BYE"
+    },
+    EMPTY: {
+      icon: <Minus className="w-3 h-3" />,
+      bg: "bg-gray-100 dark:bg-gray-800",
+      text: "text-gray-700 dark:text-gray-300",
+      label: "—"
+    },
+    QUES: {
+      icon: <AlertTriangle className="w-3 h-3" />,
+      bg: "bg-yellow-100 dark:bg-yellow-900/30",
+      text: "text-yellow-700 dark:text-yellow-300",
+      label: "Q"
+    },
+    LOCKED: {
+      icon: <Lock className="w-3 h-3" />,
+      bg: "bg-blue-100 dark:bg-blue-900/30",
+      text: "text-blue-700 dark:text-blue-300",
+      label: "🔒"
+    },
   };
 
+  const config = badgeConfig[tag];
+
   return (
-    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[tag]}`}>
-      {tag}
+    <span 
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${config.bg} ${config.text}`}
+      data-testid={`badge-${tag.toLowerCase()}`}
+    >
+      {config.icon}
+      <span>{config.label}</span>
     </span>
   );
 }
