@@ -81,72 +81,76 @@ export function CompactLeagueRow({
       onClick={onClick}
       data-testid={`compact-row-${leagueName.replace(/\s/g, '-').toLowerCase()}`}
     >
-      <div className="league-card-header">
-        {/* Header: avatar | name | chevron */}
-        <div className="card-head">
-          <div className="league-avatar">{getInitials()}</div>
-          
-          <div className="league-name" title={leagueName}>
-            {displayName}
+      <div className="flex flex-col gap-3 w-full">
+        {/* Header Row */}
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm">
+            {getInitials()}
           </div>
           
-          <ChevronDown className="chevron" />
-        </div>
-
-        {/* Chips below name (mobile) / next to name (desktop) */}
-        <div className="card-chips">
-          {formatTag && <span className="chip-format">{formatTag}</span>}
-          {username && <span className="chip-user">{username.toUpperCase()}</span>}
-          {formatText && <span className="chip-scoring">{formatText}</span>}
-          {myRecord && <span className="chip-record">{myRecord}</span>}
-        </div>
-
-        {/* Scores + win bar */}
-        <div className="card-barrow">
-          <div className="my-score">
-            {locked && <span className="m-lock" aria-label="Lineup locked">🔒</span>}
-            <span className="m-num">{myProj.toFixed(1)}</span>
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-sm truncate" title={leagueName}>
+              {displayName}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap text-xs mt-1">
+              {formatTag && <span className="px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{formatTag}</span>}
+              {username && <span className="px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{username.toUpperCase()}</span>}
+              {formatText && <span className="px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{formatText}</span>}
+              {myRecord && <span className="px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{myRecord}</span>}
+            </div>
           </div>
 
-          <div className="winbar">
-            <div className="winfill">
+          <ChevronDown className={`w-5 h-5 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        </div>
+
+        {/* Scores + Win Bar */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 text-sm font-semibold">
+            {locked && <span aria-label="Lineup locked">🔒</span>}
+            <span>{myProj.toFixed(1)}</span>
+          </div>
+
+          <div className="flex-1 flex items-center gap-2">
+            <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden relative">
               <div 
-                className="m-fill" 
+                className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all" 
                 style={{width: `${pct}%`}} 
               />
+              <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white mix-blend-difference">
+                {pct}%
+              </div>
             </div>
-            <div className="winpct">{pct}%</div>
           </div>
 
-          <div className="opp-score">
-            <span className="m-num">{oppProj.toFixed(1)}</span>
-            <img className="m-opp" src={getAvatarUrl()} alt={oppName} />
+          <div className="flex items-center gap-1 text-sm font-semibold">
+            <span>{oppProj.toFixed(1)}</span>
+            <img className="w-6 h-6 rounded-full" src={getAvatarUrl()} alt={oppName} />
           </div>
         </div>
 
-        {/* Mini strip: Δ · MRGN · chips */}
-        <div className="card-meta">
-          <span className="k" title="Points gained vs current lineup">Δ</span>
-          <span className={`pill ${deltaIsPos ? 'pill-pos' : 'pill-neg'}`} title="Points gained vs current lineup">
+        {/* Stats Row */}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-muted-foreground">Δ</span>
+          <span className={`px-2 py-0.5 rounded font-semibold ${deltaIsPos ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
             {deltaIsPos ? '+' : ''}{deltaOptAct.toFixed(1)} pts
           </span>
-          <span className="k" title="Projected margin vs opponent">MRGN</span>
-          <span className={`pill ${resIsPos ? 'pill-pos' : 'pill-neg'}`} title="Projected margin vs opponent">
+          <span className="text-muted-foreground">MRGN</span>
+          <span className={`px-2 py-0.5 rounded font-semibold ${resIsPos ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
             {resIsPos ? '+' : ''}{projResult.toFixed(1)}
           </span>
           {typeof quesCount === 'number' && quesCount > 0 && (
-            <span className="chip chip-weekcap" title="Questionable starters">
-              <span className="dot y"></span>{quesCount}
+            <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 font-semibold">
+              ⚠️ {quesCount}
             </span>
           )}
           {typeof outByeEmptyCount === 'number' && outByeEmptyCount > 0 && (
-            <span className="chip chip-empties" title="Out/Bye/Empty starters">
-              <span className="dot r"></span>{outByeEmptyCount}
+            <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 font-semibold">
+              ❌ {outByeEmptyCount}
             </span>
           )}
           {typeof outByeEmptyCount === 'number' && outByeEmptyCount === 0 && (
-            <span className="chip chip-empties" title="All starters available">
-              <span className="dot g"></span>0
+            <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-semibold">
+              ✓ 0
             </span>
           )}
         </div>

@@ -68,29 +68,40 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
       
       {/* Header Row (always visible) */}
       <button
-        className="w-full flex items-start sm:items-center p-3 sm:p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 rounded-2xl transition-colors gap-3 sm:gap-4"
+        className="w-full p-3 sm:p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 rounded-2xl transition-colors"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         data-testid={`button-toggle-${lg.league_id}`}
       >
-        {/* League Avatar */}
-        <div 
-          className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full ${leagueColor} flex items-center justify-center font-bold text-sm sm:text-base shadow-md`}
-          data-testid={`avatar-${lg.league_id}`}
-        >
-          {leagueInitials}
-        </div>
+        {/* Mobile: Grid layout with league name on its own row */}
+        <div className="grid sm:flex sm:items-center gap-3 sm:gap-4 grid-cols-[auto_1fr_auto] sm:grid-cols-none">
+          {/* League Avatar */}
+          <div 
+            className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full ${leagueColor} flex items-center justify-center font-bold text-sm sm:text-base shadow-md row-start-1`}
+            data-testid={`avatar-${lg.league_id}`}
+          >
+            {leagueInitials}
+          </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="text-xs sm:text-sm text-gray-500 truncate" data-testid={`text-manager-${lg.league_id}`}>{lg.rosterUserDisplay}</div>
-          <div className="flex items-center gap-2 min-w-0 flex-wrap">
+          {/* League Name - Gets full width on mobile */}
+          <div className="min-w-0 col-span-1 row-start-1 sm:flex-1">
+            <div className="text-xs sm:text-sm text-gray-500 truncate" data-testid={`text-manager-${lg.league_id}`}>{lg.rosterUserDisplay}</div>
             <h3 
-              className="text-sm sm:text-base md:text-lg font-semibold truncate max-w-[200px] sm:max-w-[300px] md:max-w-full" 
+              className="text-sm sm:text-base md:text-lg font-semibold min-w-0 break-words line-clamp-2 sm:truncate" 
               data-testid={`text-league-name-${lg.league_id}`}
               title={lg.name}
             >
               {lg.name}
             </h3>
+          </div>
+
+          {/* Delta - Positioned on right on mobile, stays with other items on desktop */}
+          <div className={`text-sm sm:text-base font-semibold animate-fadeUp row-start-1 sm:row-auto ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
+            {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
+          </div>
+
+          {/* Badges Row - Full width on mobile (row 2), inline on desktop */}
+          <div className="flex items-center gap-2 flex-wrap col-span-3 row-start-2 sm:col-span-1 sm:row-start-1">
             {(lg.outByeEmptyCount ?? 0) > 0 && (
               <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full bg-red-500 text-white shadow-sm whitespace-nowrap" data-testid={`badge-out-bye-empty-${lg.league_id}`}>
                 OUT/BYE/EMPTY: {lg.outByeEmptyCount}
@@ -101,37 +112,28 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                 QUES: {lg.quesCount}
               </span>
             )}
+            {(lg.benchEmpty ?? 0) > 0 && (
+              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-400 text-white shadow-sm whitespace-nowrap" data-testid={`badge-bench-empty-${lg.league_id}`}>
+                {lg.benchEmpty} empty {lg.benchEmpty === 1 ? "spot" : "spots"}
+              </span>
+            )}
+            {/* Auto-sub chip (only when needed) */}
+            {showAutoChip && autoChipText && (
+              <span 
+                className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full shadow-sm whitespace-nowrap ${
+                  autoChipVariant === 'warn' 
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' 
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`} 
+                data-testid={`badge-auto-sub-${lg.league_id}`}
+              >
+                {autoChipText}
+              </span>
+            )}
           </div>
-        </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-          {/* potential points gain (delta) */}
-          <div className={`text-sm sm:text-base font-semibold animate-fadeUp ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
-            {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
-          </div>
-
-          {/* Auto-sub chip (only when needed) */}
-          {showAutoChip && autoChipText && (
-            <span 
-              className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full shadow-sm whitespace-nowrap ${
-                autoChipVariant === 'warn' 
-                  ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' 
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-              }`} 
-              data-testid={`badge-auto-sub-${lg.league_id}`}
-            >
-              {autoChipText}
-            </span>
-          )}
-          
-          {/* Bench empties badge */}
-          {(lg.benchEmpty ?? 0) > 0 && (
-            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-400 text-white shadow-sm whitespace-nowrap" data-testid={`badge-bench-empty-${lg.league_id}`}>
-              {lg.benchEmpty} empty {lg.benchEmpty === 1 ? "spot" : "spots"}
-            </span>
-          )}
-
-          <svg className={`h-4 w-4 sm:h-5 sm:w-5 transition-transform ${open ? "rotate-180" : "rotate-0"}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+          {/* Chevron Icon */}
+          <svg className={`h-4 w-4 sm:h-5 sm:w-5 transition-transform col-start-3 row-start-1 justify-self-end sm:col-auto ${open ? "rotate-180" : "rotate-0"}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
             <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z" />
           </svg>
         </div>
