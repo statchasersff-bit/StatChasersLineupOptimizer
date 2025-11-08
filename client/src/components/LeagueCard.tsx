@@ -5,6 +5,7 @@ import { buildLineupDiff } from "../lib/diff";
 import { AutoSubChip, AutoSubBanner } from "./ui/auto-sub-chip";
 import { StarterBadge } from "./StarterBadge";
 import { motion, AnimatePresence } from "framer-motion";
+import { CollapsibleSection } from "./CollapsibleSection";
 
 // Helper function to generate initials from league name
 function getLeagueInitials(name: string): string {
@@ -151,262 +152,322 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             style={{ overflow: "hidden" }}
           >
-            <div className="p-3 sm:p-4 pt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-            <div>
-              <div className="text-sm sm:text-base font-semibold mb-1 sm:mb-2 flex items-center gap-2">
-                <span>Current Starters</span>
-                <span className="text-xs sm:text-sm font-normal text-muted-foreground">({lg.currentTotal.toFixed(1)} pts)</span>
-              </div>
-              <ul className="space-y-0.5 sm:space-y-1">
-                {lg.starters.map((pid, i) => {
-                  const slot = lg.roster_positions[i];
-                  
-                  // Handle empty slots
-                  if (!pid || pid === "0" || pid === "") {
+            <div className="p-3 sm:p-4 pt-0 space-y-3">
+              {/* Current Lineup Section */}
+              <CollapsibleSection
+                title="Current Lineup"
+                subtitle={`${lg.currentTotal.toFixed(1)} projected points`}
+                defaultOpen={true}
+              >
+                <ul className="space-y-1 mt-3">
+                  {lg.starters.map((pid, i) => {
+                    const slot = lg.roster_positions[i];
+                    
+                    // Handle empty slots
+                    if (!pid || pid === "0" || pid === "") {
+                      return (
+                        <li key={i} className="py-2 border-b border-border last:border-0" data-testid={`row-current-${i}`}>
+                          <div className="text-xs text-muted-foreground mb-1">{slot}</div>
+                          <div className="text-sm italic text-muted-foreground">Empty slot</div>
+                        </li>
+                      );
+                    }
+                    
+                    // First try to find in enriched starter objects, then in all eligible players
+                    const cur = lg.starterObjs?.find(p => p.player_id === pid) || lg.allEligible?.find(p => p.player_id === pid);
+                    const flags = statusFlags(cur);
+                    // Only highlight if player is truly being removed from lineup (not in optimal at all)
+                    const optimalIds = new Set(lg.optimalSlots.map(s => s.player?.player_id).filter(Boolean));
+                    const isBeingBenched = !optimalIds.has(pid);
+                    // Find auto-sub recommendation for this starter
+                    const autoSubRec = lg.autoSubRecommendations?.find(rec => rec.starter.player_id === pid);
+                    
                     return (
-                      <li key={i} className="text-xs sm:text-sm p-1 rounded" data-testid={`row-current-${i}`}>
-                        <span className="inline-block w-20 sm:w-28 font-mono text-xs sm:text-sm">{slot}</span>
-                        <span className="text-gray-400 italic">Empty</span>
+                      <li 
+                        key={i} 
+                        className={`py-2 border-b border-border last:border-0 ${isBeingBenched ? 'bg-red-50/50 dark:bg-red-950/10 -mx-4 px-4' : ''}`} 
+                        data-testid={`row-current-${i}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs text-muted-foreground mb-1">{slot}</div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm">{cur ? cur.name : `player_id ${pid}`}</span>
+                              {cur && <span className="text-xs text-muted-foreground">({cur.pos})</span>}
+                              <StarterBadge p={cur} />
+                            </div>
+                            <div className="text-sm text-muted-foreground mt-0.5">
+                              {cur?.proj?.toFixed(1) ?? "0.0"} pts
+                            </div>
+                          </div>
+                          {autoSubRec && (
+                            <AutoSubChip 
+                              recommendation={autoSubRec}
+                              requireLaterStart={lg.autoSubConfig?.requireLaterStart || false}
+                            />
+                          )}
+                        </div>
                       </li>
                     );
-                  }
-                  
-                  // First try to find in enriched starter objects, then in all eligible players
-                  const cur = lg.starterObjs?.find(p => p.player_id === pid) || lg.allEligible?.find(p => p.player_id === pid);
-                  const flags = statusFlags(cur);
-                  // Only highlight if player is truly being removed from lineup (not in optimal at all)
-                  const optimalIds = new Set(lg.optimalSlots.map(s => s.player?.player_id).filter(Boolean));
-                  const isBeingBenched = !optimalIds.has(pid);
-                  // Find auto-sub recommendation for this starter
-                  const autoSubRec = lg.autoSubRecommendations?.find(rec => rec.starter.player_id === pid);
-                  
-                  return (
-                    <li key={i} className={`text-xs sm:text-sm p-1 rounded ${isBeingBenched ? 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-300' : ''}`} data-testid={`row-current-${i}`}>
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center flex-wrap gap-1">
-                          <span className="inline-block w-20 sm:w-28 font-mono text-xs sm:text-sm">{slot}</span>
-                          <span className="text-xs sm:text-sm">{cur ? `${cur.name} (${cur.pos}) — ${cur.proj?.toFixed(2) ?? "0.00"}` : `player_id ${pid}`}</span>
-                          <StarterBadge p={cur} />
+                  })}
+                </ul>
+              </CollapsibleSection>
+
+              {/* Optimal Lineup Section */}
+              <CollapsibleSection
+                title="Optimal Lineup"
+                subtitle={`${lg.optimalTotal.toFixed(1)} projected points`}
+                defaultOpen={true}
+              >
+                <ul className="space-y-1 mt-3">
+                  {lg.optimalSlots.map((s, i) => {
+                    const p = s.player;
+                    const flags = statusFlags(p);
+                    
+                    if (!p) {
+                      return (
+                        <li key={i} className="py-2 border-b border-border last:border-0" data-testid={`row-optimal-${i}`}>
+                          <div className="text-xs text-muted-foreground mb-1">{s.slot}</div>
+                          <div className="text-sm italic text-muted-foreground">—</div>
+                        </li>
+                      );
+                    }
+
+                    const currentIds = new Set(lg.starters.filter((x): x is string => !!x));
+                    const benchIds = new Set(lg.bench.filter(Boolean));
+                    const isCurrentStarter = currentIds.has(p.player_id);
+                    const isBenchPlayer = benchIds.has(p.player_id);
+                    const isFreeAgent = !isCurrentStarter && !isBenchPlayer;
+                    
+                    let highlightClass = '';
+                    if (isFreeAgent) {
+                      highlightClass = 'bg-yellow-50/50 dark:bg-yellow-950/10 -mx-4 px-4';
+                    } else if (isBenchPlayer) {
+                      highlightClass = 'bg-green-50/50 dark:bg-green-950/10 -mx-4 px-4';
+                    }
+                    
+                    return (
+                      <li 
+                        key={i} 
+                        className={`py-2 border-b border-border last:border-0 ${highlightClass}`} 
+                        data-testid={`row-optimal-${i}`}
+                      >
+                        <div className="text-xs text-muted-foreground mb-1">{s.slot}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm">{p.name}</span>
+                          <span className="text-xs text-muted-foreground">({p.pos})</span>
+                          <StarterBadge p={p} />
+                          {isFreeAgent && <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">Free Agent</span>}
+                          {isBenchPlayer && <span className="text-xs font-medium text-green-700 dark:text-green-400">From Bench</span>}
                         </div>
-                        {autoSubRec && (
-                          <AutoSubChip 
-                            recommendation={autoSubRec}
-                            requireLaterStart={lg.autoSubConfig?.requireLaterStart || false}
-                          />
+                        <div className="text-sm text-muted-foreground mt-0.5">
+                          {p.proj?.toFixed(1) ?? "0.0"} pts
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </CollapsibleSection>
+
+              {/* Suggested Changes Section */}
+              {diff.moves.length > 0 && (
+                <CollapsibleSection
+                  title="Suggested Changes"
+                  subtitle={`${diff.moves.length} recommendation${diff.moves.length !== 1 ? 's' : ''}`}
+                  defaultOpen={true}
+                >
+                  <ul className="space-y-2 mt-3">
+                    {diff.moves.map((m, i) => {
+                      // Check if the incoming player is a FA
+                      const inPlayer = lg.allEligible?.find(p => p.player_id === m.in_pid);
+                      const isFA = (inPlayer as any)?.isFA === true;
+                      const fromIR = m.fromIR === true;
+                      
+                      // Check if out_name is an empty slot (starts with "player_id" or out_pid is "0")
+                      const isEmptySlot = !m.out_name || m.out_pid === "0" || m.out_name.startsWith("player_id");
+                      
+                      return (
+                        <li key={i} className="py-2 border-b border-border last:border-0" data-testid={`row-suggestion-${i}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1">
+                              {isFA ? (
+                                <div>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 mb-1">
+                                    Add FA
+                                  </span>
+                                  <div className="mt-1">
+                                    <span className="font-bold">{m.in_name}</span>
+                                    <span className="text-muted-foreground text-sm"> → {m.slot}</span>
+                                  </div>
+                                  {m.out_name && !isEmptySlot && (
+                                    <div className="text-xs text-muted-foreground mt-0.5">Replace {m.out_name}</div>
+                                  )}
+                                </div>
+                              ) : fromIR ? (
+                                <div>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 mb-1">
+                                    From IR
+                                  </span>
+                                  <div className="mt-1">
+                                    <span className="font-bold">{m.in_name}</span>
+                                    <span className="text-muted-foreground text-sm"> → {m.slot}</span>
+                                  </div>
+                                  {m.out_name && !isEmptySlot && (
+                                    <div className="text-xs text-muted-foreground mt-0.5">Bench {m.out_name}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div>
+                                  <div>
+                                    <span className="font-bold">{m.in_name}</span>
+                                    <span className="text-muted-foreground text-sm"> → {m.slot}</span>
+                                  </div>
+                                  {m.out_name && !isEmptySlot && (
+                                    <div className="text-xs text-muted-foreground mt-0.5">Bench {m.out_name}</div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-sm font-semibold text-green-600 dark:text-green-400">
+                              +{m.gain.toFixed(1)}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </CollapsibleSection>
+              )}
+
+              {/* Matchup Section */}
+              {lg.opponent && (
+                <CollapsibleSection
+                  title="This Week's Matchup"
+                  subtitle={`${lg.projectedWin === true ? 'Projected Win' : lg.projectedWin === false ? 'Projected Loss' : 'Projected Tie'}`}
+                  defaultOpen={true}
+                >
+                  <div className="mt-3 space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-xs text-muted-foreground mb-1">You (Optimal)</div>
+                        <div className="font-bold text-sm mb-0.5">{lg.rosterUserDisplay}</div>
+                        <div className="text-2xl font-bold text-foreground">{lg.optimalTotal.toFixed(1)}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs text-muted-foreground mb-1">Opponent</div>
+                        <div className="font-bold text-sm mb-0.5">{lg.opponent.teamName}</div>
+                        <div className="text-2xl font-bold text-foreground">{lg.opponent.currentTotal.toFixed(1)}</div>
+                      </div>
+                    </div>
+
+                    {(lg.projectedWin !== undefined || (lg.opponent && lg.pointDifferential === 0)) && (
+                      <div className={`text-center py-2 px-3 rounded-lg ${
+                        lg.projectedWin === true ? 'bg-green-50 dark:bg-green-950/20' : 
+                        lg.projectedWin === false ? 'bg-red-50 dark:bg-red-950/20' : 
+                        'bg-yellow-50 dark:bg-yellow-950/20'
+                      }`}>
+                        <div className={`font-semibold ${
+                          lg.projectedWin === true ? 'text-green-600 dark:text-green-400' : 
+                          lg.projectedWin === false ? 'text-red-600 dark:text-red-400' : 
+                          'text-yellow-600 dark:text-yellow-400'
+                        }`} data-testid={`text-projection-${lg.league_id}`}>
+                          {lg.projectedWin === true ? 'Projected Win' : 
+                           lg.projectedWin === false ? 'Projected Loss' : 
+                           'Projected Tie'}
+                          {lg.pointDifferential !== undefined && (
+                            <span className="ml-2 text-sm">
+                              ({lg.pointDifferential > 0 ? '+' : lg.pointDifferential < 0 ? '' : ''}{lg.pointDifferential.toFixed(1)} pts)
+                            </span>
+                          )}
+                        </div>
+                        {lg.winProbability !== undefined && (
+                          <div className="mt-1 text-sm text-muted-foreground" data-testid={`text-win-probability-${lg.league_id}`}>
+                            {lg.winProbability}% win probability
+                          </div>
                         )}
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-            <div>
-              <div className="text-sm sm:text-base font-semibold mb-1 sm:mb-2 flex items-center gap-2">
-                <span>Optimal Starters</span>
-                <span className="text-xs sm:text-sm font-normal text-muted-foreground">({lg.optimalTotal.toFixed(1)} pts)</span>
-              </div>
-              <ul className="space-y-0.5 sm:space-y-1">
-                {lg.optimalSlots.map((s, i) => {
-                  const p = s.player;
-                  const flags = statusFlags(p);
-                  
-                  if (!p) {
-                    return (
-                      <li key={i} className="text-xs sm:text-sm p-1 rounded" data-testid={`row-optimal-${i}`}>
-                        <span className="inline-block w-20 sm:w-28 font-mono text-xs sm:text-sm">{s.slot}</span>
-                        —
-                      </li>
-                    );
-                  }
-
-                  const currentIds = new Set(lg.starters.filter((x): x is string => !!x));
-                  const benchIds = new Set(lg.bench.filter(Boolean));
-                  const isCurrentStarter = currentIds.has(p.player_id);
-                  const isBenchPlayer = benchIds.has(p.player_id);
-                  const isFreeAgent = !isCurrentStarter && !isBenchPlayer;
-                  
-                  let highlightClass = '';
-                  if (isFreeAgent) {
-                    highlightClass = 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/20 dark:text-yellow-300';
-                  } else if (isBenchPlayer) {
-                    highlightClass = 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-300';
-                  }
-                  
-                  return (
-                    <li key={i} className={`text-xs sm:text-sm p-1 rounded ${highlightClass}`} data-testid={`row-optimal-${i}`}>
-                      <div className="flex items-center flex-wrap gap-1">
-                        <span className="inline-block w-20 sm:w-28 font-mono text-xs sm:text-sm">{s.slot}</span>
-                        <span className="text-xs sm:text-sm">{`${p.name} (${p.pos}) — ${p.proj?.toFixed(2) ?? "0.00"}`}</span>
-                        <StarterBadge p={p} />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </div>
-
-          {/* NEW: clear recommendations that avoid self-swaps */}
-          {diff.moves.length > 0 && (
-            <div className="mt-4">
-              <div className="font-semibold mb-1">Suggested Changes</div>
-              <ul className="space-y-1">
-                {diff.moves.map((m, i) => {
-                  // Check if the incoming player is a FA
-                  const inPlayer = lg.allEligible?.find(p => p.player_id === m.in_pid);
-                  const isFA = (inPlayer as any)?.isFA === true;
-                  const fromIR = m.fromIR === true;
-                  
-                  // Check if out_name is an empty slot (starts with "player_id" or out_pid is "0")
-                  const isEmptySlot = !m.out_name || m.out_pid === "0" || m.out_name.startsWith("player_id");
-                  
-                  return (
-                    <li key={i} className="text-sm" data-testid={`row-suggestion-${i}`}>
-                      {isFA ? (
-                        <>
-                          <span className="text-yellow-700 font-semibold">Add FA</span> <b>{m.in_name}</b> into <b>{m.slot}</b>
-                          {m.out_name && !isEmptySlot ? <> (replace <b>{m.out_name}</b>)</> : null}
-                          <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
-                        </>
-                      ) : fromIR ? (
-                        <>
-                          <span className="text-purple-700 dark:text-purple-400 font-semibold">Move from IR</span> <b>{m.in_name}</b> into <b>{m.slot}</b>
-                          {m.out_name && !isEmptySlot ? <> (bench <b>{m.out_name}</b>)</> : null}
-                          <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
-                        </>
-                      ) : (
-                        <>
-                          Put <b>{m.in_name}</b> into <b>{m.slot}</b>
-                          {m.out_name && !isEmptySlot ? <> (bench <b>{m.out_name}</b>)</> : null}
-                          <span className="ml-2 text-green-600">(+{m.gain.toFixed(2)} pts)</span>
-                        </>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {/* Head-to-Head Matchup Section */}
-          {lg.opponent && (
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="font-semibold mb-2 text-blue-800 dark:text-blue-200">This Week's Matchup</div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="font-medium text-gray-900 dark:text-gray-100">{lg.rosterUserDisplay}</div>
-                  <div className="text-xs text-gray-500">Your Optimal</div>
-                  <div className="font-bold text-lg">{lg.optimalTotal.toFixed(1)}</div>
-                </div>
-                <div>
-                  <div className="font-medium text-gray-900 dark:text-gray-100">{lg.opponent.teamName}</div>
-                  <div className="text-xs text-gray-500">Opponent</div>
-                  <div className="font-bold text-lg">{lg.opponent.currentTotal.toFixed(1)}</div>
-                </div>
-              </div>
-              <div className="mt-2 text-center">
-                {(lg.projectedWin !== undefined || (lg.opponent && lg.pointDifferential === 0)) && (
-                  <div className={`font-semibold ${
-                    lg.projectedWin === true ? 'text-green-600 dark:text-green-400' : 
-                    lg.projectedWin === false ? 'text-red-600 dark:text-red-400' : 
-                    'text-yellow-600 dark:text-yellow-400'
-                  }`} data-testid={`text-projection-${lg.league_id}`}>
-                    {lg.projectedWin === true ? 'Projected Win' : 
-                     lg.projectedWin === false ? 'Projected Loss' : 
-                     'Projected Tie'}
-                    {lg.pointDifferential !== undefined && (
-                      <span className="ml-2 text-sm">
-                        ({lg.pointDifferential > 0 ? '+' : lg.pointDifferential < 0 ? '' : ''}{lg.pointDifferential.toFixed(1)} pts)
-                      </span>
                     )}
+
+                    <div className="text-xs text-muted-foreground text-center border-t border-border pt-2">
+                      Bench: {lg.benchCount ?? 0}/{lg.benchCapacity ?? 0}
+                      {(lg.benchEmpty ?? 0) > 0 && <> • <span className="text-amber-600">{lg.benchEmpty} empty</span></>}
+                    </div>
                   </div>
-                )}
-                {lg.winProbability !== undefined && (
-                  <div className="mt-1 text-sm font-medium text-gray-700 dark:text-gray-300" data-testid={`text-win-probability-${lg.league_id}`}>
-                    Win Probability: <span className={`font-bold ${
-                      lg.winProbability >= 70 ? 'text-green-600 dark:text-green-400' :
-                      lg.winProbability >= 30 ? 'text-yellow-600 dark:text-yellow-400' :
-                      'text-red-600 dark:text-red-400'
-                    }`}>{lg.winProbability}%</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                </CollapsibleSection>
+              )}
 
-          <div className="mt-3 text-sm" data-testid={`text-totals-${lg.league_id}`}>
-            Current total: <b>{lg.currentTotal.toFixed(2)}</b> — Optimal total: <b>{lg.optimalTotal.toFixed(2)}</b>
-          </div>
-
-          <div className="mt-1 text-xs text-gray-600" data-testid={`text-bench-details-${lg.league_id}`}>
-            Bench: {lg.benchCount ?? 0}/{lg.benchCapacity ?? 0}
-            {(lg.benchEmpty ?? 0) > 0 && <> — <span className="text-amber-700">{lg.benchEmpty} empty</span></>}
-          </div>
-
-          {(() => {
-            // Blocklist of non-active players to exclude from waiver recommendations
-            const WAIVER_BLOCKLIST = new Set([
-              "Donnie Ernsberger",
-              "Mark McNamee",
-            ]);
-            
-            // Get FAs from suggested changes
-            const suggestedFAIds = new Set(
-              diff.moves
-                .map(m => lg.allEligible?.find(p => p.player_id === m.in_pid))
-                .filter(p => (p as any)?.isFA === true)
-                .map(p => p?.player_id)
-                .filter(Boolean) as string[]
-            );
-            
-            // Get all FAs not already in suggested changes, grouped by position
-            const allFAs = (lg.allEligible || [])
-              .filter(p => {
-                // Must be a FA and not already suggested
-                if (!(p as any)?.isFA || suggestedFAIds.has(p.player_id)) return false;
-                // Exclude blocklisted players
-                if (WAIVER_BLOCKLIST.has(p.name)) return false;
-                return true;
-              });
-            
-            // Group by position and take top 3 per position
-            const byPosition = new Map<string, typeof allFAs>();
-            for (const fa of allFAs) {
-              const pos = fa.pos;
-              if (!byPosition.has(pos)) byPosition.set(pos, []);
-              byPosition.get(pos)!.push(fa);
-            }
-            
-            // Sort each position by projection and take top 3
-            const otherFAs: typeof allFAs = [];
-            for (const [pos, fas] of Array.from(byPosition.entries())) {
-              const topN = fas
-                .sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0))
-                .slice(0, 3);
-              otherFAs.push(...topN);
-            }
-            
-            // Sort final list by projection
-            otherFAs.sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
-            
-            return otherFAs.length > 0 && (
-              <div className="mt-4">
-                <div className="font-semibold mb-1">Waiver Watchlist</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                  Other highly projected free agents to consider
-                </div>
-                <ul className="space-y-1">
-                  {otherFAs.map((fa, i) => (
-                    <li key={i} className="text-sm" data-testid={`row-waiver-${i}`}>
-                      <b>{fa.name}</b> ({fa.pos}) — <span className="text-green-600 font-medium">{fa.proj?.toFixed(2)} pts</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })()}
+              {(() => {
+                // Blocklist of non-active players to exclude from waiver recommendations
+                const WAIVER_BLOCKLIST = new Set([
+                  "Donnie Ernsberger",
+                  "Mark McNamee",
+                ]);
+                
+                // Get FAs from suggested changes
+                const suggestedFAIds = new Set(
+                  diff.moves
+                    .map(m => lg.allEligible?.find(p => p.player_id === m.in_pid))
+                    .filter(p => (p as any)?.isFA === true)
+                    .map(p => p?.player_id)
+                    .filter(Boolean) as string[]
+                );
+                
+                // Get all FAs not already in suggested changes, grouped by position
+                const allFAs = (lg.allEligible || [])
+                  .filter(p => {
+                    // Must be a FA and not already suggested
+                    if (!(p as any)?.isFA || suggestedFAIds.has(p.player_id)) return false;
+                    // Exclude blocklisted players
+                    if (WAIVER_BLOCKLIST.has(p.name)) return false;
+                    return true;
+                  });
+                
+                // Group by position and take top 3 per position
+                const byPosition = new Map<string, typeof allFAs>();
+                for (const fa of allFAs) {
+                  const pos = fa.pos;
+                  if (!byPosition.has(pos)) byPosition.set(pos, []);
+                  byPosition.get(pos)!.push(fa);
+                }
+                
+                // Sort each position by projection and take top 3
+                const otherFAs: typeof allFAs = [];
+                for (const [pos, fas] of Array.from(byPosition.entries())) {
+                  const topN = fas
+                    .sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0))
+                    .slice(0, 3);
+                  otherFAs.push(...topN);
+                }
+                
+                // Sort final list by projection
+                otherFAs.sort((a, b) => (b.proj ?? 0) - (a.proj ?? 0));
+                
+                return otherFAs.length > 0 && (
+                  <CollapsibleSection
+                    title="Waiver Watchlist"
+                    subtitle="Other highly projected free agents"
+                    defaultOpen={false}
+                  >
+                    <ul className="space-y-2 mt-3">
+                      {otherFAs.map((fa, i) => (
+                        <li key={i} className="py-2 border-b border-border last:border-0" data-testid={`row-waiver-${i}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm">{fa.name}</span>
+                                <span className="text-xs text-muted-foreground">({fa.pos})</span>
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-0.5">
+                                {fa.proj?.toFixed(1) ?? "0.0"} pts
+                              </div>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </CollapsibleSection>
+                );
+              })()}
             </div>
           </motion.div>
         )}
