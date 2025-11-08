@@ -1,0 +1,69 @@
+:root{
+  --navy:#0f2237; --navy2:#142a45; --text:#eaf0ff; --muted:#9fb2c8;
+  --ok:#22c55e; --bad:#ef4444; --warn:#facc15; --bar:#2b3c56;
+}
+
+.match-row{
+  width:100%; color:var(--text); background:var(--navy2);
+  border-radius:14px; padding:10px 12px; box-shadow:0 2px 8px rgba(0,0,0,.14);
+  display:grid; gap:8px;
+  /* Title gets ROW 1 full width; numbers go below */
+  grid-template-areas:
+    "title"
+    "left"
+    "center"
+    "right"
+    "strip";
+}
+
+/* title line (name gets the space) */
+.m-title{ grid-area:title; display:flex; align-items:center; gap:10px; min-width:0; }
+.m-logo{ width:32px; height:32px; border-radius:8px; background:#113257; flex:0 0 32px; }
+.m-name{ min-width:0; font-weight:800; font-size:15px; line-height:1.15; }
+.clamp2{
+  overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  white-space:normal; text-overflow:ellipsis;
+}
+
+/* row 2 content in a single line on compact phones */
+.m-left{ grid-area:left; display:flex; align-items:center; gap:6px; }
+.m-center{ grid-area:center; display:flex; flex-direction:column; gap:4px; }
+.m-right{ grid-area:right; display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+.m-num{ font-weight:800; font-size:14.5px; }
+.m-opp{ width:26px; height:26px; border-radius:50%; object-fit:cover; }
+
+.m-bar{ width:100%; height:8px; background:var(--bar); border-radius:999px; overflow:hidden; }
+.m-fill{ height:100%; background:linear-gradient(90deg,#20d18a,#1fb97a); }
+.m-pct{ font-size:12px; color:var(--muted); font-weight:700; }
+
+/* mini strip */
+.m-strip{ grid-area:strip; display:flex; flex-wrap:wrap; gap:8px; font-size:12px; color:var(--muted); }
+.k{ font-weight:700; letter-spacing:.02em; }
+.v{ font-weight:700; color:var(--text); }
+.pill{ padding:2px 6px; border-radius:999px; font-weight:700; font-size:12px; }
+.pill.pos{ background:rgba(34,197,94,.18); color:var(--ok); }
+.pill.neg{ background:rgba(239,68,68,.18); color:var(--bad); }
+.chip{ display:inline-flex; align-items:center; gap:6px; padding:2px 6px; border-radius:999px; background:rgba(255,255,255,.04);}
+.dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+.dot.y{ background:var(--warn);} .dot.r{ background:var(--bad);} .dot.g{ background:var(--ok);}
+
+/* ≥ 360px: keep compact; ≥ 420px: lay numbers on one row */
+@media (min-width:420px){
+  .match-row{
+    grid-template-areas:
+      "title  title  title  title"
+      "left   center right  right"
+      "strip  strip  strip  strip";
+    grid-template-columns: 72px 1fr 90px auto;
+    align-items:center;
+  }
+}
+/* ≥ 520px (bigger phones): even denser one-row feel */
+@media (min-width:520px){
+  .match-row{
+    grid-template-areas:
+      "title  title  left center right"
+      "strip  strip  strip strip strip";
+    grid-template-columns: minmax(140px,2fr) 6px auto 120px auto;
+  }
+}
