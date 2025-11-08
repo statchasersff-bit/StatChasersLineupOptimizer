@@ -387,9 +387,16 @@
 
 .lc-title {
   font-weight: 800;
-  font-size: 14.5px;
-  line-height: 1.1;
+  font-size: 14px;
+  line-height: 1.15;
   color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  min-width: 0;
 }
 
 .lc-sub {

@@ -53,7 +53,7 @@ export function CompactLeagueRow({
       <div className="lc-left">
         <div className="lc-logo" />
         <div className="lc-main">
-          <div className="lc-title clamp1" title={leagueName}>{leagueName}</div>
+          <div className="lc-title" title={leagueName}>{leagueName}</div>
           <div className="lc-sub clamp1">{formatText}</div>
         </div>
       </div>
