@@ -74,7 +74,13 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
         <div className="min-w-0 flex-1">
           <div className="text-xs sm:text-sm text-gray-500 truncate" data-testid={`text-manager-${lg.league_id}`}>{lg.rosterUserDisplay}</div>
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
-            <h3 className="text-sm sm:text-base md:text-lg font-semibold break-words" data-testid={`text-league-name-${lg.league_id}`}>{lg.name}</h3>
+            <h3 
+              className="text-sm sm:text-base md:text-lg font-semibold truncate max-w-[200px] sm:max-w-[300px] md:max-w-full" 
+              data-testid={`text-league-name-${lg.league_id}`}
+              title={lg.name}
+            >
+              {lg.name}
+            </h3>
             {(lg.outByeEmptyCount ?? 0) > 0 && (
               <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full bg-red-500 text-white shadow-sm whitespace-nowrap" data-testid={`badge-out-bye-empty-${lg.league_id}`}>
                 OUT/BYE/EMPTY: {lg.outByeEmptyCount}
