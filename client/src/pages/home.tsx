@@ -987,7 +987,7 @@ export default function Home() {
               <input 
                 type="text" 
                 placeholder="Enter your Sleeper username..." 
-                className="w-full px-4 py-2.5 border-2 border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                className="w-full px-4 py-2.5 border-2 border-input bg-background text-foreground placeholder:text-muted-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 data-testid="input-username"
@@ -1001,7 +1001,7 @@ export default function Home() {
                 <div className="flex items-center gap-2 text-sm">
                   <label className="text-muted-foreground whitespace-nowrap">Season:</label>
                   <input
-                    className="border-2 border-input rounded px-2.5 py-1.5 w-16 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="border-2 border-input bg-background text-foreground rounded px-2.5 py-1.5 w-16 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     value={season}
                     onChange={(e) => setSeason(e.target.value)}
                     data-testid="input-season"
@@ -1010,7 +1010,7 @@ export default function Home() {
                 <div className="flex items-center gap-2 text-sm">
                   <label className="text-muted-foreground whitespace-nowrap">Week:</label>
                   <input
-                    className="border-2 border-input rounded px-2.5 py-1.5 w-12 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="border-2 border-input bg-background text-foreground rounded px-2.5 py-1.5 w-12 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     value={week}
                     onChange={(e) => setWeek(e.target.value)}
                     data-testid="input-week"
@@ -1363,7 +1363,7 @@ export default function Home() {
                         onDragEnd={(e, info) => {
                           // Swipe left (negative offset) = check/hide
                           if (info.offset.x < -100) {
-                            setCheckedLeagues(prev => new Set([...prev, lg.league_id]));
+                            setCheckedLeagues(prev => new Set(Array.from(prev).concat(lg.league_id)));
                           }
                           // Swipe right (positive offset) = uncheck
                           else if (info.offset.x > 100 && isChecked) {
