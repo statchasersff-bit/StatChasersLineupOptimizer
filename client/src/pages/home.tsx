@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { queryClient } from "@/lib/queryClient";
-import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2 } from "lucide-react";
+import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
@@ -48,6 +48,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { StatSummaryCard } from "@/components/StatSummaryCard";
+import { useStatTrends } from "@/hooks/use-stat-trends";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -734,6 +736,15 @@ export default function Home() {
     return record;
   }, { wins: 0, losses: 0, ties: 0, noMatchup: 0 });
 
+  // Track stat trends for delta calculations
+  const trends = useStatTrends(username, season, week, {
+    leagues: summaries.length,
+    potential: totalPotentialPoints,
+    outByeEmpty: totalOutByeEmpty,
+    ques: totalQues,
+    wins: projectedRecord.wins,
+  });
+
   return (
     <div className="bg-background text-foreground min-h-screen">
       {/* Header */}
@@ -990,34 +1001,65 @@ export default function Home() {
             <div className="h-6 w-1 bg-primary rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-foreground">Summary</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center bg-gradient-to-br from-card to-card/80">
-            <div className="text-xl sm:text-2xl font-bold text-primary animate-numberPop" data-testid="text-active-leagues">{summaries.length}</div>
-            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Active Leagues</div>
-          </div>
-          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center bg-gradient-to-br from-card to-card/80">
-            <div className="text-xl sm:text-2xl font-bold text-accent animate-numberPop" style={{ animationDelay: '0.1s' }} data-testid="text-total-potential">+{totalPotentialPoints.toFixed(1)}</div>
-            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Total Potential Pts</div>
-          </div>
-          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center bg-gradient-to-br from-card to-card/80">
-            <div className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400 animate-numberPop" style={{ animationDelay: '0.2s' }} data-testid="text-out-bye-empty">{totalOutByeEmpty}</div>
-            <div className="text-xs sm:text-sm text-muted-foreground mt-1">OUT/BYE/EMPTY</div>
-          </div>
-          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center bg-gradient-to-br from-card to-card/80">
-            <div className="text-xl sm:text-2xl font-bold text-yellow-600 dark:text-yellow-400 animate-numberPop" style={{ animationDelay: '0.3s' }} data-testid="text-ques-doub">{totalQues}</div>
-            <div className="text-xs sm:text-sm text-muted-foreground mt-1">QUES/DOUB</div>
-          </div>
-          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center col-span-2 sm:col-span-1 bg-gradient-to-br from-card to-card/80">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 animate-numberPop" style={{ animationDelay: '0.4s' }} data-testid="text-projected-record">
-              {projectedRecord.wins + projectedRecord.losses + projectedRecord.ties > 0 
-                ? `${projectedRecord.wins}-${projectedRecord.losses}${projectedRecord.ties > 0 ? `-${projectedRecord.ties}` : ''}` 
-                : '--'}
-            </div>
-            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Projected Record</div>
-            {projectedRecord.noMatchup > 0 && (
-              <div className="text-xs text-gray-500 mt-1">{projectedRecord.noMatchup} no matchup</div>
-            )}
-          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3 sm:gap-4">
+            <StatSummaryCard
+              id="leagues"
+              label="Active Leagues"
+              value={summaries.length}
+              icon={Trophy}
+              tone="blue"
+              delta={trends.leagues.delta}
+              trend={trends.leagues.trend}
+              description={summaries.length === 1 ? "1 league analyzed" : `${summaries.length} leagues analyzed`}
+            />
+            <StatSummaryCard
+              id="potential"
+              label="Total Potential Pts"
+              value={`+${totalPotentialPoints.toFixed(1)}`}
+              icon={Flame}
+              tone="green"
+              delta={trends.potential.delta}
+              trend={trends.potential.trend}
+              description={`${totalPotentialPoints.toFixed(1)} pts vs optimal`}
+            />
+            <StatSummaryCard
+              id="out-bye-empty"
+              label="OUT/BYE/EMPTY"
+              value={totalOutByeEmpty}
+              icon={XCircle}
+              tone="red"
+              delta={trends.outByeEmpty.delta}
+              trend={trends.outByeEmpty.trend}
+              description={totalOutByeEmpty === 1 ? "1 player inactive" : `${totalOutByeEmpty} players inactive this week`}
+            />
+            <StatSummaryCard
+              id="ques-doub"
+              label="QUES/DOUB"
+              value={totalQues}
+              icon={HelpCircle}
+              tone="yellow"
+              delta={trends.ques.delta}
+              trend={trends.ques.trend}
+              description={totalQues === 1 ? "1 player questionable" : `${totalQues} players with injury concerns`}
+            />
+            <StatSummaryCard
+              id="projected-record"
+              label="Projected Record"
+              value={
+                projectedRecord.wins + projectedRecord.losses + projectedRecord.ties > 0 
+                  ? `${projectedRecord.wins}-${projectedRecord.losses}${projectedRecord.ties > 0 ? `-${projectedRecord.ties}` : ''}` 
+                  : '--'
+              }
+              icon={Target}
+              tone="purple"
+              delta={trends.wins.delta}
+              trend={trends.wins.trend}
+              description={
+                projectedRecord.noMatchup > 0 
+                  ? `${projectedRecord.wins} projected wins, ${projectedRecord.noMatchup} no matchup`
+                  : `${projectedRecord.wins} projected wins this week`
+              }
+            />
           </div>
         </div>
 
