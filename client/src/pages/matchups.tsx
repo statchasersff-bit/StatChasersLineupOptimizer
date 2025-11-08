@@ -1134,14 +1134,14 @@ export default function MatchupsPage() {
                       onClick={() => toggleExpanded(league.leagueId)}
                       data-testid={`row-league-${league.leagueId}`}
                     >
-                      <TableCell>
+                      <TableCell data-label="">
                         {expandedLeagues.has(league.leagueId) ? (
                           <ChevronDown className="h-4 w-4" />
                         ) : (
                           <ChevronRight className="h-4 w-4" />
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="League">
                         <div className="flex items-start gap-2">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
                             {league.leagueName.charAt(0).toUpperCase()}
@@ -1161,21 +1161,21 @@ export default function MatchupsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center" data-testid={`text-record-${league.leagueId}`}>
+                      <TableCell className="text-center" data-label="Record" data-testid={`text-record-${league.leagueId}`}>
                         {league.isComputing || !league.record ? (
                           <div className="h-4 bg-muted rounded w-12 mx-auto animate-pulse" />
                         ) : (
                           league.record
                         )}
                       </TableCell>
-                      <TableCell className="text-center" data-testid={`text-opt-act-${league.leagueId}`}>
+                      <TableCell className="text-center" data-label="Opt-Act" data-testid={`text-opt-act-${league.leagueId}`}>
                         {league.isComputing || league.optPoints === undefined ? (
                           <div className="h-4 bg-muted rounded w-16 mx-auto animate-pulse" />
                         ) : (
                           <OptActCell optPoints={league.optPoints} actPoints={league.actPoints ?? 0} />
                         )}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center" data-label="Proj Result">
                         {league.isComputing || !league.projectedResult ? (
                           <div className="h-6 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : (
@@ -1232,7 +1232,7 @@ export default function MatchupsPage() {
                           </Tooltip>
                         )}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center" data-label="QUES?">
                         {league.isComputing || league.quesCount === undefined ? (
                           <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : league.quesCount > 0 ? (
@@ -1244,7 +1244,7 @@ export default function MatchupsPage() {
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center" data-label="OUT/BYE/EMPTY?">
                         {league.isComputing || league.notPlayingCount === undefined ? (
                           <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : league.notPlayingCount > 0 ? (
