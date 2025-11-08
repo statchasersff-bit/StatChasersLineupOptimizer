@@ -5,6 +5,7 @@ import { StarterBadge } from "./StarterBadge";
 import { AutoSubChip } from "./ui/auto-sub-chip";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X } from "lucide-react";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface LineupComparisonProps {
   lg: LeagueSummary;
@@ -159,7 +160,10 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
           <div className="text-lg font-bold">{lg.currentTotal.toFixed(1)} pts</div>
         </div>
         <div className="text-center">
-          <div className="text-xs text-muted-foreground">Potential Gain</div>
+          <div className="text-xs text-muted-foreground flex items-center justify-center">
+            Potential Gain
+            <InfoTooltip content="The point difference between your current lineup and the optimal lineup. Positive values indicate how many points you could gain by switching to the optimal lineup." />
+          </div>
           <div className={`text-xl font-bold ${
             delta > 0 
               ? 'text-green-600 dark:text-green-400' 

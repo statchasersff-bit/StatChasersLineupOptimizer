@@ -46,6 +46,8 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { ShareSummaryCard } from "@/components/ShareSummaryCard";
 import { useToast } from "@/hooks/use-toast";
+import { MobileStickyFooter } from "@/components/MobileStickyFooter";
+import { PersistentBackBar } from "@/components/PersistentBackBar";
 import {
   Tooltip,
   TooltipContent,
@@ -97,7 +99,20 @@ export default function Home() {
     const stored = localStorage.getItem('checkedLeagues');
     return stored ? new Set(JSON.parse(stored)) : new Set();
   });
+  const [currentLeagueIndex, setCurrentLeagueIndex] = useState(0);
+  const [showPersistentBackBar, setShowPersistentBackBar] = useState(false);
   const { toast } = useToast();
+
+  // Track scroll position for persistent back bar
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrolled = window.scrollY > 300;
+      setShowPersistentBackBar(scrolled);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Persist user settings to localStorage
   useEffect(() => {
@@ -1486,6 +1501,37 @@ export default function Home() {
         onClose={() => setShowAdminModal(false)}
         currentWeek={week}
         currentSeason={season}
+      />
+
+      {/* Mobile Sticky Footer */}
+      {sortedSummaries.length > 0 && (
+        <MobileStickyFooter
+          onReanalyze={handleAnalyzeLineups}
+          onNextLeague={() => {
+            if (currentLeagueIndex < sortedSummaries.length - 1) {
+              setCurrentLeagueIndex(currentLeagueIndex + 1);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          onBackToAll={() => {
+            setCurrentLeagueIndex(0);
+            setShowPersistentBackBar(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          currentIndex={currentLeagueIndex}
+          totalLeagues={sortedSummaries.length}
+          isAnalyzing={isAnalyzing}
+        />
+      )}
+
+      {/* Persistent Back Bar */}
+      <PersistentBackBar
+        onClick={() => {
+          setCurrentLeagueIndex(0);
+          setShowPersistentBackBar(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        visible={showPersistentBackBar && sortedSummaries.length > 1}
       />
     </div>
   );

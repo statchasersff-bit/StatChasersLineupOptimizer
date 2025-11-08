@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { LineupComparison } from "./LineupComparison";
 import { UserPlus, Activity, RefreshCw, ArrowRight, Users, TrendingUp, TrendingDown } from "lucide-react";
+import { InfoTooltip } from "./InfoTooltip";
 
 // Helper function to generate initials from league name
 function getLeagueInitials(name: string): string {
@@ -300,6 +301,12 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                     {/* Win Probability Bar */}
                     {lg.winProbability !== undefined && (
                       <div className="space-y-2">
+                        <div className="flex justify-between items-center text-xs font-semibold mb-1">
+                          <span className="flex items-center gap-1">
+                            Win Probability
+                            <InfoTooltip content="Calculated using a normal distribution with ~30 points standard deviation per team. Based on your optimal lineup vs opponent's current lineup point differential." />
+                          </span>
+                        </div>
                         <div className="flex justify-between text-xs font-semibold">
                           <span className="text-blue-600 dark:text-blue-400">{lg.winProbability}%</span>
                           <span className="text-red-600 dark:text-red-400">{100 - lg.winProbability}%</span>
