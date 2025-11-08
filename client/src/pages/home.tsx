@@ -42,6 +42,8 @@ import LeagueCard from "@/components/LeagueCard";
 import { LeagueListSkeleton } from "@/components/ui/league-skeleton";
 import { AutoSubBanner } from "@/components/ui/auto-sub-chip";
 import AdminModal from "@/components/AdminModal";
+import { BrandLogo } from "@/components/BrandLogo";
+import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
@@ -795,25 +797,28 @@ export default function Home() {
   return (
     <div className="bg-background text-foreground min-h-screen">
       {/* Header */}
-      <header className="bg-card border-b border-border shadow-sm">
+      <header className="bg-card border-b-2 border-border shadow-lg relative overflow-hidden">
+        {/* Gold accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gold-gradient"></div>
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex flex-col">
-              <div className="text-xs text-muted-foreground mb-1">Last Update: 11/6/2025 8:27am EDT</div>
-              <div className="flex items-center space-x-2">
-                <ChartLine className="text-primary w-6 h-6 sm:w-8 sm:h-8" />
-                <h1 className="text-lg sm:text-xl font-bold text-foreground" data-testid="text-app-title">StatChasers Lineup Checker</h1>
-              </div>
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-muted-foreground">Last Update: 11/6/2025 8:27am EDT</div>
+              <BrandLogo className="animate-iconBounce" />
             </div>
             
-            <button 
-              className="bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
-              onClick={() => setShowAdminModal(true)}
-              data-testid="button-admin"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Admin</span>
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <DarkModeToggle />
+              <button 
+                className="bg-navy-gradient text-white px-3 sm:px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+                onClick={() => setShowAdminModal(true)}
+                data-testid="button-admin"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -854,8 +859,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* SECTION: Setup */}
         <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-6 w-1 bg-primary rounded-full"></div>
+          <div className="flex items-center gap-2 mb-4 border-gold-accent pl-3">
             <h2 className="text-xl sm:text-2xl font-bold text-foreground">Setup</h2>
           </div>
           <div className="card rounded-lg border-2 border-primary/20 shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 bg-gradient-to-br from-primary/5 via-card to-accent/5">
@@ -1118,10 +1122,17 @@ export default function Home() {
 
         {/* Loading Progress Badge */}
         {isAnalyzing && totalLeagues > 0 && (
-          <div className="mb-4 flex justify-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground animate-pulse" data-testid="badge-loading-progress">
+          <div className="mb-4 flex flex-col items-center gap-2">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground shadow-md" data-testid="badge-loading-progress">
               <div className="loading-spinner w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-              <span className="font-medium">Analyzing: {loadedLeagues} / {totalLeagues}</span>
+              <span className="font-semibold">Analyzing: {loadedLeagues} / {totalLeagues}</span>
+            </div>
+            {/* Animated Progress Bar */}
+            <div className="w-64 h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gold-gradient animate-progressFill transition-all duration-300"
+                style={{ width: `${(loadedLeagues / totalLeagues) * 100}%` }}
+              ></div>
             </div>
           </div>
         )}
@@ -1129,8 +1140,7 @@ export default function Home() {
         {/* SECTION: League Insights */}
         {(isAnalyzing || sortedSummaries.length > 0) && (
           <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="h-6 w-1 bg-primary rounded-full"></div>
+            <div className="flex items-center gap-2 mb-4 border-gold-accent pl-3">
               <h2 className="text-xl sm:text-2xl font-bold text-foreground">League Insights</h2>
             </div>
 
