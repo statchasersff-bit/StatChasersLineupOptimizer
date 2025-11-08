@@ -1142,19 +1142,22 @@ export default function MatchupsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium" data-testid={`text-league-name-${league.leagueId}`}>
-                              {league.leagueName}
-                            </span>
+                        <div className="flex items-start gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                            {league.leagueName.charAt(0).toUpperCase()}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="secondary" className="text-xs" data-testid={`badge-format-${league.leagueId}`}>
-                              {league.format}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs" data-testid={`badge-size-${league.leagueId}`}>
-                              {league.size} teams
-                            </Badge>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm leading-tight mb-1" data-testid={`text-league-name-${league.leagueId}`}>
+                              {league.leagueName}
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="secondary" className="text-xs" data-testid={`badge-format-${league.leagueId}`}>
+                                {league.format}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs" data-testid={`badge-size-${league.leagueId}`}>
+                                {league.size} teams
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       </TableCell>
@@ -1176,26 +1179,65 @@ export default function MatchupsPage() {
                         {league.isComputing || !league.projectedResult ? (
                           <div className="h-6 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : (
-                          <div className="flex items-center justify-center gap-2">
-                            <Badge
-                              variant={league.projectedResult === "W" ? "default" : league.projectedResult === "L" ? "destructive" : "outline"}
-                              data-testid={`badge-result-${league.leagueId}`}
-                            >
-                              {league.projectedResult}
-                            </Badge>
-                            {league.projectedResult !== "N/A" && league.margin !== undefined && (
-                              <span className="text-xs text-muted-foreground" data-testid={`text-margin-${league.leagueId}`}>
-                                {league.margin > 0 ? "+" : ""}{league.margin.toFixed(1)}
-                              </span>
-                            )}
-                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center justify-center gap-1.5">
+                                {league.projectedResult === "W" && (
+                                  <>
+                                    <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                      <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd"/>
+                                      </svg>
+                                    </div>
+                                    <span className="text-xs font-medium text-green-600 dark:text-green-400" data-testid={`badge-result-${league.leagueId}`}>
+                                      {league.margin !== undefined && `${league.margin > 0 ? "+" : ""}${league.margin.toFixed(1)}`}
+                                    </span>
+                                  </>
+                                )}
+                                {league.projectedResult === "L" && (
+                                  <>
+                                    <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                                      <svg className="w-3.5 h-3.5 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                                      </svg>
+                                    </div>
+                                    <span className="text-xs font-medium text-red-600 dark:text-red-400" data-testid={`badge-result-${league.leagueId}`}>
+                                      {league.margin !== undefined && `${league.margin.toFixed(1)}`}
+                                    </span>
+                                  </>
+                                )}
+                                {league.projectedResult === "T" && (
+                                  <>
+                                    <div className="w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                                      <svg className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/>
+                                      </svg>
+                                    </div>
+                                    <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400" data-testid={`badge-result-${league.leagueId}`}>
+                                      Tie
+                                    </span>
+                                  </>
+                                )}
+                                {league.projectedResult === "N/A" && (
+                                  <span className="text-xs text-muted-foreground">N/A</span>
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {league.projectedResult === "W" && `Projected win by ${Math.abs(league.margin ?? 0).toFixed(1)} pts`}
+                              {league.projectedResult === "L" && `Projected loss by ${Math.abs(league.margin ?? 0).toFixed(1)} pts`}
+                              {league.projectedResult === "T" && `Projected tie`}
+                              {league.projectedResult === "N/A" && `No projection available`}
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </TableCell>
                       <TableCell className="text-center">
                         {league.isComputing || league.quesCount === undefined ? (
                           <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : league.quesCount > 0 ? (
-                          <span className="rounded-full bg-yellow-50 text-yellow-700 text-xs px-2 py-0.5 dark:bg-yellow-900/30 dark:text-yellow-300" data-testid={`badge-ques-${league.leagueId}`}>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold" data-testid={`badge-ques-${league.leagueId}`}>
+                            <span className="text-base">🟡</span>
                             {league.quesCount}
                           </span>
                         ) : (
@@ -1206,11 +1248,15 @@ export default function MatchupsPage() {
                         {league.isComputing || league.notPlayingCount === undefined ? (
                           <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : league.notPlayingCount > 0 ? (
-                          <span className="rounded-full bg-red-50 text-red-700 text-xs px-2 py-0.5" data-testid={`badge-not-playing-${league.leagueId}`}>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold" data-testid={`badge-not-playing-${league.leagueId}`}>
+                            <span className="text-base">🔴</span>
                             {league.notPlayingCount}
                           </span>
                         ) : (
-                          <span className="rounded-full bg-green-50 text-green-600 text-xs px-2 py-0.5">0</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold">
+                            <span className="text-base">🟢</span>
+                            0
+                          </span>
                         )}
                       </TableCell>
                     </TableRow>
