@@ -35,6 +35,8 @@ function PlayerRow({
   autoSubRec,
   requireLaterStart,
   delta,
+  isBeingReplaced,
+  isBeingAdded,
 }: {
   slot: string;
   player?: PlayerLite & { proj?: number; opp?: string; locked?: boolean };
@@ -44,6 +46,8 @@ function PlayerRow({
   autoSubRec?: any;
   requireLaterStart?: boolean;
   delta?: number;
+  isBeingReplaced?: boolean;
+  isBeingAdded?: boolean;
 }) {
   const posColor = getPositionColor(slot);
 
@@ -55,11 +59,11 @@ function PlayerRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xs font-semibold text-muted-foreground">{slot}</span>
-          {isOptimal ? (
+          {isOptimal && isBeingAdded ? (
             <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-          ) : (
+          ) : !isOptimal && isBeingReplaced ? (
             <X className="w-4 h-4 text-red-600 dark:text-red-400" />
-          )}
+          ) : null}
           {delta !== undefined && delta !== 0 && (
             <span 
               className={`text-xs font-semibold ${
@@ -115,6 +119,9 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
     const optimalPoints = optimalSlot?.player?.proj ?? 0;
     const slotDelta = currentPoints - optimalPoints;
     
+    // Only mark as "being replaced" (red X) if there's actually a player in this slot AND it's being replaced by a different player
+    const isBeingReplaced = player && optimalSlot?.player && optimalSlot.player.player_id !== pid;
+    
     return {
       slot,
       player,
@@ -122,6 +129,7 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
       isEmpty: !pid || pid === "0" || pid === "",
       autoSubRec,
       delta: slotDelta,
+      isBeingReplaced,
     };
   });
 
@@ -137,6 +145,9 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
     const currentPlayer = lg.starterObjs?.find(p => p.player_id === currentSlot) || lg.allEligible?.find(p => p.player_id === currentSlot);
     const currentPoints = currentPlayer?.proj ?? 0;
     const slotDelta = optimalPoints - currentPoints;
+    
+    // Only show green checkmark if this is a NEW addition (bench or FA), NOT already a starter
+    const isBeingAdded = s.player && !isCurrentStarter;
 
     return {
       slot: s.slot,
@@ -146,6 +157,7 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
       isFreeAgent,
       isBenchPlayer,
       delta: slotDelta,
+      isBeingAdded,
     };
   });
 
@@ -242,6 +254,7 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
                   autoSubRec={item.autoSubRec}
                   requireLaterStart={lg.autoSubConfig?.requireLaterStart}
                   delta={item.delta}
+                  isBeingReplaced={item.isBeingReplaced}
                 />
               ))
             ) : (
@@ -254,6 +267,7 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
                     isOptimal={true}
                     isEmpty={item.isEmpty}
                     delta={item.delta}
+                    isBeingAdded={item.isBeingAdded}
                   />
                   {item.isFreeAgent && (
                     <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" data-testid="badge-free-agent">
@@ -292,6 +306,7 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
                 autoSubRec={item.autoSubRec}
                 requireLaterStart={lg.autoSubConfig?.requireLaterStart}
                 delta={item.delta}
+                isBeingReplaced={item.isBeingReplaced}
               />
             ))}
           </div>
@@ -313,6 +328,7 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
                   isOptimal={true}
                   isEmpty={item.isEmpty}
                   delta={item.delta}
+                  isBeingAdded={item.isBeingAdded}
                 />
                 {item.isFreeAgent && (
                   <span className="absolute top-2 right-2 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" data-testid="badge-free-agent">
