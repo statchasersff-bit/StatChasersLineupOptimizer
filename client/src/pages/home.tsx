@@ -44,6 +44,7 @@ import { AutoSubBanner } from "@/components/ui/auto-sub-chip";
 import AdminModal from "@/components/AdminModal";
 import { BrandLogo } from "@/components/BrandLogo";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { ShareSummaryCard } from "@/components/ShareSummaryCard";
 import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
@@ -57,22 +58,37 @@ import { useStatTrends } from "@/hooks/use-stat-trends";
 export default function Home() {
   const [, setLocation] = useLocation();
   const params = useParams<{ username?: string }>();
-  const [season, setSeason] = useState("2025");
+  
+  // Load saved settings from localStorage
+  const loadSetting = <T,>(key: string, defaultValue: T): T => {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return defaultValue;
+      }
+    }
+    return defaultValue;
+  };
+  
+  const [season, setSeason] = useState(() => loadSetting('statChasers_season', "2025"));
   const [week, setWeek] = useState<string>(""); // Will be auto-detected
-  const [username, setUsername] = useState(params.username || "");
+  const [username, setUsername] = useState(() => params.username || loadSetting('statChasers_username', ""));
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [playersIndex, setPlayersIndex] = useState<Record<string, any> | null>(null);
   const [leagues, setLeagues] = useState<any[]>([]);
   const [summaries, setSummaries] = useState<LeagueSummary[]>([]);
-  const [considerWaivers, setConsiderWaivers] = useState(true);
-  const [oppOptimal, setOppOptimal] = useState(true); // Default to optimal like matchups page
-  const [filterDynasty, setFilterDynasty] = useState(false);
-  const [filterNonOptimal, setFilterNonOptimal] = useState(false);
+  const [considerWaivers, setConsiderWaivers] = useState(() => loadSetting('statChasers_considerWaivers', true));
+  const [oppOptimal, setOppOptimal] = useState(() => loadSetting('statChasers_oppOptimal', true));
+  const [filterDynasty, setFilterDynasty] = useState(() => loadSetting('statChasers_filterDynasty', false));
+  const [filterNonOptimal, setFilterNonOptimal] = useState(() => loadSetting('statChasers_filterNonOptimal', false));
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
-  const [sortBy, setSortBy] = useState<'delta' | 'winProbability' | 'injuries' | 'alphabetical'>('delta');
-  const [filterInjuries, setFilterInjuries] = useState(false); // 3+ injuries
-  const [filterBigDelta, setFilterBigDelta] = useState(false); // 5+ pts improvement
+  const [sortBy, setSortBy] = useState<'delta' | 'winProbability' | 'injuries' | 'alphabetical'>(() => loadSetting('statChasers_sortBy', 'delta'));
+  const [filterInjuries, setFilterInjuries] = useState(() => loadSetting('statChasers_filterInjuries', false));
+  const [filterBigDelta, setFilterBigDelta] = useState(() => loadSetting('statChasers_filterBigDelta', false));
+  const [filterWithRecs, setFilterWithRecs] = useState(() => loadSetting('statChasers_filterWithRecs', false));
   const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
   const [totalLeagues, setTotalLeagues] = useState(0);
@@ -83,6 +99,47 @@ export default function Home() {
   });
   const { toast } = useToast();
 
+  // Persist user settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('statChasers_username', JSON.stringify(username));
+  }, [username]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_season', JSON.stringify(season));
+  }, [season]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_considerWaivers', JSON.stringify(considerWaivers));
+  }, [considerWaivers]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_oppOptimal', JSON.stringify(oppOptimal));
+  }, [oppOptimal]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_filterDynasty', JSON.stringify(filterDynasty));
+  }, [filterDynasty]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_filterNonOptimal', JSON.stringify(filterNonOptimal));
+  }, [filterNonOptimal]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_sortBy', JSON.stringify(sortBy));
+  }, [sortBy]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_filterInjuries', JSON.stringify(filterInjuries));
+  }, [filterInjuries]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_filterBigDelta', JSON.stringify(filterBigDelta));
+  }, [filterBigDelta]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_filterWithRecs', JSON.stringify(filterWithRecs));
+  }, [filterWithRecs]);
+  
   // Persist checked leagues to localStorage
   useEffect(() => {
     localStorage.setItem('checkedLeagues', JSON.stringify(Array.from(checkedLeagues)));
@@ -152,6 +209,13 @@ export default function Home() {
       filtered = filtered.filter(s => s.delta >= 5);
     }
     
+    // Filter leagues with actionable recommendations
+    if (filterWithRecs) {
+      filtered = filtered.filter(s => 
+        s.recommendations && s.recommendations.length > 0
+      );
+    }
+    
     // Sort based on selected option
     let sorted = [...filtered];
     switch (sortBy) {
@@ -179,7 +243,7 @@ export default function Home() {
     }
     
     return sorted;
-  }, [summaries, sortBy, filterNonOptimal, filterInjuries, filterBigDelta]);
+  }, [summaries, sortBy, filterNonOptimal, filterInjuries, filterBigDelta, filterWithRecs]);
 
   const handleAnalyzeLineups = async () => {
     if (!username.trim()) {
@@ -826,32 +890,76 @@ export default function Home() {
       {/* Sticky Summary Bar */}
       {summaries.length > 0 && (
         <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border shadow-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div className="flex items-center justify-between gap-4 overflow-x-auto scrollbar-hide">
-              <div className="flex items-center gap-4 sm:gap-6 text-xs sm:text-sm whitespace-nowrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Leagues:</span>
-                  <span className="font-bold text-primary">{summaries.length}</span>
+          <TooltipProvider>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+              <div className="flex items-center justify-between gap-4 overflow-x-auto scrollbar-hide">
+                <div className="flex items-center gap-4 sm:gap-6 text-xs sm:text-sm whitespace-nowrap">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <span className="text-muted-foreground">Leagues:</span>
+                        <span className="font-bold text-primary">{summaries.length}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Total number of leagues analyzed for this week</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <span className="text-muted-foreground">Record:</span>
+                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                          {projectedRecord.wins + projectedRecord.losses + projectedRecord.ties > 0 
+                            ? `${projectedRecord.wins}-${projectedRecord.losses}${projectedRecord.ties > 0 ? `-${projectedRecord.ties}` : ''}` 
+                            : '--'}
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Your projected win-loss record across all leagues this week, assuming optimal lineups</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <span className="text-muted-foreground">Potential:</span>
+                        <span className="font-bold text-accent">+{totalPotentialPoints.toFixed(1)}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Total points you could gain by setting optimal lineups across all leagues</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <span className="text-muted-foreground">Alerts:</span>
+                        <span className="font-bold text-red-600 dark:text-red-400">{totalOutByeEmpty}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Total starters who won't play (OUT, BYE, or empty slots)</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Record:</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">
-                    {projectedRecord.wins + projectedRecord.losses + projectedRecord.ties > 0 
-                      ? `${projectedRecord.wins}-${projectedRecord.losses}${projectedRecord.ties > 0 ? `-${projectedRecord.ties}` : ''}` 
-                      : '--'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Potential:</span>
-                  <span className="font-bold text-accent">+{totalPotentialPoints.toFixed(1)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Alerts:</span>
-                  <span className="font-bold text-red-600 dark:text-red-400">{totalOutByeEmpty}</span>
-                </div>
+                
+                {/* Share Summary Button */}
+                <ShareSummaryCard
+                  username={username}
+                  week={week}
+                  season={season}
+                  leaguesCount={summaries.length}
+                  projectedRecord={projectedRecord}
+                  totalPotential={totalPotentialPoints}
+                  totalAlerts={totalOutByeEmpty}
+                />
               </div>
             </div>
-          </div>
+          </TooltipProvider>
         </div>
       )}
 
@@ -1168,6 +1276,18 @@ export default function Home() {
                   <Filter className="w-4 h-4 text-muted-foreground" />
                   <button
                     className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                      filterWithRecs
+                        ? 'bg-secondary text-secondary-foreground shadow-md border-2 border-primary'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                    onClick={() => setFilterWithRecs(!filterWithRecs)}
+                    data-testid="button-filter-with-recs"
+                  >
+                    {filterWithRecs && <X className="w-3 h-3 inline mr-1" />}
+                    Fix Suggestions
+                  </button>
+                  <button
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
                       filterInjuries
                         ? 'bg-red-500 text-white shadow-md'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -1190,10 +1310,11 @@ export default function Home() {
                     {filterBigDelta && <X className="w-3 h-3 inline mr-1" />}
                     5+ Pts Improvement
                   </button>
-                  {(filterInjuries || filterBigDelta) && (
+                  {(filterWithRecs || filterInjuries || filterBigDelta) && (
                     <button
                       className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
                       onClick={() => {
+                        setFilterWithRecs(false);
                         setFilterInjuries(false);
                         setFilterBigDelta(false);
                       }}
