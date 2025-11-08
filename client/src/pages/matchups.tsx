@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, Fragment } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ChevronDown, ChevronRight, AlertTriangle, FileSpreadsheet, ArrowLeft } from "lucide-react";
+import { ChevronDown, ChevronRight, AlertTriangle, FileSpreadsheet, ArrowLeft, ArrowUpDown } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex } from "@/lib/projections";
@@ -1040,6 +1040,38 @@ export default function MatchupsPage() {
                 )}
               </div>
             ))}
+          </div>
+          
+          {/* Mobile Sorting Controls - shown only on mobile */}
+          <div className="sm:hidden mb-4 flex items-center gap-3 bg-card border rounded-lg p-3" data-testid="mobile-sort-controls">
+            <label className="text-sm font-medium text-muted-foreground flex-shrink-0">Sort by:</label>
+            <Select 
+              value={sortBy} 
+              onValueChange={(value) => handleSort(value as typeof sortBy)}
+            >
+              <SelectTrigger className="flex-1" data-testid="select-sort-column">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="league">League Name</SelectItem>
+                <SelectItem value="record">Record</SelectItem>
+                <SelectItem value="optMinusAct">Opt-Act</SelectItem>
+                <SelectItem value="projectedResult">Proj Result</SelectItem>
+                <SelectItem value="quesCount">Questionable</SelectItem>
+                <SelectItem value="notPlayingCount">Out/Bye/Empty</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+              className="flex-shrink-0"
+              data-testid="button-toggle-sort-order"
+              title={sortOrder === "desc" ? "Sort descending" : "Sort ascending"}
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              <span className="sr-only">Toggle sort order</span>
+            </Button>
           </div>
           
           {/* Table View - shown on all screen sizes */}
