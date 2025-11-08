@@ -977,7 +977,7 @@ export default function MatchupsPage() {
                                 >
                                   {rec.out && (
                                     <div className="text-red-600 flex items-center">
-                                      <span>Out: {rec.out.name} ({rec.out.proj.toFixed(1)})</span>
+                                      <span>✗ Remove: {rec.out.name} ({rec.out.proj.toFixed(1)})</span>
                                       <StarterBadge p={rec.out} />
                                     </div>
                                   )}
@@ -985,7 +985,7 @@ export default function MatchupsPage() {
                                     {rec.fromIR && (
                                       <span className="text-purple-700 dark:text-purple-400 font-semibold">Move from IR:</span>
                                     )}
-                                    <span>In: {rec.in.name} ({rec.in.proj.toFixed(1)})</span>
+                                    <span>✓ Start: {rec.in.name} ({rec.in.proj.toFixed(1)})</span>
                                     <StarterBadge p={rec.in} />
                                   </div>
                                 </div>
@@ -1184,8 +1184,8 @@ export default function MatchupsPage() {
                                     <div className="font-medium text-green-600 dark:text-green-400">
                                       ✓ Start {rec.in.name} ({rec.in.pos})
                                     </div>
-                                    <div className="text-muted-foreground">
-                                      → Replace {rec.out.name} ({rec.out.pos})
+                                    <div className="font-medium text-red-600 dark:text-red-400">
+                                      ✗ Remove {rec.out.name} ({rec.out.pos})
                                     </div>
                                     <div className="text-muted-foreground">
                                       +{rec.delta.toFixed(1)} pts
@@ -1501,7 +1501,7 @@ export default function MatchupsPage() {
                                     >
                                       {rec.out && (
                                         <div className="text-xs sm:text-sm text-red-600 flex items-center">
-                                          <span>Out: {rec.out.name} ({rec.out.proj.toFixed(1)})</span>
+                                          <span>✗ Remove: {rec.out.name} ({rec.out.proj.toFixed(1)})</span>
                                           <StarterBadge p={rec.out} />
                                         </div>
                                       )}
@@ -1510,7 +1510,7 @@ export default function MatchupsPage() {
                                         {rec.fromIR && (
                                           <span className="text-purple-700 dark:text-purple-400 font-semibold">Move from IR:</span>
                                         )}
-                                        <span>In: {rec.in.name} ({rec.in.proj.toFixed(1)})</span>
+                                        <span>✓ Start: {rec.in.name} ({rec.in.proj.toFixed(1)})</span>
                                         <StarterBadge p={rec.in} />
                                       </div>
                                     </div>
