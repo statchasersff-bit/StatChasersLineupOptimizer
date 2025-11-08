@@ -1,19 +1,6 @@
 import type { Projection, PlayerLite, RosterSlot } from "./types";
 import { normalizePos } from "./projections";
-
-const FLEX_ELIGIBILITY: Record<string, string[]> = {
-  FLEX: ["RB","WR","TE"],
-  WRT: ["RB","WR","TE"],
-  WRTQ: ["RB","WR","TE","QB"],
-  SUPER_FLEX: ["QB","RB","WR","TE"],
-  REC_FLEX: ["WR","TE"],
-  RB_WR: ["RB","WR"],
-  RB_WR_TE: ["RB","WR","TE"],
-};
-
-function isFlex(slot: string) {
-  return Boolean(FLEX_ELIGIBILITY[slot.toUpperCase()]);
-}
+import { canFillSlot, isFlexSlot } from "./slotRules";
 
 export function buildSlotCounts(roster_positions: string[]) {
   const counts: Record<string, number> = {};
@@ -102,10 +89,9 @@ export function optimizeLineup(
   for (let i=0;i<filled.length;i++){
     if (filled[i].player) continue; // Skip locked positions
     const slot = filled[i].slot;
-    if (isFlex(slot)) continue;
+    if (isFlexSlot(slot)) continue;
     const idx = sorted.findIndex(p =>
-      !used.has(p.player_id) &&
-      (p.multiPos?.includes(normalizePos(slot)) || normalizePos(p.pos) === normalizePos(slot))
+      !used.has(p.player_id) && canFillSlot(p.pos, slot)
     );
     if (idx !== -1) { filled[i].player = sorted[idx]; used.add(sorted[idx].player_id); }
   }
@@ -113,13 +99,10 @@ export function optimizeLineup(
   for (let i=0;i<filled.length;i++){
     if (filled[i].player) continue; // Skip locked positions
     const slot = filled[i].slot;
-    if (!isFlex(slot)) continue;
-    const elig = FLEX_ELIGIBILITY[slot.toUpperCase()] || [];
+    if (!isFlexSlot(slot)) continue;
     const idx = sorted.findIndex(p => {
       if (used.has(p.player_id)) return false;
-      const ppos = normalizePos(p.pos);
-      const multi = (p.multiPos || []).map(normalizePos);
-      return elig.includes(ppos) || multi.some(m => elig.includes(m));
+      return canFillSlot(p.pos, slot);
     });
     if (idx !== -1) { filled[i].player = sorted[idx]; used.add(sorted[idx].player_id); }
   }

@@ -1,5 +1,6 @@
 import { scoreByLeague } from "./scoring";
 import type { Projection } from "./types";
+import { canFillSlot, interchangeable, isFlexSlot } from "./slotRules";
 
 export type Slot = "QB" | "RB" | "WR" | "TE" | "K" | "DEF" | "FLEX" | "SUPER_FLEX" | "BN";
 
@@ -56,37 +57,12 @@ export interface ScoredFreeAgent extends FreeAgent {
   isByeOrOut: boolean;
 }
 
-// Position -> Legal Slots mapping
-// Defines which roster slots each position can legally fill
-export const SLOT_RULES: Record<string, Slot[]> = {
-  QB: ["QB", "SUPER_FLEX"],
-  RB: ["RB", "FLEX", "SUPER_FLEX"],
-  WR: ["WR", "FLEX", "SUPER_FLEX"],
-  TE: ["TE", "FLEX", "SUPER_FLEX"],
-  K: ["K"], // Kickers can ONLY fill K slots
-  DEF: ["DEF"], // Defense can ONLY fill DEF slots
-};
-
-// Check if a player's position can legally fill a specific slot
-export function canFillSlot(playerPos: string, slot: Slot): boolean {
-  const legalSlots = SLOT_RULES[playerPos] || [];
-  return legalSlots.includes(slot);
-}
-
-// Check if two positions can compete for the same slot (interchangeable)
-// Returns true if there exists a slot both positions could legally occupy
-export function interchangeable(posA: string, posB: string): boolean {
-  const slotsA = new Set(SLOT_RULES[posA] || []);
-  const slotsB = SLOT_RULES[posB] || [];
-  return slotsB.some((slot) => slotsA.has(slot));
-}
-
 // Legacy helpers (kept for backward compatibility)
 export const isFlexEligible = (pos: string): boolean =>
-  pos === "RB" || pos === "WR" || pos === "TE";
+  canFillSlot(pos, "FLEX");
 
 export const isSuperFlexEligible = (pos: string): boolean =>
-  pos === "QB" || isFlexEligible(pos);
+  canFillSlot(pos, "SUPER_FLEX");
 
 export function slotEligible(pos: string, slot: Slot): boolean {
   return canFillSlot(pos, slot);
