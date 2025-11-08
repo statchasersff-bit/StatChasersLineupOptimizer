@@ -50,9 +50,11 @@ export type LeagueSummary = {
   bench: string[];            // bench player_ids
   rosterUserDisplay: string;  // the team/owner display name
   optimalSlots: RosterSlot[]; // computed optimal starters
-  optimalTotal: number;       // sum of proj
+  optimalTotal: number;       // sum of proj (reachable optimal, respects locks)
   currentTotal: number;       // sum of proj of current starters
   delta: number;              // optimal - current
+  fullOptimalTotal?: number;  // full optimal ignoring locks (for comparison when locked players exist)
+  hasLockedPlayers?: boolean; // whether any players have locked (game started)
   waiverSuggestions?: WaiverSuggestion[]; // sorted by gain desc
   starterObjs?: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[]; // enriched starter objects
   allEligible?: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[]; // all eligible players for lookup

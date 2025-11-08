@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target, Filter, ArrowUpDown, X, Check, RotateCcw } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
-import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, optimizeLineupWithLockComparison, sumProj, statusFlags } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye, type GameSchedule } from "@/lib/gameLocking";
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
@@ -478,8 +478,12 @@ export default function Home() {
             }
           }
 
-          const optimalSlots = optimizeLineup(slotCounts, allEligible, season, week, starters);
-          const optimalTotal = sumProj(optimalSlots);
+          // Use lock-aware optimization to get both reachable and full optimal
+          const optimizationResult = optimizeLineupWithLockComparison(slotCounts, allEligible, season, week, starters);
+          const optimalSlots = optimizationResult.lineup;
+          const optimalTotal = optimizationResult.reachableTotal || optimizationResult.total;
+          const fullOptimalTotal = optimizationResult.fullTotal || optimizationResult.total;
+          const hasLockedPlayers = optimizationResult.hasLockedPlayers || false;
 
           // Calculate current total
           const fixedSlots = roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s));
@@ -756,6 +760,8 @@ export default function Home() {
             optimalTotal,
             currentTotal,
             delta: optimalTotal - currentTotal,
+            fullOptimalTotal, // Full optimal ignoring locks (for comparison)
+            hasLockedPlayers, // Whether there are any locked players
             waiverSuggestions,
             starterObjs, // Include enriched starter objects with names
             allEligible, // Include all player objects for lookup

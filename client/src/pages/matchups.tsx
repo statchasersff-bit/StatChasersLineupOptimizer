@@ -1025,26 +1025,37 @@ export default function MatchupsPage() {
                                   {hasActionPlan ? (
                                     <div className="space-y-1">
                                       {s.actionPlan!.steps.map((step, stepIdx) => (
-                                        <div key={stepIdx} className="flex items-start gap-1.5">
+                                        <div key={stepIdx} className={`flex items-start gap-1.5 ${step.blocked ? 'opacity-50' : ''}`}>
                                           {step.type === 'add' && (
-                                            <span className="text-green-700 font-medium">
+                                            <span className={step.blocked ? "text-gray-500 font-medium" : "text-green-700 font-medium"}>
                                               ➕ {step.player} ({step.pos}) → {step.slot === 'SUPER_FLEX' ? 'SF' : step.slot}
+                                              {step.blocked && ' 🔒'}
                                             </span>
                                           )}
                                           {step.type === 'move' && (
-                                            <span className="text-blue-700 font-medium">
+                                            <span className={step.blocked ? "text-gray-500 font-medium" : "text-blue-700 font-medium"}>
                                               🔁 {step.player}: {step.from} → {step.to === 'SUPER_FLEX' ? 'SF' : step.to}
+                                              {step.blocked && ' 🔒'}
                                             </span>
                                           )}
                                           {step.type === 'bench' && (
-                                            <span className="text-red-700 font-medium">
+                                            <span className={step.blocked ? "text-gray-500 font-medium" : "text-red-700 font-medium"}>
                                               ⬇️ {step.player}
+                                              {step.blocked && ' 🔒'}
                                             </span>
                                           )}
                                         </div>
                                       ))}
-                                      <div className="flex items-center gap-1 pt-1 mt-1 border-t text-green-700 font-semibold">
-                                        ✅ +{s.actionPlan!.totalDelta.toFixed(1)} pts
+                                      <div className="flex items-center gap-1 pt-1 mt-1 border-t font-semibold">
+                                        {s.actionPlan!.steps.some(step => step.blocked) ? (
+                                          <span className="text-gray-600 text-xs">
+                                            🔒 Blocked (players played)
+                                          </span>
+                                        ) : (
+                                          <span className="text-green-700">
+                                            ✅ +{s.actionPlan!.totalDelta.toFixed(1)} pts
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
                                   ) : (
@@ -1614,31 +1625,49 @@ export default function MatchupsPage() {
                                           {hasActionPlan ? (
                                             <div className="space-y-1.5">
                                               {s.actionPlan!.steps.map((step, stepIdx) => (
-                                                <div key={stepIdx} className="flex items-center gap-2 text-sm">
+                                                <div key={stepIdx} className={`flex items-center gap-2 text-sm ${step.blocked ? 'opacity-50' : ''}`}>
                                                   {step.type === 'add' && (
                                                     <>
-                                                      <span className="text-green-700 font-medium">➕ Add {step.player} ({step.pos})</span>
+                                                      <span className={step.blocked ? "text-gray-500 font-medium" : "text-green-700 font-medium"}>
+                                                        ➕ Add {step.player} ({step.pos})
+                                                      </span>
                                                       <span className="text-muted-foreground">→ {step.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : step.slot}</span>
+                                                      {step.blocked && <span className="text-xs" title={step.blockReason}>🔒</span>}
                                                     </>
                                                   )}
                                                   {step.type === 'move' && (
                                                     <>
-                                                      <span className="text-blue-700 font-medium">🔁 Move {step.player}</span>
+                                                      <span className={step.blocked ? "text-gray-500 font-medium" : "text-blue-700 font-medium"}>
+                                                        🔁 Move {step.player}
+                                                      </span>
                                                       <span className="text-muted-foreground">{step.from} → {step.to === 'SUPER_FLEX' ? 'SUPERFLEX' : step.to}</span>
+                                                      {step.blocked && <span className="text-xs" title={step.blockReason}>🔒</span>}
                                                     </>
                                                   )}
                                                   {step.type === 'bench' && (
                                                     <>
-                                                      <span className="text-red-700 font-medium">⬇️ Bench {step.player} ({step.pos})</span>
+                                                      <span className={step.blocked ? "text-gray-500 font-medium" : "text-red-700 font-medium"}>
+                                                        ⬇️ Bench {step.player} ({step.pos})
+                                                      </span>
+                                                      {step.blocked && <span className="text-xs" title={step.blockReason}>🔒</span>}
                                                     </>
                                                   )}
                                                 </div>
                                               ))}
                                               <div className="flex items-center gap-2 pt-1 mt-1 border-t">
-                                                <span className="text-sm font-semibold">✅ Total gain:</span>
-                                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                                  +{s.actionPlan!.totalDelta.toFixed(1)} pts
-                                                </Badge>
+                                                {s.actionPlan!.steps.some(step => step.blocked) ? (
+                                                  <>
+                                                    <span className="text-sm font-semibold text-gray-600">🔒 Blocked by locks</span>
+                                                    <span className="text-xs text-muted-foreground">(Players already played)</span>
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <span className="text-sm font-semibold">✅ Reachable gain:</span>
+                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                                      +{s.actionPlan!.totalDelta.toFixed(1)} pts
+                                                    </Badge>
+                                                  </>
+                                                )}
                                               </div>
                                             </div>
                                           ) : (

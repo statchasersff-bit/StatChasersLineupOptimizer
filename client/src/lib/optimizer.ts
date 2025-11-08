@@ -162,3 +162,40 @@ export function optimizeLineupWithLockComparison(
 export function sumProj(slots: RosterSlot[]) {
   return slots.reduce((acc, s) => acc + (s.player?.proj ?? 0), 0);
 }
+
+/**
+ * Filter out recommendations that would move or bench locked players
+ * Locked players cannot be moved or benched since their games have started
+ */
+export function filterLockedRecommendations<T extends { in: {player_id: string}; out: {player_id: string} }>(
+  recommendations: T[],
+  lockedPlayerIds: Set<string>
+): {
+  allowed: T[];
+  blocked: Array<T & { blockReason: string }>;
+} {
+  const allowed: T[] = [];
+  const blocked: Array<T & { blockReason: string }> = [];
+  
+  for (const rec of recommendations) {
+    const outIsLocked = lockedPlayerIds.has(rec.out.player_id);
+    const inIsLocked = lockedPlayerIds.has(rec.in.player_id);
+    
+    if (outIsLocked) {
+      blocked.push({
+        ...rec,
+        blockReason: `${rec.out.player_id} has already played. Cannot be moved or benched.`
+      });
+    } else if (inIsLocked) {
+      // This shouldn't happen often (locked bench player) but handle it
+      blocked.push({
+        ...rec,
+        blockReason: `${rec.in.player_id} has already played. Cannot be started.`
+      });
+    } else {
+      allowed.push(rec);
+    }
+  }
+  
+  return { allowed, blocked };
+}

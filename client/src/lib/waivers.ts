@@ -31,9 +31,9 @@ export interface ActionPlan {
 }
 
 export type ActionStep =
-  | { type: "add"; player: string; pos: string; slot: string }
-  | { type: "move"; player: string; from: string; to: string }
-  | { type: "bench"; player: string; pos: string }
+  | { type: "add"; player: string; pos: string; slot: string; blocked?: boolean; blockReason?: string }
+  | { type: "move"; player: string; from: string; to: string; blocked?: boolean; blockReason?: string }
+  | { type: "bench"; player: string; pos: string; blocked?: boolean; blockReason?: string }
 
 export interface StarterWithSlot {
   player_id: string;
@@ -313,13 +313,16 @@ export function pickWaiverUpgrades(
 
 // Compute cascading lineup diff between two complete lineups
 // Shows: Add FA → Move players → Bench displaced player
+// Marks steps as blocked if they involve locked players
 export function computeLineupDiff(
   currentStarters: StarterWithSlot[],
   newStarters: StarterWithSlot[],
-  faPlayerId: string
+  faPlayerId: string,
+  lockedPlayerIds?: Set<string>
 ): ActionPlan {
   const byIdCur = new Map(currentStarters.map((s) => [s.player_id, s]));
   const byIdNew = new Map(newStarters.map((s) => [s.player_id, s]));
+  const locked = lockedPlayerIds || new Set<string>();
 
   const adds: ActionStep[] = [];
   const moves: ActionStep[] = [];
@@ -330,19 +333,25 @@ export function computeLineupDiff(
     const prev = byIdCur.get(s.player_id);
     if (!prev) {
       // New starter (FA or from bench)
+      const isLocked = locked.has(s.player_id);
       adds.push({
         type: "add",
         player: s.name,
         pos: s.pos,
         slot: s.slot,
+        blocked: isLocked,
+        blockReason: isLocked ? `${s.name} already played. Cannot be started.` : undefined,
       });
     } else if (prev.slot !== s.slot) {
       // Player moved to different slot
+      const isLocked = locked.has(s.player_id);
       moves.push({
         type: "move",
         player: s.name,
         from: prev.slot,
         to: s.slot,
+        blocked: isLocked,
+        blockReason: isLocked ? `${s.name} already played. Cannot be moved.` : undefined,
       });
     }
   }
@@ -350,10 +359,13 @@ export function computeLineupDiff(
   // Find players pushed to bench
   for (const s of currentStarters) {
     if (!byIdNew.has(s.player_id)) {
+      const isLocked = locked.has(s.player_id);
       benches.push({
         type: "bench",
         player: s.name,
         pos: s.pos,
+        blocked: isLocked,
+        blockReason: isLocked ? `${s.name} already played. Cannot be benched.` : undefined,
       });
     }
   }
@@ -363,10 +375,14 @@ export function computeLineupDiff(
   const newTotal = newStarters.reduce((sum, s) => sum + (s.proj || 0), 0);
   const totalDelta = newTotal - currentTotal;
 
+  // Calculate reachable delta (excluding blocked steps)
+  const hasBlockedSteps = [...adds, ...moves, ...benches].some(step => step.blocked);
+  const reachableDelta = hasBlockedSteps ? 0 : totalDelta; // If any step is blocked, the whole plan is blocked
+
   // Order: Add → Move → Bench
   const steps: ActionStep[] = [...adds, ...moves, ...benches];
 
-  return { steps, totalDelta };
+  return { steps, totalDelta: reachableDelta };
 }
 
 // Group waiver suggestions by player to avoid showing the same FA multiple times
