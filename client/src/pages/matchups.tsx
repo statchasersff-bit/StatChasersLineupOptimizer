@@ -1175,16 +1175,16 @@ export default function MatchupsPage() {
                   
                   {/* Expanded Content */}
                   {expandedLeagues.has(league.leagueId) && (
-                    <div className="bg-muted/50 rounded-lg p-4 mb-2" data-testid={`expanded-mobile-${league.leagueId}`}>
+                    <div className="bg-muted/50 rounded-lg p-4 mb-2 w-full max-w-full overflow-hidden" data-testid={`expanded-mobile-${league.leagueId}`}>
                       {league.isComputing ? (
                         <StatChasersLoader message="Analyzing league..." />
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-4 min-w-0">
                           {/* Not playing list */}
                           {league.notPlayingCount !== undefined && league.notPlayingCount > 0 && league.notPlayingList && (
                             <div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-red-800 dark:text-red-200">
                               <div className="font-medium text-sm">OUT/BYE/EMPTY starters</div>
-                              <div className="text-xs mt-1">
+                              <div className="text-xs mt-1 break-words">
                                 {(league.notPlayingList ?? []).map((p, i) => (
                                   <span key={p.id || i}>
                                     {p.name || "—"}{p.tag ? ` (${p.tag})` : ""}{i < (league.notPlayingList ?? []).length - 1 ? ", " : ""}
@@ -1198,7 +1198,7 @@ export default function MatchupsPage() {
                           {league.quesCount !== undefined && league.quesCount > 0 && league.quesList && (
                             <div className="rounded-md border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 text-yellow-900 dark:text-yellow-200">
                               <div className="font-medium text-sm">Questionable starters</div>
-                              <div className="text-xs mt-1">
+                              <div className="text-xs mt-1 break-words">
                                 {(league.quesList ?? []).map((p, i) => (
                                   <span key={p.id || i}>
                                     {p.name}{i < (league.quesList ?? []).length - 1 ? ", " : ""}
@@ -1210,15 +1210,15 @@ export default function MatchupsPage() {
 
                           {/* Recommendations */}
                           {league.recommendations && league.recommendations.length > 0 && (
-                            <div>
+                            <div className="min-w-0">
                               <h4 className="font-semibold text-sm mb-2">Recommended Changes</h4>
                               <div className="space-y-2">
                                 {league.recommendations.slice(0, 5).map((rec, idx) => (
-                                  <div key={idx} className="text-xs bg-card rounded p-2 border">
-                                    <div className="font-medium text-green-600 dark:text-green-400">
+                                  <div key={idx} className="text-xs bg-card rounded p-2 border min-w-0">
+                                    <div className="font-medium text-green-600 dark:text-green-400 break-words">
                                       ✓ Start {rec.in.name} ({rec.in.pos})
                                     </div>
-                                    <div className="font-medium text-red-600 dark:text-red-400">
+                                    <div className="font-medium text-red-600 dark:text-red-400 break-words">
                                       ✗ Remove {rec.out.name} ({rec.out.pos})
                                     </div>
                                     <div className="text-muted-foreground">
@@ -1232,15 +1232,15 @@ export default function MatchupsPage() {
 
                           {/* Waiver Watchlist */}
                           {league.waiverSuggestions && league.waiverSuggestions.length > 0 && (
-                            <div>
+                            <div className="min-w-0">
                               <h4 className="font-semibold text-sm mb-2">Waiver Watchlist</h4>
                               <div className="space-y-2">
                                 {league.waiverSuggestions.slice(0, 3).map((s: GroupedWaiverSuggestion, idx: number) => (
-                                  <div key={idx} className="text-xs bg-green-50 dark:bg-green-900/20 rounded p-2 border border-green-200 dark:border-green-800">
-                                    <div className="font-medium text-green-700 dark:text-green-300">
+                                  <div key={idx} className="text-xs bg-green-50 dark:bg-green-900/20 rounded p-2 border border-green-200 dark:border-green-800 min-w-0">
+                                    <div className="font-medium text-green-700 dark:text-green-300 break-words">
                                       Add {s.name} ({s.pos}) +{s.bestDelta.toFixed(1)}
                                     </div>
-                                    <div className="text-muted-foreground">
+                                    <div className="text-muted-foreground break-words">
                                       {s.alternatives[0] && `over ${s.alternatives[0].outP.name}`}
                                       {s.alternatives.length > 1 && ` (+${s.alternatives.length - 1} more)`}
                                     </div>

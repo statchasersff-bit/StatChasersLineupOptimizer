@@ -339,6 +339,8 @@
 /* Compact Match Row - Mobile First */
 .match-row {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   color: var(--foreground);
   background: var(--card);
   border: 1px solid var(--border);
@@ -350,6 +352,7 @@
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
+  overflow: hidden;
 }
 
 .match-row + .match-row {
@@ -728,6 +731,7 @@
   /* Name gets full middle column with 2-line clamp */
   .league-name {
     min-width: 0;
+    max-width: 100%;
     font-weight: 800;
     font-size: 15px;
     line-height: 1.15;
@@ -738,6 +742,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: normal;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
 
   /* Chevron in last column */

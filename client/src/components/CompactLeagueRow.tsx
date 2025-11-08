@@ -66,7 +66,7 @@ export function CompactLeagueRow({
     >
       <div className="league-card-header">
         {/* Header: avatar | name | chevron */}
-        <div className="card-head league-info">
+        <div className="card-head">
           <div className="league-avatar">{getInitials()}</div>
           
           <div className="league-name" title={leagueName}>
@@ -78,7 +78,7 @@ export function CompactLeagueRow({
 
         {/* Chips below name (mobile) / next to name (desktop) */}
         {formatText && (
-          <div className="card-chips league-meta">
+          <div className="card-chips">
             <span>{formatText}</span>
             <span>•</span>
             <span>{myRecord}</span>
@@ -86,30 +86,30 @@ export function CompactLeagueRow({
         )}
 
         {/* Scores + win bar */}
-        <div className="card-barrow m-barrow">
-          <div className="my-score m-left">
+        <div className="card-barrow">
+          <div className="my-score">
             {locked && <span className="m-lock" aria-label="Lineup locked">🔒</span>}
             <span className="m-num">{myProj.toFixed(1)}</span>
           </div>
 
-          <div className="winbar m-center">
-            <div className="winfill m-bar">
+          <div className="winbar">
+            <div className="winfill">
               <div 
                 className="m-fill" 
                 style={{width: `${pct}%`}} 
               />
             </div>
-            <div className="m-pct">{pct}%</div>
+            <div className="winpct">{pct}%</div>
           </div>
 
-          <div className="opp-score m-right">
+          <div className="opp-score">
             <span className="m-num">{oppProj.toFixed(1)}</span>
             <img className="m-opp" src={getAvatarUrl()} alt={oppName} />
           </div>
         </div>
 
         {/* Mini strip: Δ · MRGN · chips */}
-        <div className="card-meta m-strip">
+        <div className="card-meta">
           <span className="k" title="Points gained vs current lineup">Δ</span>
           <span className={`pill ${deltaIsPos ? 'pill-pos' : 'pill-neg'}`} title="Points gained vs current lineup">
             {deltaIsPos ? '+' : ''}{deltaOptAct.toFixed(1)} pts
