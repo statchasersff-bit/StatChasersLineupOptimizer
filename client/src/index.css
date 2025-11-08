@@ -709,6 +709,7 @@
     gap: 8px;
     grid-template-areas:
       "head"
+      "chips"
       "bar"
       "meta";
     min-width: 0;
@@ -765,13 +766,12 @@
     transform: rotate(180deg);
   }
 
-  /* Chips below name (under columns 2-3) */
+  /* Chips below name on their own row */
   .card-chips {
-    grid-column: 2 / -1;
+    grid-area: chips;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 4px;
     font-size: 11px;
     color: var(--muted-foreground);
   }
@@ -833,6 +833,14 @@
     min-width: 0;
   }
 
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+
   .league-avatar {
     flex-shrink: 0;
     width: 40px;
@@ -846,29 +854,41 @@
     font-weight: 700;
   }
 
-  .league-info {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
   .league-name {
     font-weight: 700;
     font-size: 15px;
     color: var(--foreground);
     line-height: 1.2;
-    white-space: normal;
-    overflow-wrap: break-word;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .league-meta {
-    font-size: 12px;
-    color: var(--muted-foreground);
+  .card-chips {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    flex: 0 0 auto;
+  }
+
+  .card-barrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+    flex: 0 0 auto;
   }
 
   .chevron {

@@ -1,0 +1,66 @@
+If your header uses Flex
+/* 🔑 allow the name column to shrink/wrap */
+.card-head { display:flex; align-items:center; gap:10px; min-width:0; }
+.card-ava   { flex:0 0 40px; }
+.card-name  { flex:1 1 auto; min-width:0;           /* ← critical on iOS */
+  font-weight:800; font-size:15px; line-height:1.15;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  white-space:normal; overflow:hidden; text-overflow:ellipsis;
+}
+.card-chips, .card-chev { flex:0 0 auto; }          /* chips & chevron don’t steal width */
+
+/* move chips under the name on small screens so they never compete for width */
+@media (max-width:480px){
+  .card-head { flex-wrap:wrap; }
+  .card-chips { width:100%; order:2; margin-top:2px; }
+}
+.card.open .card-name { -webkit-line-clamp:unset; }  /* show full on expand */
+
+<div class="card-head">
+  <div class="card-ava">ST</div>
+  <div class="card-name">This is my very long league name that must be readable</div>
+  <div class="card-chips"><span class="chip">Auto-subs • 1/wk</span></div>
+  <button class="card-chev">▾</button>
+</div>
+
+If your header uses Grid
+/* row1: avatar | NAME | chevron  •  row2: (under name) chips */
+.card-head{
+  display:grid; grid-template-columns:40px 1fr auto; grid-template-rows:auto auto;
+  column-gap:10px; align-items:center; min-width:0;
+}
+.card-ava{ width:40px; height:40px; border-radius:50%; }
+.card-name{
+  grid-column:2/3; min-width:0; font-weight:800; font-size:15px; line-height:1.15;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  white-space:normal; overflow:hidden; text-overflow:ellipsis;
+}
+.card-chev{ grid-column:3/4; justify-self:end; }
+.card-chips{ grid-column:2/4; display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+.card.open .card-name{ -webkit-line-clamp:unset; }
+
+The 3 things that must be true (check in DevTools)
+
+The element that holds the text and every ancestor down to .card has min-width: 0 (or overflow: hidden).
+Add once, globally:
+
+.card, .card-head, .card-name, .title-wrap, .name-wrap { min-width:0; }
+
+
+Chips/chevron are flex/grid non-growing (flex:0 0 auto or separate row on mobile).
+
+The name uses two-line clamp (-webkit-line-clamp:2; white-space:normal;).
+
+Optional polish that also frees space
+
+Strip noisy suffixes from the title and show them as chips:
+
+const displayName = rawName.replace(/\s*\[(.*?)\]\s*$/,'').trim(); // move [REDAFT] to a chip
+
+
+On tiny phones hide low-value chips:
+
+@media (max-width:390px){ .chip-weekcap, .chip-empties { display:none; } }
+
+
+Apply the patch that matches your layout and make sure you’ve set min-width:0 on .card, .card-head, and .card-name. That combination fixes the iOS/Safari truncation and your league names will show up to two lines (and fully on expand).
