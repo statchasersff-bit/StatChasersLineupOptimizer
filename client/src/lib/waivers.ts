@@ -21,7 +21,19 @@ export interface GroupedWaiverSuggestion {
     slot: Slot;
     delta: number;
   }[];
+  actionPlan?: ActionPlan; // Cascading plan showing full lineup changes
 }
+
+// Action plan showing the complete sequence of changes
+export interface ActionPlan {
+  steps: ActionStep[];
+  totalDelta: number;
+}
+
+export type ActionStep =
+  | { type: "add"; player: string; pos: string; slot: string }
+  | { type: "move"; player: string; from: string; to: string }
+  | { type: "bench"; player: string; pos: string }
 
 export interface StarterWithSlot {
   player_id: string;
@@ -297,6 +309,64 @@ export function pickWaiverUpgrades(
 
   // Return all results sorted by delta
   return result.sort((a: WaiverSuggestion, b: WaiverSuggestion) => b.delta - a.delta);
+}
+
+// Compute cascading lineup diff between two complete lineups
+// Shows: Add FA → Move players → Bench displaced player
+export function computeLineupDiff(
+  currentStarters: StarterWithSlot[],
+  newStarters: StarterWithSlot[],
+  faPlayerId: string
+): ActionPlan {
+  const byIdCur = new Map(currentStarters.map((s) => [s.player_id, s]));
+  const byIdNew = new Map(newStarters.map((s) => [s.player_id, s]));
+
+  const adds: ActionStep[] = [];
+  const moves: ActionStep[] = [];
+  const benches: ActionStep[] = [];
+
+  // Find players newly starting
+  for (const s of newStarters) {
+    const prev = byIdCur.get(s.player_id);
+    if (!prev) {
+      // New starter (FA or from bench)
+      adds.push({
+        type: "add",
+        player: s.name,
+        pos: s.pos,
+        slot: s.slot,
+      });
+    } else if (prev.slot !== s.slot) {
+      // Player moved to different slot
+      moves.push({
+        type: "move",
+        player: s.name,
+        from: prev.slot,
+        to: s.slot,
+      });
+    }
+  }
+
+  // Find players pushed to bench
+  for (const s of currentStarters) {
+    if (!byIdNew.has(s.player_id)) {
+      benches.push({
+        type: "bench",
+        player: s.name,
+        pos: s.pos,
+      });
+    }
+  }
+
+  // Calculate total delta
+  const currentTotal = currentStarters.reduce((sum, s) => sum + (s.proj || 0), 0);
+  const newTotal = newStarters.reduce((sum, s) => sum + (s.proj || 0), 0);
+  const totalDelta = newTotal - currentTotal;
+
+  // Order: Add → Move → Bench
+  const steps: ActionStep[] = [...adds, ...moves, ...benches];
+
+  return { steps, totalDelta };
 }
 
 // Group waiver suggestions by player to avoid showing the same FA multiple times

@@ -1014,36 +1014,53 @@ export default function MatchupsPage() {
                             <ul className="space-y-2">
                               {league.waiverSuggestions.map((s, idx) => {
                                 const bestAlt = s.alternatives[0];
-                                const slotName = bestAlt.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : bestAlt.slot;
+                                const slotName = bestAlt?.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : bestAlt?.slot;
+                                const hasActionPlan = s.actionPlan && s.actionPlan.steps.length > 0;
                                 return (
                                 <li
                                   key={`${s.player_id}-${idx}`}
                                   className="rounded-md border p-2 text-xs"
                                   data-testid={`waiver-suggestion-${league.leagueId}-${idx}`}
                                 >
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-green-700 font-medium">
-                                      Add {s.name} ({s.pos}) → {slotName}
-                                    </span>
-                                  </div>
-                                  <div className="text-muted-foreground mt-1">
-                                    over <span className="text-red-600">{bestAlt.outP.name} ({bestAlt.outP.pos})</span>
-                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs ml-1">
-                                      +{s.bestDelta.toFixed(1)} pts
-                                    </Badge>
-                                  </div>
-                                  {s.alternatives.length > 1 && (
-                                    <div className="text-muted-foreground mt-1 space-y-0.5">
-                                      {s.alternatives.slice(1).map((alt, altIdx) => {
-                                        const altSlotName = alt.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : alt.slot;
-                                        return (
-                                          <div key={altIdx}>
-                                            • {altSlotName} over {alt.outP.name} ({alt.outP.pos})
-                                            <span className="text-xs ml-1 text-green-600">+{alt.delta.toFixed(1)}</span>
-                                          </div>
-                                        );
-                                      })}
+                                  {hasActionPlan ? (
+                                    <div className="space-y-1">
+                                      {s.actionPlan!.steps.map((step, stepIdx) => (
+                                        <div key={stepIdx} className="flex items-start gap-1.5">
+                                          {step.type === 'add' && (
+                                            <span className="text-green-700 font-medium">
+                                              ➕ {step.player} ({step.pos}) → {step.slot === 'SUPER_FLEX' ? 'SF' : step.slot}
+                                            </span>
+                                          )}
+                                          {step.type === 'move' && (
+                                            <span className="text-blue-700 font-medium">
+                                              🔁 {step.player}: {step.from} → {step.to === 'SUPER_FLEX' ? 'SF' : step.to}
+                                            </span>
+                                          )}
+                                          {step.type === 'bench' && (
+                                            <span className="text-red-700 font-medium">
+                                              ⬇️ {step.player}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                      <div className="flex items-center gap-1 pt-1 mt-1 border-t text-green-700 font-semibold">
+                                        ✅ +{s.actionPlan!.totalDelta.toFixed(1)} pts
+                                      </div>
                                     </div>
+                                  ) : (
+                                    <>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-green-700 font-medium">
+                                          Add {s.name} ({s.pos}) → {slotName}
+                                        </span>
+                                      </div>
+                                      <div className="text-muted-foreground mt-1">
+                                        over <span className="text-red-600">{bestAlt?.outP.name} ({bestAlt?.outP.pos})</span>
+                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs ml-1">
+                                          +{s.bestDelta.toFixed(1)} pts
+                                        </Badge>
+                                      </div>
+                                    </>
                                   )}
                                   <a
                                     className="text-primary hover:underline text-xs mt-1 inline-block"
@@ -1585,6 +1602,7 @@ export default function MatchupsPage() {
                                   {league.waiverSuggestions.map((s, idx) => {
                                     const bestAlt = s.alternatives[0];
                                     const slotName = bestAlt.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : bestAlt.slot;
+                                    const hasActionPlan = s.actionPlan && s.actionPlan.steps.length > 0;
                                     return (
                                     <li
                                       key={`${s.player_id}-${idx}`}
@@ -1592,16 +1610,50 @@ export default function MatchupsPage() {
                                       data-testid={`waiver-suggestion-${league.leagueId}-${idx}`}
                                     >
                                       <div className="flex items-center justify-between flex-wrap gap-2">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="text-green-700 font-medium">
-                                            Add {s.name} ({s.pos}) → {slotName}
-                                          </span>
-                                          <span className="text-sm text-muted-foreground">
-                                            over <span className="text-red-600 font-medium">{bestAlt.outP.name} ({bestAlt.outP.pos})</span>
-                                          </span>
-                                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                            +{s.bestDelta.toFixed(1)} pts
-                                          </Badge>
+                                        <div className="flex-1">
+                                          {hasActionPlan ? (
+                                            <div className="space-y-1.5">
+                                              {s.actionPlan!.steps.map((step, stepIdx) => (
+                                                <div key={stepIdx} className="flex items-center gap-2 text-sm">
+                                                  {step.type === 'add' && (
+                                                    <>
+                                                      <span className="text-green-700 font-medium">➕ Add {step.player} ({step.pos})</span>
+                                                      <span className="text-muted-foreground">→ {step.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : step.slot}</span>
+                                                    </>
+                                                  )}
+                                                  {step.type === 'move' && (
+                                                    <>
+                                                      <span className="text-blue-700 font-medium">🔁 Move {step.player}</span>
+                                                      <span className="text-muted-foreground">{step.from} → {step.to === 'SUPER_FLEX' ? 'SUPERFLEX' : step.to}</span>
+                                                    </>
+                                                  )}
+                                                  {step.type === 'bench' && (
+                                                    <>
+                                                      <span className="text-red-700 font-medium">⬇️ Bench {step.player} ({step.pos})</span>
+                                                    </>
+                                                  )}
+                                                </div>
+                                              ))}
+                                              <div className="flex items-center gap-2 pt-1 mt-1 border-t">
+                                                <span className="text-sm font-semibold">✅ Total gain:</span>
+                                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                                  +{s.actionPlan!.totalDelta.toFixed(1)} pts
+                                                </Badge>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="text-green-700 font-medium">
+                                                Add {s.name} ({s.pos}) → {slotName}
+                                              </span>
+                                              <span className="text-sm text-muted-foreground">
+                                                over <span className="text-red-600 font-medium">{bestAlt.outP.name} ({bestAlt.outP.pos})</span>
+                                              </span>
+                                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                                +{s.bestDelta.toFixed(1)} pts
+                                              </Badge>
+                                            </div>
+                                          )}
                                         </div>
                                         <a
                                           className="text-sm underline text-primary hover:text-primary/80 whitespace-nowrap"
@@ -1613,7 +1665,7 @@ export default function MatchupsPage() {
                                           View in Sleeper
                                         </a>
                                       </div>
-                                      {s.alternatives.length > 1 && (
+                                      {!hasActionPlan && s.alternatives.length > 1 && (
                                         <div className="text-xs text-muted-foreground mt-2 space-y-1">
                                           <div className="font-semibold text-foreground">Other options:</div>
                                           {s.alternatives.slice(1).map((alt, altIdx) => {

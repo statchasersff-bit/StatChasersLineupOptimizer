@@ -1,0 +1,145 @@
+Respect locks in the solver
+Treat any starter whose game has started as fixed—they must remain in the lineup and in their current slot.
+type Slot = 'QB'|'RB'|'WR'|'TE'|'FLEX'|'SUPER_FLEX'|'K'|'DEF';
+
+function isLocked(p: Player, nowUtc: number): boolean {
+  // Prefer Sleeper’s fields if you have them:
+  // p.metadata.game_start (epoch ms), p.metadata.status ('in_progress','final')
+  if (p.metadata?.status === 'in_progress' || p.metadata?.status === 'final') return true;
+  if (p.metadata?.game_start && p.metadata.game_start <= nowUtc) return true;
+  return false;
+}
+
+function optimizeLineupRespectingLocks(roster: Player[], starters: Starter[], slots: Slot[], nowUtc: number) {
+  // 1) Freeze locked starters in their EXACT current slots
+  const fixed: Starter[] = starters.filter(s => isLocked(s.player, nowUtc));
+
+  // 2) Build the pool of movable players (bench + unlocked starters)
+  const movablePlayers = [
+    ...starters.filter(s => !isLocked(s.player, nowUtc)).map(s => s.player),
+    ...roster.filter(p => !starters.some(s => s.player.id === p.id)) // bench
+  ].filter(p => !isLocked(p, nowUtc));
+
+  // 3) Build remaining open slots (exclude fixed ones)
+  const openSlots: Slot[] = slots.filter(slot => !fixed.some(f => f.slot === slot));
+
+  // 4) Run your assignment/DP/greedy on movablePlayers → openSlots with slot legality rules
+  const reassigned = assignBest(movablePlayers, openSlots);
+
+  // 5) Return full lineup = fixed + reassigned
+  return [...fixed, ...reassigned];
+}
+
+Key points
+
+
+Locked starters stay in their current slot, not just “must start.” That prevents “move TE to FLEX” cascades that touch them.
+
+
+Exclude locked bench players from being considered in moves (edge case if someone benched a player who already played).
+
+
+2) Block “Suggested Changes” that touch locks
+When you diff currentStarters vs newStarters, drop any step that would:
+
+
+bench/move a locked player, or
+
+
+require inserting someone into a slot already occupied by a locked player.
+
+
+Instead, show a Blocked by lock note.
+if (isLocked(outPlayer, nowUtc)) {
+  blocked.push({
+    reason: 'locked',
+    message: `${outPlayer.name} already played. Changes to ${outPlayer.slot} are locked.`
+  });
+  continue; // don’t surface this suggestion
+}
+
+3) Show “Reachable Optimal” vs “Full Optimal”
+After lock, your optimizer will find two totals:
+
+
+Full Optimal (ignores locks) → useful for hindsight only
+
+
+Reachable Optimal (respects locks) → what the user can actually still do
+
+
+In the card:
+
+
+Δ +X.X pts (reachable)
+
+
+Small subtext: Full optimal would be +Y.Y (includes locked players)
+
+
+4) Clear UI affordances
+
+
+Add a LOCKED chip beside any starter who’s played (and dim that row).
+
+
+In the suggested-steps list:
+
+
+if a cascade would bench a locked player, show a pale, disabled step with a lock icon and the message above.
+
+
+
+
+In league rows, add a tiny legend dot:
+
+
+🔒 = has locked starters
+
+
+
+
+5) Timezone & reliability
+
+
+Always compare against UTC epoch. Convert Sleeper’s times once on ingest:
+const nowUtc = Date.now();
+const kickoffUtc = Number(player.metadata.game_start); // already epoch
+
+
+
+Don’t rely on client timezone. If you compute on server, pass nowUtc to the client with the payload so both sides agree.
+
+
+Fallback if a data feed is late: if status says final/in_progress, trust it over kickoff time.
+
+
+6) Tests you should add (quick)
+
+
+TE started (locked) sitting at TE; candidate TE available → solver can only place FA at FLEX if legal.
+
+
+TE started (locked) at FLEX; solver must not move him out of FLEX.
+
+
+Locked WR on bench → ensure not considered for moves.
+
+
+“Suggested Changes” never lists a step touching a locked player; instead shows Blocked by lock.
+
+
+7) Small UI copy tweaks
+
+
+Change section title to Apply These Steps and show:
+➕ Add FA Cade Otton → FLEX
+🔁 Move Dalton Kincaid TE → FLEX   (disabled — blocked by lock) 🔒
+⬇️ Bench Jakobi Meyers              (disabled — blocked by lock) 🔒
+―――――――――――――――――――――――――――――――――
+✅ Reachable gain: +0.0 pts
+ℹ️ Full optimal (ignores locks): +10.8 pts
+
+
+
+Implementing the lock-aware optimizer + blocked-step rendering will stop the tool from telling users to replace Brock Bowers after kickoff, and it will make the remaining, actually actionable moves crystal clear.

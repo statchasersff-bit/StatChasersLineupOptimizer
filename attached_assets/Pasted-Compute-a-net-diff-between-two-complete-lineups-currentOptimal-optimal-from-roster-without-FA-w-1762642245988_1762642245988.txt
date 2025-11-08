@@ -1,0 +1,95 @@
+Compute a net diff between two complete lineups
+
+currentOptimal = optimal from roster without FA.
+
+withFAOptimal = optimal from roster with FA.
+
+Build a change set: adds, moves, benches, in that order.
+
+function lineupDiff(currentStarters, newStarters) {
+  // starters: [{playerId, name, pos, slot}]  (slot = 'QB','RB','WR','TE','FLEX',...)
+  const byIdCur = new Map(currentStarters.map(s => [s.playerId, s]));
+  const byIdNew = new Map(newStarters.map(s => [s.playerId, s]));
+
+  const adds = [];
+  const benches = [];
+  const moves = [];
+
+  // who’s newly starting?
+  for (const s of newStarters) {
+    const prev = byIdCur.get(s.playerId);
+    if (!prev) {
+      adds.push(s);                               // new starter (FA or from bench)
+    } else if (prev.slot !== s.slot) {
+      moves.push({ playerId: s.playerId, name: s.name, from: prev.slot, to: s.slot });
+    }
+  }
+  // who got pushed to the bench?
+  for (const s of currentStarters) {
+    if (!byIdNew.has(s.playerId)) benches.push(s);
+  }
+  return { adds, moves, benches };
+}
+
+2) Build the action plan from the diff
+
+Order: Add → Move → Bench (so the story reads like the cascade users expect).
+
+function buildSuggestions(currentStarters, withFAStarters, faPlayer, totalDeltaPts){
+  const { adds, moves, benches } = lineupDiff(currentStarters, withFAStarters);
+
+  // Tag the FA add so the UI can label it clearly
+  const faAdd = adds.find(a => a.playerId === faPlayer.id);
+  const otherAdds = adds.filter(a => a.playerId !== faPlayer.id); // typically none
+
+  const steps = [];
+  if (faAdd) steps.push({ type: 'add', label: `Add FA ${faPlayer.name} into ${faAdd.slot}`, delta: null });
+
+  for (const m of moves) steps.push({ type: 'move', label: `Move ${m.name} ${m.from} → ${m.to}`, delta: null });
+
+  // usually one displaced player
+  for (const b of benches) steps.push({ type: 'bench', label: `Bench ${b.name}`, delta: null });
+
+  // final summary chip
+  steps.push({ type: 'summary', label: `Total gain`, delta: `+${totalDeltaPts.toFixed(1)} pts` });
+
+  return steps;
+}
+
+3) Use this when you preview an FA
+
+When you simulate “Add Cade Otton → recompute optimal”, render the net plan. For your screenshot, this will output:
+
+Add FA Cade Otton (TE) → TE
+
+Move Dalton Kincaid → FLEX
+
+Bench Jakobi Meyers
+
+Total gain: +10.8 pts (example)
+
+This exactly matches what users expect to see.
+
+Guardrails (so this stays correct)
+
+Slot legality: keep your SLOT_RULES (RB/WR/TE allowed at FLEX; K only at K, etc.) so cross-position moves are legal.
+
+Lock status: don’t bench/move locked starters. If a lock blocks the cascade, show: “Blocked by lock: Jakobi Meyers (WR)”.
+
+Drop vs Bench: if user must drop to add FA, attach a second plan: “Drop X from bench” (choose the lowest rest-of-week value or ask).
+
+Dedup: when multiple FA trials produce the same displaced player, de-dup the Waiver Watchlist by playerId + leagueId and keep the highest delta.
+
+Tiny UI tweak (clearer section titles)
+
+Rename Suggested Changes → Apply These Steps.
+
+Use icons: ➕ Add, 🔁 Move, ⬇️ Bench.
+
+Show a thin, annotated flow:
+
+➕ Cade Otton → TE
+    🔁 Dalton Kincaid → FLEX
+    ⬇️ Jakobi Meyers → Bench
+----------------------------
+✅ Total gain: +10.8 pts
