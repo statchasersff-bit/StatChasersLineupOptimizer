@@ -173,7 +173,7 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
               <CollapsibleSection
                 title="Lineup Comparison"
                 subtitle="Current vs. Optimal"
-                defaultOpen={true}
+                defaultOpen={false}
               >
                 <div className="mt-3">
                   <LineupComparison lg={lg} />
@@ -284,7 +284,7 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                 <CollapsibleSection
                   title="This Week's Matchup"
                   subtitle={`${lg.projectedWin === true ? 'Projected Win' : lg.projectedWin === false ? 'Projected Loss' : 'Projected Tie'}`}
-                  defaultOpen={true}
+                  defaultOpen={false}
                 >
                   <div className="mt-3 space-y-4">
                     {/* Team Avatars and Scores */}

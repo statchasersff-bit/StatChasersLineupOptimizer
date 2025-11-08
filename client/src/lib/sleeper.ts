@@ -76,9 +76,9 @@ export async function getLeagueMatchupsForLocking(leagueIds: string[], week: str
               // Store actual points (can be 0, negative, or positive)
               actualPoints[playerId] = points;
               
-              // If player appears in players_points, their game has started/finished
-              // Mark as locked regardless of points value (could be 0, negative, or positive)
-              playedPlayerIds[playerId] = true;
+              // Don't use players_points for locking - it contains all starters even if they haven't played
+              // Instead, rely on schedule-based locking in gameLocking.ts which checks team game states
+              // Only track actual points here for display purposes
             }
           }
         }

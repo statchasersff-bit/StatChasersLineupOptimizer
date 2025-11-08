@@ -1,0 +1,133 @@
+Below is a drop-in approach that’s safe across league types (FLEX, SUPER_FLEX, TE-premium, etc.), avoids illegal swaps (no K↔RB), and produces a clean reason string.
+
+1) Slot rules (one source of truth)
+// what positions are allowed in each lineup slot for your leagues
+const SLOT_RULES: Record<string, string[]> = {
+  QB: ['QB', 'SUPER_FLEX'],
+  RB: ['RB', 'FLEX', 'SUPER_FLEX'],
+  WR: ['WR', 'FLEX', 'SUPER_FLEX'],
+  TE: ['TE', 'FLEX', 'SUPER_FLEX'],
+  K:  ['K'],
+  DEF:['DEF'],
+};
+
+const canFillSlot = (pos: string, slot: string) =>
+  SLOT_RULES[pos]?.includes(slot) ?? false;
+
+const interchangeable = (aPos: string, bPos: string) => {
+  const a = new Set(SLOT_RULES[aPos] || []);
+  return (SLOT_RULES[bPos] || []).some(s => a.has(s));
+};
+
+2) Find the single best “bench X for Y” swap
+type Player = { id:string; name:string; pos:string; proj:number; locked?:boolean };
+type Slot   = { id:string; type:string; starter?: Player }; // type: 'QB','RB','FLEX',...
+type Suggestion = { in: Player; out: Player; slotId: string; delta: number };
+
+// returns the best legal swap for a candidate FA (e.g., Dart, Goedert)
+function bestSwapForFA(
+  fa: Player,
+  slots: Slot[],
+  bench: Player[],
+  simulate: (inP: Player, outP: Player, slot: Slot) => number // returns total team proj
+): Suggestion | null {
+  // current baseline
+  const baseTotal = simulate({} as any, {} as any, {} as any); // or pass a getter for baseline
+
+  let best: Suggestion | null = null;
+
+  for (const slot of slots) {
+    if (!canFillSlot(fa.pos, slot.type)) continue;
+
+    // candidates you could reasonably bench for this FA in this slot
+    const candidates: Player[] = [];
+    if (slot.starter && interchangeable(fa.pos, slot.starter.pos)) candidates.push(slot.starter);
+    for (const b of bench) if (interchangeable(fa.pos, b.pos)) candidates.push(b);
+
+    for (const out of candidates) {
+      if (out.locked) continue;
+      const newTotal = simulate(fa, out, slot);
+      const delta = newTotal - baseTotal;
+      if (delta > 0.0 && (!best || delta > best.delta)) {
+        best = { in: fa, out, slotId: slot.id, delta };
+      }
+    }
+  }
+  return best;
+}
+
+3) Reason string (what you display)
+function reasonText(s: Suggestion, leagueHasTEP?: boolean) {
+  const posLabel = (p: Player) => p.pos; // customize if SF/TEP badges matter
+  const slotName = (slotType: string) =>
+    slotType === 'SUPER_FLEX' ? 'SUPERFLEX' : slotType;
+
+  return `Add ${s.in.name} (${posLabel(s.in)}) → ${slotName(s.slotId)} `
+       + `over ${s.out.name} (${posLabel(s.out)}) `
+       + `( +${s.delta.toFixed(1)} pts )`
+       + (leagueHasTEP && s.in.pos === 'TE' ? ' • TEP scoring' : '');
+}
+
+4) Wiring it into your current flow
+
+Where you already generate “Waiver Watchlist” items for Demario/Malik:
+
+const faTargets = [/* … your FA pool … */];
+
+const suggestions = [];
+for (const fa of faTargets) {
+  const best = bestSwapForFA(fa, league.slots, league.bench, simulateTeamTotal);
+  if (!best) continue;
+
+  // threshold so you don’t spam tiny gains
+  if (best.delta >= 0.8) {
+    suggestions.push({
+      playerId: fa.id,
+      delta: best.delta,
+      reason: reasonText(best, league.settings.tePremium),
+      slotId: best.slotId,
+      in: fa, out: best.out,
+    });
+  }
+}
+
+// de-dup per FA (show the highest-gain “bench X” reason once)
+suggestions.sort((a,b)=>b.delta-a.delta);
+const unique = Array.from(new Map(suggestions.map(s => [s.playerId, s])).values());
+
+
+This will produce lines like:
+
+Add Jaxson Dart (QB) → SUPERFLEX over Michael Penix (QB) (+6.8 pts)
+
+Add Dallas Goedert (TE) → FLEX over Alec Pierce (WR) (+3.1 pts)
+(Only if FLEX allows TE—otherwise it’ll target your TE slot.)
+
+5) UI polish (match what you liked for WRs)
+
+Keep the same green “+X.X pts” pill.
+
+Put the bench victim in red for clarity.
+
+If the only legal slot is TE/QB, show the slot badge (TE, QB, SF).
+
+If you support rare formats (K in FLEX), append a tiny gray note: (Flex eligible in this league).
+
+Example render:
+
+✅ Add Dallas Goedert (TE) → TE over Brock Bowers (TE)  (+4.6)
+
+
+or
+
+✅ Add Jaxson Dart (QB) → SUPERFLEX over Cade Otton (TE)  (+5.2)  (SF allows TE)
+
+6) Guardrails (so it never recommends weird stuff again)
+
+Respect locks and already-started players.
+
+Prioritize fixing empties before pure upgrades.
+
+If at pickup cap, hide FA suggestions or gray them with “Cap reached”.
+
+Ties: bias to same-position swap first (TE→TE, QB→QB), then FLEX.
