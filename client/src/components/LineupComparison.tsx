@@ -109,6 +109,13 @@ function PlayerRow({
 export function LineupComparison({ lg }: LineupComparisonProps) {
   const [activeTab, setActiveTab] = useState<"current" | "optimal">("current");
 
+  // Build sets of all player IDs in optimal lineup for quick lookup
+  const optimalPlayerIds = new Set(
+    lg.optimalSlots
+      .map(s => s.player?.player_id)
+      .filter((id): id is string => !!id)
+  );
+
   const currentLineup = lg.starters.map((pid, i) => {
     const slot = lg.roster_positions[i];
     const player = lg.starterObjs?.find(p => p.player_id === pid) || lg.allEligible?.find(p => p.player_id === pid);
@@ -119,8 +126,8 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
     const optimalPoints = optimalSlot?.player?.proj ?? 0;
     const slotDelta = currentPoints - optimalPoints;
     
-    // Only mark as "being replaced" (red X) if there's actually a player in this slot AND it's being replaced by a different player
-    const isBeingReplaced = player && optimalSlot?.player && optimalSlot.player.player_id !== pid;
+    // Only mark as "being replaced" (red X) if there's a player in this slot AND they're NOT in the optimal lineup at all
+    const isBeingReplaced = !!(player && pid && !optimalPlayerIds.has(pid));
     
     return {
       slot,
@@ -146,8 +153,8 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
     const currentPoints = currentPlayer?.proj ?? 0;
     const slotDelta = optimalPoints - currentPoints;
     
-    // Only show green checkmark if this is a NEW addition (bench or FA), NOT already a starter
-    const isBeingAdded = s.player && !isCurrentStarter;
+    // Only show green checkmark if this is a NEW addition (bench or FA), NOT already a starter anywhere
+    const isBeingAdded = !!(s.player && !isCurrentStarter);
 
     return {
       slot: s.slot,
