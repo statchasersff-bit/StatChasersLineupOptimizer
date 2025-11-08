@@ -16,6 +16,7 @@ interface CompactLeagueRowProps {
   outByeEmptyCount?: number;
   onClick?: () => void;
   isExpanded?: boolean;
+  username?: string;
 }
 
 export function CompactLeagueRow({
@@ -34,12 +35,17 @@ export function CompactLeagueRow({
   outByeEmptyCount,
   onClick,
   isExpanded = false,
+  username,
 }: CompactLeagueRowProps) {
   const pct = Math.round(winPct * 100);
   const resIsPos = projResult >= 0;
   const deltaIsPos = deltaOptAct >= 0;
 
-  // Trim noisy suffixes like [REDRAFT] from the display name
+  // Extract format tag like [REDRAFT] from the league name
+  const formatTagMatch = leagueName.match(/\[(.*?)\]$/);
+  const formatTag = formatTagMatch ? formatTagMatch[1] : null;
+  
+  // Clean league name (remove format tag)
   const displayName = leagueName.replace(/\s*\[(.*?)\]\s*$/g, '').trim();
 
   // Get initials for avatar
@@ -88,13 +94,12 @@ export function CompactLeagueRow({
         </div>
 
         {/* Chips below name (mobile) / next to name (desktop) */}
-        {formatText && (
-          <div className="card-chips">
-            <span>{formatText}</span>
-            <span>•</span>
-            <span>{myRecord}</span>
-          </div>
-        )}
+        <div className="card-chips">
+          {formatTag && <span className="chip-format">{formatTag}</span>}
+          {username && <span className="chip-user">{username.toUpperCase()}</span>}
+          {formatText && <span className="chip-scoring">{formatText}</span>}
+          {myRecord && <span className="chip-record">{myRecord}</span>}
+        </div>
 
         {/* Scores + win bar */}
         <div className="card-barrow">
@@ -130,17 +135,17 @@ export function CompactLeagueRow({
             {resIsPos ? '+' : ''}{projResult.toFixed(1)}
           </span>
           {typeof quesCount === 'number' && quesCount > 0 && (
-            <span className="chip" title="Questionable starters">
+            <span className="chip chip-weekcap" title="Questionable starters">
               <span className="dot y"></span>{quesCount}
             </span>
           )}
           {typeof outByeEmptyCount === 'number' && outByeEmptyCount > 0 && (
-            <span className="chip" title="Out/Bye/Empty starters">
+            <span className="chip chip-empties" title="Out/Bye/Empty starters">
               <span className="dot r"></span>{outByeEmptyCount}
             </span>
           )}
           {typeof outByeEmptyCount === 'number' && outByeEmptyCount === 0 && (
-            <span className="chip" title="All starters available">
+            <span className="chip chip-empties" title="All starters available">
               <span className="dot g"></span>0
             </span>
           )}

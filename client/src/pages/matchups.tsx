@@ -1171,6 +1171,7 @@ export default function MatchupsPage() {
                     outByeEmptyCount={outByeEmptyCount}
                     onClick={() => toggleExpanded(league.leagueId)}
                     isExpanded={expandedLeagues.has(league.leagueId)}
+                    username={username}
                   />
                   
                   {/* Expanded Content */}
