@@ -735,6 +735,23 @@
   transform: rotate(180deg);
 }
 
+/* Global Auto-Subs Banner */
+.auto-subs-global-banner {
+  margin: 6px 0 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Dark mode adjustments */
+.dark .auto-subs-global-banner {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* View Explainer */
 .view-explainer {
   color: var(--muted-foreground);

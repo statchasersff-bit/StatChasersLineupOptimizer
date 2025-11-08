@@ -1393,6 +1393,7 @@ export default function Home() {
                   
                   {sortedSummaries.map((lg, index) => {
                     const isChecked = checkedLeagues.has(lg.league_id);
+                    const globalSettings = detectGlobalAutoSubSettings(sortedSummaries);
                     
                     return (
                       <motion.div
@@ -1430,7 +1431,7 @@ export default function Home() {
                         
                         {/* League Card */}
                         <div className={isChecked ? 'opacity-50' : ''}>
-                          <LeagueCard lg={lg} />
+                          <LeagueCard lg={lg} globalAutoSubSettings={globalSettings} />
                         </div>
                       </motion.div>
                     );

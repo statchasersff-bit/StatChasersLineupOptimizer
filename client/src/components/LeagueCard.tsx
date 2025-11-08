@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import type { LeagueSummary } from "../lib/types";
 import { statusFlags } from "../lib/optimizer";
 import { buildLineupDiff } from "../lib/diff";
-import { AutoSubChip, AutoSubBanner } from "./ui/auto-sub-chip";
+import { AutoSubChip } from "./ui/auto-sub-chip";
+import { detectGlobalAutoSubSettings, shouldShowAutoSubChip, getAutoSubChipText, getAutoSubChipVariant } from "../lib/autoSubsGlobal";
 import { StarterBadge } from "./StarterBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -41,7 +42,12 @@ function getLeagueColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
+interface LeagueCardProps {
+  lg: LeagueSummary;
+  globalAutoSubSettings?: ReturnType<typeof detectGlobalAutoSubSettings>;
+}
+
+export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProps) {
   const [open, setOpen] = useState(false);
 
   // TRUE ins/outs based on sets, not slot-by-slot
@@ -50,16 +56,15 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
   const leagueInitials = getLeagueInitials(lg.name);
   const leagueColor = getLeagueColor(lg.name);
 
+  // Compute auto-sub chip visibility and styling
+  const defaultGlobalSettings = { isUniform: false, enabled: false, allowedPerWeek: 0, requireLaterStart: false };
+  const effectiveGlobalSettings = globalAutoSubSettings || defaultGlobalSettings;
+  const showAutoChip = shouldShowAutoSubChip(lg, effectiveGlobalSettings);
+  const autoChipText = getAutoSubChipText(lg);
+  const autoChipVariant = getAutoSubChipVariant(lg);
+
   return (
     <div className="rounded-2xl shadow border" data-testid={`card-league-${lg.league_id}`}>
-      {/* Auto-Sub Banner */}
-      {lg.autoSubConfig && (
-        <AutoSubBanner 
-          enabled={lg.autoSubConfig.enabled}
-          requireLaterStart={lg.autoSubConfig.requireLaterStart}
-          allowedPerWeek={lg.autoSubConfig.allowedPerWeek}
-        />
-      )}
       
       {/* Header Row (always visible) */}
       <button
@@ -105,10 +110,17 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
             {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
           </div>
 
-          {/* Auto-sub badge */}
-          {lg.autoSubConfig && lg.autoSubConfig.enabled && lg.autoSubConfig.allowedPerWeek && (
-            <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500 text-white shadow-sm whitespace-nowrap" data-testid={`badge-auto-sub-${lg.league_id}`}>
-              {lg.autoSubConfig.allowedPerWeek}/week max
+          {/* Auto-sub chip (only when needed) */}
+          {showAutoChip && autoChipText && (
+            <span 
+              className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full shadow-sm whitespace-nowrap ${
+                autoChipVariant === 'warn' 
+                  ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' 
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+              }`} 
+              data-testid={`badge-auto-sub-${lg.league_id}`}
+            >
+              {autoChipText}
             </span>
           )}
           
