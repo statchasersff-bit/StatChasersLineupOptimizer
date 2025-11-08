@@ -63,12 +63,22 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
       }
       
       // Look up the player being benched for proper name and projection
-      let outName = undefined;
+      // ALWAYS show who's being benched, even for FA additions
+      let outName: string | undefined = undefined;
       let outProj = 0;
-      if (!currentIsOptimalSomewhere && curPidAtSlot) {
+      let actualOutPid: string | undefined = undefined;
+      
+      if (curPidAtSlot) {
+        // There's someone in this slot currently
         const outPlayer = optPlayers.find(p => p.player_id === curPidAtSlot) || allEligible?.find(p => p.player_id === curPidAtSlot);
-        outName = outPlayer?.name ?? `player_id ${curPidAtSlot}`;
-        outProj = outPlayer?.proj ?? 0;
+        
+        if (!currentIsOptimalSomewhere) {
+          // This player is being benched (not moving to another slot)
+          outName = outPlayer?.name ?? `player_id ${curPidAtSlot}`;
+          outProj = outPlayer?.proj ?? 0;
+          actualOutPid = curPidAtSlot;
+        }
+        // If currentIsOptimalSomewhere, the player is just moving slots, so don't show as "out"
       }
       
       // Calculate actual gain (difference between incoming and outgoing player)
@@ -81,7 +91,7 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
         slot,
         in_pid: inP.player_id,
         in_name: inP.name,
-        out_pid: currentIsOptimalSomewhere ? undefined : curPidAtSlot,
+        out_pid: actualOutPid,
         out_name: outName,
         gain,
         fromIR,
