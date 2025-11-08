@@ -1,0 +1,82 @@
+Structure the header (name gets its own row)
+<header class="card-head">
+  <div class="card-ava">WY</div>
+
+  <!-- NAME (full width between avatar and chevron) -->
+  <div class="card-name">This is my long league name that should fully show</div>
+
+  <button class="card-chev" aria-label="Expand">▾</button>
+
+  <!-- Chips live UNDER the name so they never steal width -->
+  <div class="card-chips">
+    <span class="chip chip-pos">Δ +1.5 pts</span>
+    <span class="chip chip-cap">Auto-subs • 1/wk</span>
+    <span class="chip chip-gray">3 empty spots</span>
+  </div>
+</header>
+
+<!-- scores + win bar row -->
+<div class="card-barrow">
+  <span class="score">131.9</span>
+  <div class="bar"><div class="fill" style="width:48%"></div></div>
+  <span class="score">147.0</span>
+</div>
+
+2) Mobile CSS (≤480px). This is the fix.
+/* SAFARI/IOSS FIX: every ancestor must allow shrink */
+.card, .card-head, .card-name, .title-wrap, .name-wrap { min-width: 0; }
+
+/* Header becomes a two-row grid:
+   row1: avatar | NAME | chevron
+   row2: avatar | chips | chevron  */
+@media (max-width:480px){
+  .card-head{
+    display:grid;
+    grid-template-columns: 40px 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap:10px; align-items:center;
+  }
+  .card-ava{ width:40px; height:40px; border-radius:50%; background:#1b3556; color:#fff;
+             display:flex; align-items:center; justify-content:center; font-weight:800; }
+
+  /* NAME: 2-line clamp, wraps, can shrink */
+  .card-name{
+    grid-column: 2 / 3;
+    font-weight:800; font-size:15px; line-height:1.15;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+    overflow:hidden; text-overflow:ellipsis; white-space:normal; min-width:0;
+  }
+  .card-chev{ grid-column: 3 / 4; justify-self:end; }
+
+  /* Chips under the name */
+  .card-chips{
+    grid-column: 2 / 3;
+    display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;
+  }
+  .chip{ padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; }
+  .chip-pos{ background:rgba(34,197,94,.18); color:#22c55e }
+  .chip-cap,.chip-gray{ background:rgba(255,255,255,.08); color:#cfe0ff }
+
+  /* Scores + winbar separate row so they never squeeze the name */
+  .card-barrow{ display:grid; grid-template-columns: auto 1fr auto; align-items:center; column-gap:10px; }
+  .score{ font-weight:800; font-size:14.5px }
+  .bar{ height:8px; background:#2a3a52; border-radius:999px; overflow:hidden }
+  .fill{ height:100%; background:linear-gradient(90deg,#20d18a,#1fb97a) }
+}
+
+/* When expanded, show full name (no clamp) */
+.card.open .card-name{ -webkit-line-clamp:unset; }
+
+3) Remove width thieves
+
+Do not place chips on the same row as the name on mobile.
+
+Remove any max-width/flex: 0 0 Xpx on the name container.
+
+If you still see truncation, check DevTools and ensure every parent of .card-name shows min-width: 0 (Safari requires this).
+
+4) (Optional) Clean the title text
+
+Move format suffixes like [REDAFT] and the code CJTH3DJ out of the title and into the chip row:
+
+const displayName = rawName.replace(/\s*\[(.*?)\]\s*$/,'').trim();
