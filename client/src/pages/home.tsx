@@ -772,14 +772,51 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Sticky Summary Bar */}
+      {summaries.length > 0 && (
+        <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border shadow-md">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between gap-4 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-4 sm:gap-6 text-xs sm:text-sm whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Leagues:</span>
+                  <span className="font-bold text-primary">{summaries.length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Record:</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">
+                    {projectedRecord.wins + projectedRecord.losses + projectedRecord.ties > 0 
+                      ? `${projectedRecord.wins}-${projectedRecord.losses}${projectedRecord.ties > 0 ? `-${projectedRecord.ties}` : ''}` 
+                      : '--'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Potential:</span>
+                  <span className="font-bold text-accent">+{totalPotentialPoints.toFixed(1)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Alerts:</span>
+                  <span className="font-bold text-red-600 dark:text-red-400">{totalOutByeEmpty}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* User Input Section */}
-        <div className="card rounded-lg border border-border shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-semibold mb-4 flex items-center">
-            <Users className="w-5 h-5 mr-2 text-primary" />
-            Sleeper Account Setup
-          </h2>
+        {/* SECTION: Setup */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-6 w-1 bg-primary rounded-full"></div>
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">Setup</h2>
+          </div>
+          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-shadow duration-300 p-6 bg-gradient-to-br from-card to-card/80">
+            <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center text-muted-foreground">
+              <Users className="w-5 h-5 mr-2 text-primary" />
+              Sleeper Account
+            </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -885,36 +922,43 @@ export default function Home() {
               <div className="text-gray-500">No built-in projections found for this week. You can upload a CSV via the settings button.</div>
             )}
           </div>
+          </div>
         </div>
 
-        {/* Status Section */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-8">
-          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-primary" data-testid="text-active-leagues">{summaries.length}</div>
-            <div className="text-xs sm:text-sm text-muted-foreground">Active Leagues</div>
+        {/* SECTION: Summary */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-6 w-1 bg-primary rounded-full"></div>
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">Summary</h2>
           </div>
-          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-accent" data-testid="text-total-potential">+{totalPotentialPoints.toFixed(1)}</div>
-            <div className="text-xs sm:text-sm text-muted-foreground">Total Potential Pts</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center bg-gradient-to-br from-card to-card/80">
+            <div className="text-xl sm:text-2xl font-bold text-primary animate-numberPop" data-testid="text-active-leagues">{summaries.length}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Active Leagues</div>
           </div>
-          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400" data-testid="text-out-bye-empty">{totalOutByeEmpty}</div>
-            <div className="text-xs sm:text-sm text-muted-foreground">OUT/BYE/EMPTY</div>
+          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center bg-gradient-to-br from-card to-card/80">
+            <div className="text-xl sm:text-2xl font-bold text-accent animate-numberPop" style={{ animationDelay: '0.1s' }} data-testid="text-total-potential">+{totalPotentialPoints.toFixed(1)}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Total Potential Pts</div>
           </div>
-          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center">
-            <div className="text-xl sm:text-2xl font-bold text-yellow-600 dark:text-yellow-400" data-testid="text-ques-doub">{totalQues}</div>
-            <div className="text-xs sm:text-sm text-muted-foreground">QUES/DOUB</div>
+          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center bg-gradient-to-br from-card to-card/80">
+            <div className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400 animate-numberPop" style={{ animationDelay: '0.2s' }} data-testid="text-out-bye-empty">{totalOutByeEmpty}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground mt-1">OUT/BYE/EMPTY</div>
           </div>
-          <div className="card rounded-lg border border-border p-3 sm:p-4 text-center col-span-2 sm:col-span-1">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-projected-record">
+          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center bg-gradient-to-br from-card to-card/80">
+            <div className="text-xl sm:text-2xl font-bold text-yellow-600 dark:text-yellow-400 animate-numberPop" style={{ animationDelay: '0.3s' }} data-testid="text-ques-doub">{totalQues}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground mt-1">QUES/DOUB</div>
+          </div>
+          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 text-center col-span-2 sm:col-span-1 bg-gradient-to-br from-card to-card/80">
+            <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 animate-numberPop" style={{ animationDelay: '0.4s' }} data-testid="text-projected-record">
               {projectedRecord.wins + projectedRecord.losses + projectedRecord.ties > 0 
                 ? `${projectedRecord.wins}-${projectedRecord.losses}${projectedRecord.ties > 0 ? `-${projectedRecord.ties}` : ''}` 
                 : '--'}
             </div>
-            <div className="text-xs sm:text-sm text-muted-foreground">Projected Record</div>
+            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Projected Record</div>
             {projectedRecord.noMatchup > 0 && (
-              <div className="text-xs text-gray-500">{projectedRecord.noMatchup} no matchup</div>
+              <div className="text-xs text-gray-500 mt-1">{projectedRecord.noMatchup} no matchup</div>
             )}
+          </div>
           </div>
         </div>
 
@@ -928,33 +972,52 @@ export default function Home() {
           </div>
         )}
 
-        {/* Leagues Analysis Section */}
-        <section className="space-y-3">
-          {isAnalyzing ? (
-            <>
-              {totalLeagues > 0 && (
-                <div className="text-center mb-4" data-testid="text-loading-progress">
-                  <p className="text-muted-foreground">
-                    Processing leagues: {loadedLeagues} / {totalLeagues}
-                  </p>
-                </div>
-              )}
-              <LeagueListSkeleton />
-            </>
-          ) : sortedSummaries.length > 0 ? (
-            <>
-              {sortedSummaries.map((lg) => <LeagueCard key={lg.league_id} lg={lg} />)}
-            </>
-          ) : (
-            <div className="text-center text-muted-foreground py-12">
-              <ChartLine className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="text-lg mb-2">Ready to optimize your lineups?</p>
-              <p className="text-sm">
-                Enter your Sleeper username and click <strong>Analyze Lineups</strong> to get started.
-              </p>
+        {/* SECTION: League Insights */}
+        {(isAnalyzing || sortedSummaries.length > 0) && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-6 w-1 bg-primary rounded-full"></div>
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground">League Insights</h2>
             </div>
-          )}
-        </section>
+            <section className="space-y-4">
+              {isAnalyzing ? (
+                <>
+                  {totalLeagues > 0 && (
+                    <div className="text-center mb-4" data-testid="text-loading-progress">
+                      <p className="text-muted-foreground">
+                        Processing leagues: {loadedLeagues} / {totalLeagues}
+                      </p>
+                    </div>
+                  )}
+                  <LeagueListSkeleton />
+                </>
+              ) : sortedSummaries.length > 0 ? (
+                <>
+                  {sortedSummaries.map((lg, index) => (
+                    <div
+                      key={lg.league_id}
+                      className="animate-fadeIn"
+                      style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
+                    >
+                      <LeagueCard lg={lg} />
+                    </div>
+                  ))}
+                </>
+              ) : null}
+            </section>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isAnalyzing && sortedSummaries.length === 0 && (
+          <div className="text-center text-muted-foreground py-12">
+            <ChartLine className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+            <p className="text-lg mb-2">Ready to optimize your lineups?</p>
+            <p className="text-sm">
+              Enter your Sleeper username and click <strong>Analyze Lineups</strong> to get started.
+            </p>
+          </div>
+        )}
 
         {/* Export Section */}
         {sortedSummaries.length > 0 && (

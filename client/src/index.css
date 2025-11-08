@@ -167,3 +167,47 @@
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Mobile UI Enhancements */
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Enhanced card shadows for better differentiation */
+.card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Number fade-in animation */
+@keyframes numberPop {
+  0% { 
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-numberPop {
+  animation: numberPop 0.5s ease-out forwards;
+}
