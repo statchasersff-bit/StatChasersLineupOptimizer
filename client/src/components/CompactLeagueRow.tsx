@@ -63,24 +63,26 @@ export function CompactLeagueRow({
         <ChevronDown className={`chev h-5 w-5 text-muted-foreground flex-shrink-0`} />
       </div>
 
-      <div className="m-left">
-        {locked && <span className="m-lock" aria-label="Lineup locked">🔒</span>}
-        <span className="m-num">{myProj.toFixed(1)}</span>
-      </div>
-
-      <div className="m-center">
-        <div className="m-bar">
-          <div 
-            className="m-fill" 
-            style={{width: `${pct}%`}} 
-          />
+      <div className="m-barrow">
+        <div className="m-left">
+          {locked && <span className="m-lock" aria-label="Lineup locked">🔒</span>}
+          <span className="m-num">{myProj.toFixed(1)}</span>
         </div>
-        <div className="m-pct">{pct}%</div>
-      </div>
 
-      <div className="m-right">
-        <span className="m-num">{oppProj.toFixed(1)}</span>
-        <img className="m-opp" src={getAvatarUrl()} alt={oppName} />
+        <div className="m-center">
+          <div className="m-bar">
+            <div 
+              className="m-fill" 
+              style={{width: `${pct}%`}} 
+            />
+          </div>
+          <div className="m-pct">{pct}%</div>
+        </div>
+
+        <div className="m-right">
+          <span className="m-num">{oppProj.toFixed(1)}</span>
+          <img className="m-opp" src={getAvatarUrl()} alt={oppName} />
+        </div>
       </div>
 
       <div className="m-strip">
