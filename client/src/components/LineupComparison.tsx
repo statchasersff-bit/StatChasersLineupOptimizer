@@ -109,11 +109,15 @@ function PlayerRow({
 export function LineupComparison({ lg }: LineupComparisonProps) {
   const [activeTab, setActiveTab] = useState<"current" | "optimal">("current");
 
-  // Build sets of all player IDs in optimal lineup for quick lookup
+  // Build sets of all player IDs in each lineup for quick lookup
   const optimalPlayerIds = new Set(
     lg.optimalSlots
       .map(s => s.player?.player_id)
       .filter((id): id is string => !!id)
+  );
+  
+  const currentPlayerIds = new Set(
+    lg.starters.filter((x): x is string => !!x)
   );
 
   const currentLineup = lg.starters.map((pid, i) => {
@@ -124,10 +128,15 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
     
     const optimalSlot = lg.optimalSlots[i];
     const optimalPoints = optimalSlot?.player?.proj ?? 0;
-    const slotDelta = currentPoints - optimalPoints;
     
     // Only mark as "being replaced" (red X) if there's a player in this slot AND they're NOT in the optimal lineup at all
     const isBeingReplaced = !!(player && pid && !optimalPlayerIds.has(pid));
+    
+    // Only show delta if this specific player is being replaced (not just moved to a different slot)
+    // If the player appears in both lineups, don't show a delta for them
+    const slotDelta = (pid && optimalPlayerIds.has(pid) && optimalSlot?.player?.player_id !== pid) 
+      ? undefined  // Same player in both lineups, just different slot - no delta
+      : currentPoints - optimalPoints;
     
     return {
       slot,
@@ -141,9 +150,8 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
   });
 
   const optimalLineup = lg.optimalSlots.map((s, i) => {
-    const currentIds = new Set(lg.starters.filter((x): x is string => !!x));
     const benchIds = new Set(lg.bench.filter(Boolean));
-    const isCurrentStarter = s.player ? currentIds.has(s.player.player_id) : false;
+    const isCurrentStarter = s.player ? currentPlayerIds.has(s.player.player_id) : false;
     const isBenchPlayer = s.player ? benchIds.has(s.player.player_id) : false;
     const isFreeAgent = s.player && !isCurrentStarter && !isBenchPlayer;
     
@@ -151,10 +159,15 @@ export function LineupComparison({ lg }: LineupComparisonProps) {
     const currentSlot = lg.starters[i];
     const currentPlayer = lg.starterObjs?.find(p => p.player_id === currentSlot) || lg.allEligible?.find(p => p.player_id === currentSlot);
     const currentPoints = currentPlayer?.proj ?? 0;
-    const slotDelta = optimalPoints - currentPoints;
     
     // Only show green checkmark if this is a NEW addition (bench or FA), NOT already a starter anywhere
     const isBeingAdded = !!(s.player && !isCurrentStarter);
+    
+    // Only show delta if this specific player is being added (not already a starter in a different slot)
+    // If the player appears in both lineups, don't show a delta for them
+    const slotDelta = (s.player && isCurrentStarter && lg.starters[i] !== s.player.player_id)
+      ? undefined  // Same player in both lineups, just different slot - no delta
+      : optimalPoints - currentPoints;
 
     return {
       slot: s.slot,
