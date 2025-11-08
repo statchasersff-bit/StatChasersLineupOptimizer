@@ -42,6 +42,15 @@ export function CompactLeagueRow({
   // Trim noisy suffixes like [REDRAFT] from the display name
   const displayName = leagueName.replace(/\s*\[(.*?)\]\s*$/g, '').trim();
 
+  // Get initials for avatar
+  const getInitials = () => {
+    const words = displayName.split(' ').filter(w => w.length > 0);
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return displayName.substring(0, 2).toUpperCase();
+  };
+
   const getAvatarUrl = () => {
     if (oppAvatar) return oppAvatar;
     const initial = oppName.charAt(0).toUpperCase();
@@ -55,12 +64,23 @@ export function CompactLeagueRow({
       onClick={onClick}
       data-testid={`compact-row-${leagueName.replace(/\s/g, '-').toLowerCase()}`}
     >
-      <div className="m-title">
-        <div className="m-logo" />
-        <div className="m-name clamp2" title={leagueName}>
-          {displayName}
+      <div className="league-card-header">
+        <div className="league-avatar">{getInitials()}</div>
+        
+        <div className="league-info">
+          <div className="league-name" title={leagueName}>
+            {displayName}
+          </div>
+          {formatText && (
+            <div className="league-meta">
+              <span>{formatText}</span>
+              <span>•</span>
+              <span>{myRecord}</span>
+            </div>
+          )}
         </div>
-        <ChevronDown className={`chev h-5 w-5 text-muted-foreground flex-shrink-0`} />
+        
+        <ChevronDown className="chevron" />
       </div>
 
       <div className="m-barrow">
@@ -86,7 +106,6 @@ export function CompactLeagueRow({
       </div>
 
       <div className="m-strip">
-        <span className="k">REC</span> <span className="v">{myRecord}</span>
         <span className="k" title="Points gained vs current lineup">Δ</span>
         <span className={`pill ${deltaIsPos ? 'pill-pos' : 'pill-neg'}`} title="Points gained vs current lineup">
           {deltaIsPos ? '+' : ''}{deltaOptAct.toFixed(1)} pts
