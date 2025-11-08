@@ -66,18 +66,32 @@ export function CompactLeagueRow({
 
   const getAvatarUrl = () => {
     if (oppAvatar) return oppAvatar;
-    // Use base64 encoding instead of encodeURIComponent to avoid "URI malformed" errors
-    const createSvgDataUrl = (initial: string, fillColor: string, textColor: string) => {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="${fillColor}"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="${textColor}" font-family="sans-serif" font-size="13" font-weight="bold">${initial}</text></svg>`;
-      return `data:image/svg+xml;base64,${btoa(svg)}`;
+    
+    // Get a safe ASCII initial for the avatar
+    const getSafeInitial = (name: string): string => {
+      if (!name || name.trim().length === 0) return '?';
+      const firstChar = name.charAt(0).toUpperCase();
+      // Only use ASCII letters A-Z, otherwise use first letter or ?
+      return /^[A-Z]$/i.test(firstChar) ? firstChar : (firstChar || '?');
     };
     
-    // Safety check: handle missing or empty opponent name
-    if (!oppName || oppName.trim().length === 0) {
-      return createSvgDataUrl('?', '#cccccc', '#666666');
-    }
+    // Simple SVG data URL using URL encoding (no btoa needed)
+    const createSvgDataUrl = (initial: string, fillColor: string, textColor: string) => {
+      // Escape the initial character for XML safety
+      const escapedInitial = initial
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+        
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="${fillColor}"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="${textColor}" font-family="sans-serif" font-size="13" font-weight="bold">${escapedInitial}</text></svg>`;
+      
+      // Use simple URL encoding - works for all characters
+      return `data:image/svg+xml,${svg.replace(/#/g, '%23')}`;
+    };
     
-    const initial = oppName.charAt(0).toUpperCase();
+    const initial = getSafeInitial(oppName);
     return createSvgDataUrl(initial, '#0A2342', '#FFB703');
   };
 
