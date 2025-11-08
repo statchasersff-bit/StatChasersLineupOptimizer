@@ -62,7 +62,7 @@ interface LeagueMetrics {
   optPoints?: number;
   actPoints?: number;
   optMinusAct?: number;
-  projectedResult?: "W" | "L" | "N/A";
+  projectedResult?: "W" | "L" | "T" | "N/A";
   margin?: number;
   notPlayingCount?: number;
   notPlayingList?: Array<{ id?: string; name?: string; tag: AvailTag; slot: string }>;

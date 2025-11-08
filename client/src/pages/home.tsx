@@ -110,10 +110,12 @@ export default function Home() {
   const scrollToLeague = (index: number) => {
     const element = leagueCardRefs.current[index];
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
-      // Adjust for sticky header (approximately 200px) + small padding
-      requestAnimationFrame(() => {
-        window.scrollBy({ top: -220, behavior: 'smooth' });
+      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - 220; // Adjust for sticky header + padding
+      
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
       });
     } else {
       // Fallback if ref is missing
