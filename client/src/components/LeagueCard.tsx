@@ -9,6 +9,7 @@ import { CollapsibleSection } from "./CollapsibleSection";
 import { LineupComparison } from "./LineupComparison";
 import { UserPlus, Activity, RefreshCw, ArrowRight, Users, TrendingUp, TrendingDown } from "lucide-react";
 import { InfoTooltip } from "./InfoTooltip";
+import { StatChasersWatermark } from "./StatChasersWatermark";
 
 // Helper function to generate initials from league name
 function getLeagueInitials(name: string): string {
@@ -100,7 +101,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
 
         <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
           {/* potential points gain (delta) */}
-          <div className={`text-sm sm:text-base font-semibold ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
+          <div className={`text-sm sm:text-base font-semibold animate-fadeUp ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
             {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
           </div>
 
@@ -283,7 +284,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                           </div>
                           <div className="font-bold text-sm">{lg.rosterUserDisplay}</div>
                           <div className="text-xs text-muted-foreground">You (Optimal)</div>
-                          <div className="text-2xl font-bold text-foreground">{lg.optimalTotal.toFixed(1)}</div>
+                          <div className="text-2xl font-bold text-foreground animate-fadeUp">{lg.optimalTotal.toFixed(1)}</div>
                         </div>
                       </div>
                       <div className="text-center">
@@ -293,7 +294,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                           </div>
                           <div className="font-bold text-sm">{lg.opponent.teamName}</div>
                           <div className="text-xs text-muted-foreground">Opponent</div>
-                          <div className="text-2xl font-bold text-foreground">{lg.opponent.currentTotal.toFixed(1)}</div>
+                          <div className="text-2xl font-bold text-foreground animate-fadeUp">{lg.opponent.currentTotal.toFixed(1)}</div>
                         </div>
                       </div>
                     </div>
@@ -351,7 +352,7 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                         </div>
                         
                         {/* Microcopy */}
-                        <div className="text-sm text-center">
+                        <div className="text-sm text-center animate-fadeUp">
                           {lg.projectedWin === true && lg.pointDifferential !== undefined && (
                             <p className="text-muted-foreground">
                               Leading by <span className="font-semibold text-green-600 dark:text-green-400">{Math.abs(lg.pointDifferential).toFixed(1)} pts</span> — maintain optimal lineup to secure the win
@@ -375,6 +376,9 @@ export default function LeagueCard({ lg }: { lg: LeagueSummary }) {
                       Bench: {lg.benchCount ?? 0}/{lg.benchCapacity ?? 0}
                       {(lg.benchEmpty ?? 0) > 0 && <> • <span className="text-amber-600">{lg.benchEmpty} empty</span></>}
                     </div>
+                    
+                    {/* StatChasers Watermark */}
+                    <StatChasersWatermark />
                   </div>
                 </CollapsibleSection>
               )}

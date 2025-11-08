@@ -1,37 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* StatChasers Brand Colors: Navy, Gold, White */
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(220 90% 15%);
+  /* StatChasers Brand Colors: Navy (#0A2342), Gold (#FFB703), Off-white (#F9FAFB) */
+  --background: hsl(210 20% 98%); /* Off-white #F9FAFB */
+  --foreground: hsl(211 100% 13%); /* Navy #0A2342 */
   --card: hsl(0 0% 100%);
-  --card-foreground: hsl(220 90% 15%);
+  --card-foreground: hsl(211 100% 13%);
   --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(220 90% 15%);
-  --primary: hsl(220 90% 25%); /* Rich Navy */
+  --popover-foreground: hsl(211 100% 13%);
+  --primary: hsl(211 100% 13%); /* Navy #0A2342 */
   --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(45 100% 50%); /* Vibrant Gold */
-  --secondary-foreground: hsl(220 90% 15%);
-  --muted: hsl(210 40% 96%);
+  --secondary: hsl(42 99% 51%); /* Gold #FFB703 */
+  --secondary-foreground: hsl(211 100% 13%);
+  --muted: hsl(210 20% 96%);
   --muted-foreground: hsl(215.4 16.3% 46.9%);
-  --accent: hsl(45 100% 50%); /* Gold accent */
-  --accent-foreground: hsl(220 90% 15%);
+  --accent: hsl(42 99% 51%); /* Gold accent #FFB703 */
+  --accent-foreground: hsl(211 100% 13%);
   --destructive: hsl(0 84% 60%);
   --destructive-foreground: hsl(210 40% 98%);
-  --border: hsl(220 20% 90%);
-  --input: hsl(220 20% 90%);
-  --ring: hsl(45 100% 50%); /* Gold focus ring */
+  --border: hsl(210 20% 90%);
+  --input: hsl(210 20% 90%);
+  --ring: hsl(42 99% 51%); /* Gold focus ring */
   --radius: 0.5rem;
-  --font-sans: 'Roboto', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   
   /* StatChasers brand variables */
-  --navy: hsl(220 90% 25%);
-  --gold: hsl(45 100% 50%);
-  --gold-dark: hsl(45 100% 40%);
-  --navy-light: hsl(220 90% 35%);
-  --navy-dark: hsl(220 90% 15%);
+  --navy: hsl(211 100% 13%); /* #0A2342 */
+  --gold: hsl(42 99% 51%); /* #FFB703 */
+  --gold-dark: hsl(42 99% 41%);
+  --navy-light: hsl(211 100% 20%);
+  --navy-dark: hsl(211 100% 8%);
   
   --chart-1: hsl(213 94% 50%);
   --chart-2: hsl(142 71% 45%);
@@ -39,68 +41,68 @@
   --chart-4: hsl(280 100% 70%);
   --chart-5: hsl(340 75% 55%);
 
-  --sidebar: hsl(180 6.6667% 97.0588%);
-  --sidebar-foreground: hsl(210 25% 7.8431%);
-  --sidebar-primary: hsl(203.8863 88.2845% 53.1373%);
+  --sidebar: hsl(210 20% 98%);
+  --sidebar-foreground: hsl(211 100% 13%);
+  --sidebar-primary: hsl(211 100% 13%);
   --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(211.5789 51.3514% 92.7451%);
-  --sidebar-accent-foreground: hsl(203.8863 88.2845% 53.1373%);
-  --sidebar-border: hsl(205.0000 25.0000% 90.5882%);
-  --sidebar-ring: hsl(202.8169 89.1213% 53.1373%);
+  --sidebar-accent: hsl(210 20% 93%);
+  --sidebar-accent-foreground: hsl(211 100% 13%);
+  --sidebar-border: hsl(210 20% 88%);
+  --sidebar-ring: hsl(42 99% 51%);
 
-  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 2px 4px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 4px 6px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 8px 10px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
+  --shadow-2xs: 0px 2px 0px 0px hsl(211 100% 13% / 0.03);
+  --shadow-xs: 0px 2px 0px 0px hsl(211 100% 13% / 0.05);
+  --shadow-sm: 0px 2px 0px 0px hsl(211 100% 13% / 0.05), 0px 1px 2px -1px hsl(211 100% 13% / 0.05);
+  --shadow: 0px 2px 0px 0px hsl(211 100% 13% / 0.05), 0px 1px 2px -1px hsl(211 100% 13% / 0.05);
+  --shadow-md: 0px 2px 0px 0px hsl(211 100% 13% / 0.05), 0px 2px 4px -1px hsl(211 100% 13% / 0.05);
+  --shadow-lg: 0px 2px 0px 0px hsl(211 100% 13% / 0.05), 0px 4px 6px -1px hsl(211 100% 13% / 0.05);
+  --shadow-xl: 0px 2px 0px 0px hsl(211 100% 13% / 0.05), 0px 8px 10px -1px hsl(211 100% 13% / 0.05);
+  --shadow-2xl: 0px 2px 0px 0px hsl(211 100% 13% / 0.05);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
 
 .dark {
   /* StatChasers Dark Theme: Deep Navy backgrounds with Gold accents */
-  --background: hsl(220 90% 8%);
+  --background: hsl(211 100% 8%); /* Deep Navy */
   --foreground: hsl(0 0% 95%);
-  --card: hsl(220 90% 12%);
+  --card: hsl(211 100% 11%);
   --card-foreground: hsl(0 0% 95%);
-  --popover: hsl(220 90% 8%);
+  --popover: hsl(211 100% 8%);
   --popover-foreground: hsl(0 0% 95%);
-  --primary: hsl(220 90% 35%); /* Lighter navy for dark mode */
+  --primary: hsl(211 100% 20%); /* Lighter navy for dark mode */
   --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(45 100% 55%); /* Brighter gold for dark backgrounds */
-  --secondary-foreground: hsl(220 90% 10%);
-  --muted: hsl(220 90% 15%);
+  --secondary: hsl(42 99% 58%); /* Brighter gold for dark backgrounds */
+  --secondary-foreground: hsl(211 100% 10%);
+  --muted: hsl(211 100% 15%);
   --muted-foreground: hsl(215 16% 65%);
-  --accent: hsl(45 100% 55%); /* Gold accent */
-  --accent-foreground: hsl(220 90% 10%);
+  --accent: hsl(42 99% 58%); /* Gold accent */
+  --accent-foreground: hsl(211 100% 10%);
   --destructive: hsl(0 84% 60%);
   --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(220 60% 20%);
-  --input: hsl(220 60% 20%);
-  --ring: hsl(45 100% 55%); /* Gold focus ring */
+  --border: hsl(211 60% 18%);
+  --input: hsl(211 60% 18%);
+  --ring: hsl(42 99% 58%); /* Gold focus ring */
   
   /* Dark mode brand variables */
-  --navy: hsl(220 90% 35%);
-  --gold: hsl(45 100% 55%);
-  --gold-dark: hsl(45 100% 45%);
-  --navy-light: hsl(220 90% 45%);
-  --navy-dark: hsl(220 90% 10%);
-  --chart-1: hsl(203.8863 88.2845% 53.1373%);
-  --chart-2: hsl(159.7826 100% 36.0784%);
-  --chart-3: hsl(42.0290 92.8251% 56.2745%);
-  --chart-4: hsl(147.1429 78.5047% 41.9608%);
-  --chart-5: hsl(341.4894 75.2000% 50.9804%);
-  --sidebar: hsl(228 9.8039% 10%);
-  --sidebar-foreground: hsl(0 0% 85.0980%);
-  --sidebar-primary: hsl(202.8169 89.1213% 53.1373%);
+  --navy: hsl(211 100% 20%);
+  --gold: hsl(42 99% 58%);
+  --gold-dark: hsl(42 99% 48%);
+  --navy-light: hsl(211 100% 30%);
+  --navy-dark: hsl(211 100% 8%);
+  --chart-1: hsl(213 94% 60%);
+  --chart-2: hsl(142 71% 55%);
+  --chart-3: hsl(38 92% 60%);
+  --chart-4: hsl(280 100% 75%);
+  --chart-5: hsl(340 75% 60%);
+  --sidebar: hsl(211 100% 8%);
+  --sidebar-foreground: hsl(0 0% 85%);
+  --sidebar-primary: hsl(211 100% 20%);
   --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(205.7143 70% 7.8431%);
-  --sidebar-accent-foreground: hsl(203.7736 87.6033% 52.5490%);
-  --sidebar-border: hsl(205.7143 15.7895% 26.0784%);
-  --sidebar-ring: hsl(202.8169 89.1213% 53.1373%);
+  --sidebar-accent: hsl(211 100% 12%);
+  --sidebar-accent-foreground: hsl(42 99% 58%);
+  --sidebar-border: hsl(211 60% 18%);
+  --sidebar-ring: hsl(42 99% 58%);
 }
 
 @layer base {
@@ -124,7 +126,7 @@
 
 .league-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 25px rgba(10, 35, 66, 0.12);
 }
 
 .status-badge {
@@ -154,7 +156,7 @@
 }
 
 .admin-panel {
-  background: linear-gradient(135deg, var(--primary) 0%, hsl(213 94% 60%) 100%);
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
 }
 
 .data-table th {
@@ -201,12 +203,28 @@
 
 /* Enhanced card shadows for better differentiation */
 .card {
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px 0 rgba(10, 35, 66, 0.08), 0 1px 2px 0 rgba(10, 35, 66, 0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark .card {
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Stat fade-up animation for when data loads */
+@keyframes fadeUp {
+  0% { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeUp {
+  animation: fadeUp 0.4s ease-out forwards;
 }
 
 /* Number fade-in animation */
@@ -279,10 +297,10 @@
 
 @keyframes pulse-gold {
   0%, 100% {
-    box-shadow: 0 0 0 0 hsla(45, 100%, 50%, 0.7);
+    box-shadow: 0 0 0 0 hsla(42, 99%, 51%, 0.7);
   }
   50% {
-    box-shadow: 0 0 0 10px hsla(45, 100%, 50%, 0);
+    box-shadow: 0 0 0 10px hsla(42, 99%, 51%, 0);
   }
 }
 
@@ -302,4 +320,18 @@
 /* Brand border accents */
 .border-gold-accent {
   border-left: 4px solid var(--gold);
+}
+
+/* StatChasers watermark styling */
+.watermark {
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dark .watermark {
+  opacity: 0.3;
 }
