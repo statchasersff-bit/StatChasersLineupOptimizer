@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { queryClient } from "@/lib/queryClient";
-import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon } from "lucide-react";
+import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2 } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
@@ -42,6 +42,12 @@ import { LeagueListSkeleton } from "@/components/ui/league-skeleton";
 import { AutoSubBanner } from "@/components/ui/auto-sub-chip";
 import AdminModal from "@/components/AdminModal";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -733,7 +739,7 @@ export default function Home() {
       {/* Header */}
       <header className="bg-card border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 gap-3">
+          <div className="flex justify-between items-center py-4">
             <div className="flex flex-col">
               <div className="text-xs text-muted-foreground mb-1">Last Update: 11/6/2025 8:27am EDT</div>
               <div className="flex items-center space-x-2">
@@ -742,32 +748,14 @@ export default function Home() {
               </div>
             </div>
             
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-sm">
-                <label className="text-muted-foreground">Season:</label>
-                <input
-                  className="border rounded px-2 py-1 w-16 text-center"
-                  value={season}
-                  onChange={(e) => setSeason(e.target.value)}
-                  data-testid="input-season"
-                />
-                <label className="text-muted-foreground">Week:</label>
-                <input
-                  className="border rounded px-2 py-1 w-12 text-center"
-                  value={week}
-                  onChange={(e) => setWeek(e.target.value)}
-                  data-testid="input-week"
-                />
-              </div>
-              <button 
-                className="bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
-                onClick={() => setShowAdminModal(true)}
-                data-testid="button-admin"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </button>
-            </div>
+            <button 
+              className="bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
+              onClick={() => setShowAdminModal(true)}
+              data-testid="button-admin"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </button>
           </div>
         </div>
       </header>
@@ -812,105 +800,176 @@ export default function Home() {
             <div className="h-6 w-1 bg-primary rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-foreground">Setup</h2>
           </div>
-          <div className="card rounded-lg border border-border shadow-md hover:shadow-lg transition-shadow duration-300 p-6 bg-gradient-to-br from-card to-card/80">
-            <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center text-muted-foreground">
+          <div className="card rounded-lg border-2 border-primary/20 shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 bg-gradient-to-br from-primary/5 via-card to-accent/5">
+            <h3 className="text-base sm:text-lg font-semibold mb-5 flex items-center text-foreground">
               <Users className="w-5 h-5 mr-2 text-primary" />
               Sleeper Account
             </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
+            {/* Username Input */}
             <div>
               <label className="block text-sm font-medium mb-2">Sleeper Username</label>
               <input 
                 type="text" 
-                placeholder="Enter username..." 
-                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                placeholder="Enter your Sleeper username..." 
+                className="w-full px-4 py-2.5 border-2 border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 data-testid="input-username"
               />
             </div>
-            
-            <div className="flex items-end gap-2">
+
+            {/* Action Buttons Row */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <label className="text-muted-foreground whitespace-nowrap">Season:</label>
+                <input
+                  className="border-2 border-input rounded px-2.5 py-1.5 w-16 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  value={season}
+                  onChange={(e) => setSeason(e.target.value)}
+                  data-testid="input-season"
+                />
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <label className="text-muted-foreground whitespace-nowrap">Week:</label>
+                <input
+                  className="border-2 border-input rounded px-2.5 py-1.5 w-12 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  value={week}
+                  onChange={(e) => setWeek(e.target.value)}
+                  data-testid="input-week"
+                />
+              </div>
+              
               <button 
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="bg-primary text-primary-foreground px-6 py-2.5 rounded-md font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
                 onClick={handleAnalyzeLineups}
-                disabled={isAnalyzing}
+                disabled={isAnalyzing || !username.trim()}
                 data-testid="button-analyze"
               >
                 {isAnalyzing ? (
-                  <div className="loading-spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Search className="w-4 h-4" />
                 )}
-                <span className="hidden sm:inline">{isAnalyzing ? "Analyzing..." : "Analyze Lineups"}</span>
-                <span className="sm:hidden">{isAnalyzing ? "..." : "Analyze"}</span>
+                <span>{isAnalyzing ? "Analyzing..." : "Analyze Lineups"}</span>
               </button>
-              {username.trim() && (
+
+              {username.trim() && !isAnalyzing && (
                 <button
-                  className="bg-secondary text-secondary-foreground px-3 sm:px-4 py-2 rounded-md font-medium hover:bg-secondary/90 transition-colors flex items-center gap-2"
+                  className="bg-secondary text-secondary-foreground px-4 py-2.5 rounded-md font-medium hover:bg-secondary/90 transition-all flex items-center gap-2 shadow-sm hover:shadow-md"
                   onClick={() => setLocation(`/${username.trim()}/matchups`)}
                   data-testid="button-table-view"
                   title="View Table Summary"
                 >
                   <TableIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Table</span>
+                  <span>Table View</span>
                 </button>
               )}
             </div>
-          </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-waivers">
-              <input
-                type="checkbox"
-                checked={considerWaivers}
-                onChange={(e) => setConsiderWaivers(e.target.checked)}
-                className="rounded border-input"
-              />
-              Consider Free Agents
-            </label>
-            
-            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-opp-optimal">
-              <input
-                type="checkbox"
-                checked={oppOptimal}
-                onChange={(e) => setOppOptimal(e.target.checked)}
-                className="rounded border-input"
-              />
-              Show Opponent's Optimal
-            </label>
-            
-            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-dynasty">
-              <input
-                type="checkbox"
-                checked={filterDynasty}
-                onChange={(e) => setFilterDynasty(e.target.checked)}
-                className="rounded border-input"
-              />
-              Redraft Only
-            </label>
-            
-            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-alphabetical">
-              <input
-                type="checkbox"
-                checked={sortAlphabetical}
-                onChange={(e) => setSortAlphabetical(e.target.checked)}
-                className="rounded border-input"
-              />
-              Sort Alphabetically
-            </label>
-            
-            <label className="flex items-center gap-2 text-sm" data-testid="checkbox-non-optimal">
-              <input
-                type="checkbox"
-                checked={filterNonOptimal}
-                onChange={(e) => setFilterNonOptimal(e.target.checked)}
-                className="rounded border-input"
-              />
-              Show only Non-Optimal Leagues
-            </label>
+            {/* Loading Progress Message */}
+            {isAnalyzing && (
+              <div className="bg-primary/10 border-l-4 border-primary rounded-md p-3 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-foreground">Fetching Sleeper data...</p>
+                    <p className="text-muted-foreground text-xs mt-0.5">
+                      {totalLeagues > 0 
+                        ? `Processing league ${loadedLeagues} of ${totalLeagues}` 
+                        : "Loading your leagues and rosters"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
+            {/* Options with Tooltips */}
+            <div className="border-t border-border pt-4">
+              <TooltipProvider>
+                <div className="flex flex-wrap items-center gap-4">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <label className={`flex items-center gap-2 text-sm cursor-pointer ${!username.trim() ? 'opacity-50' : ''}`} data-testid="checkbox-waivers">
+                        <input
+                          type="checkbox"
+                          checked={considerWaivers}
+                          onChange={(e) => setConsiderWaivers(e.target.checked)}
+                          disabled={!username.trim()}
+                          className="rounded border-input disabled:cursor-not-allowed"
+                        />
+                        <span>Consider Free Agents</span>
+                        <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Include available free agents in optimal lineup calculations and waiver suggestions</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <label className={`flex items-center gap-2 text-sm cursor-pointer ${!username.trim() ? 'opacity-50' : ''}`} data-testid="checkbox-opp-optimal">
+                        <input
+                          type="checkbox"
+                          checked={oppOptimal}
+                          onChange={(e) => setOppOptimal(e.target.checked)}
+                          disabled={!username.trim()}
+                          className="rounded border-input disabled:cursor-not-allowed"
+                        />
+                        <span>Show Opponent's Optimal</span>
+                        <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Compare against opponent's optimal lineup instead of their current lineup</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <label className={`flex items-center gap-2 text-sm cursor-pointer ${!username.trim() ? 'opacity-50' : ''}`} data-testid="checkbox-dynasty">
+                        <input
+                          type="checkbox"
+                          checked={filterDynasty}
+                          onChange={(e) => setFilterDynasty(e.target.checked)}
+                          disabled={!username.trim()}
+                          className="rounded border-input disabled:cursor-not-allowed"
+                        />
+                        <span>Redraft Only</span>
+                        <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Exclude dynasty and keeper leagues from analysis</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  <label className={`flex items-center gap-2 text-sm ${!username.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} data-testid="checkbox-alphabetical">
+                    <input
+                      type="checkbox"
+                      checked={sortAlphabetical}
+                      onChange={(e) => setSortAlphabetical(e.target.checked)}
+                      disabled={!username.trim()}
+                      className="rounded border-input disabled:cursor-not-allowed"
+                    />
+                    <span>Sort Alphabetically</span>
+                  </label>
+                  
+                  <label className={`flex items-center gap-2 text-sm ${!username.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} data-testid="checkbox-non-optimal">
+                    <input
+                      type="checkbox"
+                      checked={filterNonOptimal}
+                      onChange={(e) => setFilterNonOptimal(e.target.checked)}
+                      disabled={!username.trim()}
+                      className="rounded border-input disabled:cursor-not-allowed"
+                    />
+                    <span>Show only Non-Optimal Leagues</span>
+                  </label>
+                </div>
+              </TooltipProvider>
+            </div>
           </div>
           
           <div className="mt-3 text-xs" data-testid="text-projections-status">
