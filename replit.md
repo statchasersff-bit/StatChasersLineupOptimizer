@@ -25,7 +25,9 @@ The application follows a component-based architecture for the frontend and a RE
 - **Matchup Analysis**: Calculates Opt-Act, Proj Result (W/L), QUES Starters, BYE/OUT Starters, and Margin for quick assessment. Projected results compare user's optimal lineup against opponent's lineup (optimal or current, based on toggle).
 - **Recommendations Engine**: Identifies meaningful bench → starter promotions and free agent pickups, filtering out internal lineup reshuffles.
 - **League Filtering**: Automatically excludes Best Ball leagues and provides robust filtering for Dynasty/Keeper leagues with persistence.
-- **Waiver Watchlist System**: Analyzes free agent availability, suggests top upgrades based on projections, considers roster slots, and filters problematic or low-impact players (like kickers).
+- **Waiver Watchlist System**: Analyzes free agent availability, suggests top upgrades based on projections, considers roster slots, and filters problematic or low-impact players (like kickers). Deduplicates suggestions by player, showing highest delta with multiple swap alternatives.
+- **Auto-Subs Intelligence**: Smart detection of uniform auto-sub settings across leagues. Shows global banner when all leagues share the same configuration; displays per-league chips only when settings differ, auto-subs are OFF, or league is at capacity. Prevents duplicate information and reduces visual noise.
+- **Compact League Header Design**: Mobile-optimized header with circular avatar showing league initials, wrapping league name, and metadata (format + record). Chevron rotates on expand/collapse.
 
 ### System Design Choices
 A monorepo structure with shared types facilitates development. The build process uses Vite for the frontend and esbuild for the backend. A hybrid storage approach integrates Drizzle ORM with PostgreSQL for primary data, and in-memory storage for development. Authentication is basic, focusing on Sleeper API integration without requiring user credentials for core functionality.
