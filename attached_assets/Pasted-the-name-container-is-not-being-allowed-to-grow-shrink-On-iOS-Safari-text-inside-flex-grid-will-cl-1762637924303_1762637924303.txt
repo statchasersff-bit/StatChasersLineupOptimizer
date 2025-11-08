@@ -1,0 +1,87 @@
+the name container is not being allowed to grow/shrink. On iOS/Safari, text inside flex/grid will clip unless every ancestor down to the text either has min-width:0 (or overflow:hidden). Also your chips/chevron are sitting on the same row, stealing width.
+
+Here’s a bullet-proof fix you can paste in. It does three things:
+
+puts the name on its own middle column with 2-line clamp,
+
+moves chips below the name on mobile so they never steal width,
+
+adds min-width:0 to all relevant ancestors (this is the usual missing piece).
+
+Drop-in CSS (mobile ≤ 480px)
+@media (max-width:480px){
+  /* Card grid: avatar | name | chevron  (row 1)
+                 chips (row 2)
+                 scores/bar (row 3)  */
+  .card{ display:grid; gap:8px; }
+
+  .card-head{
+    display:grid;
+    grid-template-columns: 40px 1fr auto;   /* avatar | NAME | chevron */
+    column-gap:10px; align-items:center;
+    min-width:0;                             /* ✅ critical */
+  }
+
+  .card-avatar{ width:40px; height:40px; border-radius:50%; flex-shrink:0; }
+
+  /* NAME – allow 2 lines, allow shrinking */
+  .card-name{
+    min-width:0;                             /* ✅ critical */
+    font-weight:800; font-size:15px; line-height:1.15;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+    white-space:normal; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .card-chevron{ flex-shrink:0; margin-left:6px; }
+
+  /* Chips go UNDER the name so they don't steal width */
+  .card-chips{
+    grid-column: 2 / -1;                     /* aligns under name+chevron */
+    display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;
+  }
+
+  /* Scores + win bar */
+  .card-barrow{
+    display:grid; grid-template-columns: auto 1fr auto;
+    align-items:center; column-gap:10px;
+  }
+  .my-score,.opp-score{ font-weight:800; font-size:14.5px; }
+  .winbar{ height:8px; background:#2a3a52; border-radius:999px; overflow:hidden; }
+  .winfill{ height:100%; background:linear-gradient(90deg,#20d18a,#1fb97a); }
+
+  /* Mini strip (optional) */
+  .card-meta{ display:flex; flex-wrap:wrap; gap:8px; font-size:12px; color:#9fb2c8; }
+}
+
+/* ✅ SAFARI FIX: any ancestor that wraps the name MUST allow shrink */
+.card, .card-head, .name-wrap, .title-wrap { min-width:0; }
+
+
+If you keep a single-row compact variant anywhere, make the name column flexible and the chips non-flexing:
+
+.row{ display:grid; grid-template-columns: 40px minmax(140px,2fr) auto; column-gap:10px; }
+.row .card-name{ min-width:0; }   /* again: critical */
+.row .card-chips{ flex:0 0 auto; } /* chips won’t steal width */
+
+Tailwind equivalents (if you use it)
+<div class="grid gap-2">
+  <div class="grid grid-cols-[40px,1fr,auto] items-center gap-2 min-w-0">
+    <div class="w-10 h-10 rounded-full shrink-0 bg-slate-700"></div>
+    <div class="min-w-0 font-extrabold text-[15px] leading-tight overflow-hidden text-ellipsis line-clamp-2">
+      {{ leagueName }}
+    </div>
+    <button class="shrink-0 ml-1">▾</button>
+
+    <div class="col-start-2 col-end-[-1] flex flex-wrap gap-1 mt-0.5">
+      <!-- chips -->
+    </div>
+  </div>
+
+  <div class="grid grid-cols-[auto,1fr,auto] items-center gap-2">
+    <span class="font-extrabold text-[14.5px]">{{ my }}</span>
+    <div class="h-2 rounded-full bg-[#2a3a52] overflow-hidden">
+      <div class="h-full bg-emerald-400" style="width:{{winPct}}%"></div>
+    </div>
+    <span class="font-extrabold text-[14.5px]">{{ opp }}</span>
+  </div>
+</div>
