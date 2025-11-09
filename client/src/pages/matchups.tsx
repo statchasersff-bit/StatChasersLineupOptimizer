@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, AlertTriangle, FileSpreadsheet, ArrowLeft, A
 import { queryClient } from "@/lib/queryClient";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex } from "@/lib/projections";
-import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags } from "@/lib/optimizer";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags, filterLockedRecommendations } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye } from "@/lib/gameLocking";
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
@@ -468,6 +468,45 @@ export default function MatchupsPage() {
             }
           }
 
+          // Filter out recommendations that touch locked players
+          const lockedPlayerIds = new Set<string>();
+          allEligible.forEach(p => {
+            if (p.locked) lockedPlayerIds.add(p.player_id);
+          });
+          
+          const { allowed: filteredRecommendations, blocked: blockedRecommendations } = filterLockedRecommendations(
+            recommendations,
+            lockedPlayerIds
+          );
+          
+          // Diagnostic logging for lock handling
+          const lockedStarters = currentSlots.filter(s => s.player?.locked).length;
+          const lockedBench = benchObjs.filter(p => p.locked).length;
+          const totalLocks = lockedPlayerIds.size;
+          
+          console.log(`[Locks] League ${lg.league_id} diagnostics:`, {
+            nowUtc,
+            projectionVersion: `${season}W${week}`,
+            counts: {
+              lockedStarters,
+              lockedBench,
+              totalLocks,
+              openSlots: currentSlots.length - lockedStarters,
+            },
+            totals: {
+              current: actPoints.toFixed(1),
+              reachableOptimal: optPoints.toFixed(1),
+              delta: (optPoints - actPoints).toFixed(1),
+            },
+            blockedRecommendations: blockedRecommendations.length,
+          });
+          
+          // Log lock-blocked recommendations for diagnostics
+          if (blockedRecommendations.length > 0) {
+            console.log(`[Locks] Blocked ${blockedRecommendations.length} recommendations for league ${lg.league_id}:`, 
+              blockedRecommendations.map(r => r.blockReason));
+          }
+
           // Build warnings (keeping for backward compatibility, but will show in new format in UI)
           const warnings: string[] = [];
           if (quesCount > 0) warnings.push(`${quesCount} questionable starter${quesCount > 1 ? 's' : ''}`);
@@ -609,7 +648,7 @@ export default function MatchupsPage() {
                   quesList,
                   currentStarters: currentSlots,
                   optimalStarters: optimalSlots,
-                  recommendations,
+                  recommendations: filteredRecommendations, // Use lock-filtered recommendations
                   opponentName,
                   opponentPoints,
                   warnings,
