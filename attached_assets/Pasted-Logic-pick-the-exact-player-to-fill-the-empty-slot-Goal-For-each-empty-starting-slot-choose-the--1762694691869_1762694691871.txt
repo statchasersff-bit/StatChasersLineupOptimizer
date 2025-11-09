@@ -1,0 +1,129 @@
+Logic: pick the exact player to fill the empty slot
+
+Goal: For each empty starting slot, choose the top eligible player from (a) your bench, then (b) waivers (if enabled), respecting locks and slot rules.
+
+Rules to apply
+
+Slot legality: only consider players that can fill the slot (RB/WR/TE → FLEX ok; K only → K, etc.).
+
+Locks: don’t consider players whose game has started.
+
+Pickup cap / auto-subs: obey weekly caps and league settings; if at cap, suppress FA options.
+
+Projection version: use the same projection table as the row’s totals.
+
+Pseudocode
+
+function bestFillForEmptySlot({
+  slot, bench, faPool, projections, nowUtc,
+  canFillSlot, isLocked, pickupCapRemaining
+}){
+  // 1) eligible bench candidates
+  const benchChoices = bench
+    .filter(p => !isLocked(p, nowUtc) && canFillSlot(p.pos, slot))
+    .map(p => ({ source: 'BENCH', player: p, proj: projections.get(p.id) ?? 0 }));
+
+  // 2) eligible FA candidates (if allowed)
+  const faChoices = pickupCapRemaining > 0
+    ? faPool
+        .filter(p => !isLocked(p, nowUtc) && canFillSlot(p.pos, slot))
+        .map(p => ({ source: 'FA', player: p, proj: projections.get(p.id) ?? 0 }))
+    : [];
+
+  const candidates = [...benchChoices, ...faChoices].sort((a,b)=>b.proj - a.proj);
+
+  // Top pick + (optional) next-best alternatives for UI
+  return {
+    best: candidates[0] ?? null,
+    alternatives: candidates.slice(1,3) // show up to 3
+  };
+}
+
+
+How to compute “potential points”
+For empties, the delta is simply the best candidate’s projection (since the current starter is 0). Use the same rounding you use elsewhere and show Reachable Δ (respects locks + caps).
+
+2) UI: make the fix explicit and actionable
+
+In the table row (compact):
+
+Replace the vague copy with a clear step and a button:
+
+Fix empty starter: Start Tre Tucker at FLEX (+10.2)
+
+Secondary text if the best is a waiver: Add from waivers (uses 1/2 pickups)
+
+Suggested layout (mobile)
+
+[ LEAGUE NAME ]
+Empty starter detected • +10.2 pts potential
+→ Start Tre Tucker at FLEX   [View options]
+
+
+Tap “View options” → small bottom sheet (“Fix Empty Slot”)
+
+Primary action (big button):
+Start Tre Tucker at FLEX (+10.2)
+
+If source = FA: Add Tre Tucker, then start at FLEX (+10.2) with a note: Uses 1 pickup (1/2 remaining)
+
+Alternatives list (up to 3):
+
+Start Curtis Samuel at FLEX (+8.6)
+
+Start Juwan Johnson at FLEX (+7.4)
+
+If blocked (all candidates locked):
+
+Show No eligible players available (all locked) and a grayed action.
+
+Empty + multiple slots
+If more than one starter is empty, show one line per slot in the modal:
+
+TE: Start Cade Otton (+9.1)
+FLEX: Start Tre Tucker (+10.2)
+
+
+Copy hygiene
+
+Don’t show “Your lineup is already optimal!” if any starter is empty. Gate that message:
+
+if (hasEmptyStarter) hideOptimalMessage = true;
+
+3) Edge-case handling (so the UX never confuses)
+
+At pickup cap: show At weekly pickup cap – bench options only and hide FA choices.
+
+FA allowed but worse than bench: still list FA under “Alternatives” but keep bench as the primary action.
+
+Time-locked slate: if the empty slot’s position has no remaining games, show No eligible players remaining today instead of a “fix” CTA.
+
+IR-eligible starter OUT: if someone is OUT and IR-eligible, add a parallel prompt: Move Player X to IR (frees bench spot).
+
+4) Minimal integration points
+
+During table row build:
+
+Detect empties → call bestFillForEmptySlot(...)
+
+If best exists, render the explicit step + delta + [View options]
+
+In the “Apply These Steps” section for the league (detailed view):
+
+Prepend a step:
+
+➕ Start {Best.player} → {slot} (+{proj.toFixed(1)})
+
+If FA: ➕ Add {player} → Start at {slot} and show pickup usage.
+
+5) QA checklist
+
+Empty FLEX with eligible bench → shows explicit “Start {name} at FLEX”.
+
+Empty FLEX with no bench, FA available, cap remaining → shows “Add {name}, then start at FLEX”.
+
+Empty FLEX with no bench and cap = 0 → shows “At cap; no eligible players”.
+
+Empties + locks respected (no locked candidates offered).
+
+“Optimal lineup” message suppressed if any empty starters exist.

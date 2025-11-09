@@ -1,0 +1,123 @@
+What to change (logic)
+
+Compute three totals from the same projection snapshot:
+
+Current – sum of the lineup as-is.
+
+Bench-optimal (reachable without waivers) – recompute optimal using only your roster, respecting locks.
+
+Waiver-optimal (reachable with waivers) – recompute optimal allowing one (or N) pickups under league caps and slot rules.
+
+Derive three deltas:
+
+deltaBench = benchOptimal − current
+
+deltaWaiver = waiverOptimal − benchOptimal (the extra lift only waivers provide)
+
+deltaTotal = waiverOptimal − current (bench + waiver combined)
+
+Use a consistent threshold for “meaningful” upgrades (e.g., ≥ +1.5 pts).
+
+Display rules (table row)
+
+Replace the single “Already optimal” check with this decision tree:
+
+If any empty starter → show Fix Empty Starter CTA (don’t show “optimal”).
+
+Else if deltaBench ≥ threshold → show Needs bench fixes (+X.X).
+
+Else if deltaWaiver ≥ threshold and pickups remain → show Waiver upgrade available (+Y.Y).
+
+Else → show ✅ Optimal (no bench/waiver gains).
+
+In the row’s subtitle, show both numbers when relevant, e.g.:
+
+Bench gain: +0.0 • Waiver gain: +2.6
+(Gray the one that’s zero.)
+
+In the Recommended Changes section:
+
+List bench moves first (reachable now).
+
+After applying those virtually, list waiver adds (with pickup usage, locks, and slot legality).
+
+Recompute after each planned step so the waiver list doesn’t contradict the bench changes.
+
+Implementation sketch (TypeScript-ish)
+const snap = {
+  projections,               // same version id everywhere
+  nowUtc: Date.now(),
+  pickupsLeft: league.pickupsLeft,
+};
+
+const current = currentStartersFromSleeper(league);
+const benchOptimal = optimizeRespectingLocks(league, /*no FA*/, snap);
+const waiverOptimal = (snap.pickupsLeft > 0)
+  ? optimizeWithWaivers(league, snap)   // your N-pickup search
+  : benchOptimal;
+
+const deltaBench  = +(sumProj(benchOptimal)  - sumProj(current)).toFixed(1);
+const deltaWaiver = +(sumProj(waiverOptimal) - sumProj(benchOptimal)).toFixed(1);
+const deltaTotal  = +(sumProj(waiverOptimal) - sumProj(current)).toFixed(1);
+
+// Row state
+const hasEmpty = benchOptimal.some(s => s.placeholder === 'EMPTY');
+
+let status: 'empty'|'bench'|'waiver'|'optimal';
+if (hasEmpty) status = 'empty';
+else if (deltaBench >= 1.5) status = 'bench';
+else if (deltaWaiver >= 1.5 && snap.pickupsLeft > 0) status = 'waiver';
+else status = 'optimal';
+
+
+Important guards (apply in all optimizers):
+
+Locks: freeze players whose games started in their current slot.
+
+Slot rules: central canFillSlot(pos, slot) used by every simulation.
+
+Projection source: one projectionVersionId for current/bench/waiver.
+
+“Recommended Changes” generation
+
+Bench plan: diffLineups(current, benchOptimal) → render Add/Move/Bench steps and Net: +deltaBench.
+
+Apply that bench plan virtually (update currentVirtual = benchOptimal).
+
+Waiver plan: if pickupsLeft > 0, compute diffLineups(currentVirtual, waiverOptimal) and render “Add FA → Start … / Move … / Bench …” with Net: +deltaWaiver and a pickup badge uses 1/ N.
+
+Make sure the green check only appears when:
+
+no empty starters,
+
+deltaBench < threshold,
+
+(deltaWaiver < threshold OR pickupsLeft === 0).
+
+UI copy tweaks (what the user sees)
+
+Replace “Already optimal” with:
+
+✅ Optimal (bench & waivers) – when truly nothing helps.
+
+✅ Optimal (bench) • Waiver +2.6 available – your specific case.
+
+Row chips (compact):
+
+Bench Δ +0.0 • Waiver Δ +2.6 • LOCKS 0/…
+
+In Watchlist, label clearly:
+
+Waiver upgrade: Add Luke Musgrave → FLEX (+2.6 over current bench-optimal)
+
+QA checklist
+
+League with no bench gains but waiver +X → row shows Waiver upgrade available (+X), no green check.
+
+League with bench +X and waiver +Y → row shows Needs bench fixes (+X); the details then show waivers as a second step with +Y.
+
+Pickup cap = 0 → suppress waiver state; don’t tease upgrades you can’t make.
+
+Locks → reachable totals/steps never touch locked players.
+
+Empty starter → never show “optimal”; show explicit “Start {best candidate} at {slot} (+pts)”.

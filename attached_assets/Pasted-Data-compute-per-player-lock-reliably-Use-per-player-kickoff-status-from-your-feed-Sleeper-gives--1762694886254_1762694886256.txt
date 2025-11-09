@@ -1,0 +1,139 @@
+Data: compute per-player lock reliably
+
+Use per-player kickoff/status from your feed (Sleeper gives game_start/status per player).
+
+Rules
+
+A player is locked if:
+
+status ∈ {in_progress, final} OR
+
+game_start <= nowUtc (epoch ms).
+
+Use a single nowUtc = Date.now() value for the entire run to avoid flapping.
+
+Don’t use team kickoff or matchup window; it must be player-level.
+
+Helper (language-agnostic)
+
+function isLocked(player, nowUtc) {
+  const s = player.status?.toLowerCase();
+  if (s === 'in_progress' || s === 'final') return true;
+  const ko = Number(player.game_start ?? 0);
+  return ko > 0 && ko <= nowUtc;
+}
+
+2) Optimizer: freeze locked starters in their current slot
+
+Most “lock bugs” come from letting the solver move a locked player to FLEX or bench. Don’t do that.
+
+Process
+
+Build currentStarters from the platform (your active lineup).
+
+Split into:
+
+fixedStarters = starters where isLocked(p) is true. Keep their exact slot.
+
+movableStarters = starters where !isLocked(p).
+
+Candidate pool = movableStarters ∪ benchPlayers excluding any locked players.
+
+Open slots = all lineup slots minus the slots already occupied by fixedStarters.
+
+Run your assignment/DP on (pool → openSlots) with slot legality.
+
+Return fixedStarters ∪ reassigned.
+
+Guards
+
+Never include a locked player in the pool.
+
+Never include a fixed slot in the openSlots list.
+
+Enforce canFillSlot(position, slot) everywhere.
+
+3) Suggestions: drop/disable steps that touch locks
+
+After you compute before vs after, build the plan (Add → Move → Bench).
+If any step would:
+
+bench a locked player,
+
+move a locked player, or
+
+place someone into a slot already held by a locked player,
+
+then either omit that step or render it as blocked (disabled) with a lock reason.
+
+Plan builder rules
+
+Primary plan = Reachable (respects locks). Only include actionable steps.
+
+Optional secondary note = “Full optimal (ignores locks): +X.X” for hindsight, not as steps.
+
+UI copy
+
+Show a lock chip beside any locked starter (🔒) and dim that row.
+
+If a league has any locks, show a small note: Changes respect locked starters.
+
+4) “Optimal” labels must respect locks
+
+Don’t show “Already optimal” unless:
+
+there are no empty starters,
+
+bench-optimal (respecting locks) yields < threshold gain,
+
+and if pickup(s) allowed, waiver-optimal (respecting locks) yields < threshold gain.
+
+Show separate deltas:
+
+Bench Δ (reachable),
+
+Waiver Δ (reachable) (only if pickups remain).
+
+5) Quick diagnostics to add (so you can verify fast)
+
+Log these per league in your dev console/build payload:
+
+nowUtc, projectionVersionId
+
+counts: lockedStarters, lockedBench, openSlots
+
+totals: currentTotal, reachableOptimalTotal, fullOptimalTotal
+
+a list of any suggested steps that would have touched locks (should be zero after fix)
+
+6) Minimal tests (catch regressions)
+
+Locked starter at TE; solver must not move him to FLEX.
+
+Locked starter currently at FLEX; solver must not move him to TE.
+
+Locked bench player; never considered for starting.
+
+Suggested plan contains no steps that modify any locked player or their slot.
+
+“Already optimal” never appears while a waiver-reachable gain exists and pickups remain.
+
+7) Common gotchas
+
+Forgetting min-width: 0 doesn’t cause lock bugs, but do ensure your UI badges show 🔒 so users see why changes are limited.
+
+Timezone drift: always compare epoch ms; don’t rely on client local time.
+
+If a feed provides both status and game_start, trust status first (it covers delays/OT).
+
+Checklist to apply now
+
+ Add isLocked(player, nowUtc) and compute it once per run.
+
+ In optimizer, freeze locked starters in their current slots and exclude locked players from the pool.
+
+ Recompute reachable optimal only across open slots.
+
+ In suggestion rendering, filter/disable any step that touches a lock.
+
+ Gate “Already optimal” on reachable deltas (bench + waiver), not theoretical.

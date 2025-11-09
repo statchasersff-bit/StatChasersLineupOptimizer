@@ -29,6 +29,12 @@ import {
   type Slot,
 } from "@/lib/waivers";
 import {
+  findEmptySlotFixes,
+  hasEmptyStarters,
+  type EmptySlotFix,
+  type PlayerCandidate,
+} from "@/lib/emptySlotFiller";
+import {
   Table,
   TableBody,
   TableCell,
@@ -79,6 +85,8 @@ interface LeagueMetrics {
   warnings?: string[];
   waiverSuggestions?: GroupedWaiverSuggestion[];
   irList?: string[]; // List of player IDs in IR for tracking moves from IR
+  emptySlotFixes?: EmptySlotFix[]; // Suggested fills for empty starting slots
+  hasEmptyStarters?: boolean; // Flag to suppress "optimal" message
   
   // Loading state
   isComputing?: boolean;
@@ -451,6 +459,7 @@ export default function MatchupsPage() {
 
           // Calculate waiver suggestions (only if considerWaivers is enabled)
           let waiverSuggestions: GroupedWaiverSuggestion[] = [];
+          let scoredFAs: any[] = [];
           if (considerWaivers) {
             try {
               // Build set of owned player IDs across all rosters
@@ -470,7 +479,7 @@ export default function MatchupsPage() {
               const projMap = new Map(Object.entries(projIdx));
 
               // Score free agents with league-adjusted projections
-              const scoredFAs = scoreFreeAgents(freeAgents, scoring, projMap);
+              scoredFAs = scoreFreeAgents(freeAgents, scoring, projMap);
 
               // Convert optimal starters to StarterWithSlot format
               const startersWithSlots: StarterWithSlot[] = optimalSlots
@@ -502,6 +511,70 @@ export default function MatchupsPage() {
             }
           }
 
+          // Detect and suggest fills for empty starting slots
+          const checkHasEmptyStarters = hasEmptyStarters(
+            currentSlots.map((s: any) => ({ player_id: s.player?.player_id }))
+          );
+          let emptySlotFixes: EmptySlotFix[] = [];
+          
+          if (checkHasEmptyStarters) {
+            try {
+              // Build bench candidate pool (reuse addWithProj)
+              const benchCandidates: PlayerCandidate[] = benchObjs
+                .filter((p: any) => p && p.player_id)
+                .map((p: any) => ({
+                  player_id: p.player_id,
+                  name: p.name,
+                  pos: p.pos,
+                  proj: p.proj ?? 0,
+                  team: p.team,
+                  opp: p.opp,
+                  injury_status: p.injury_status
+                }));
+
+              // Build FA candidate pool (reuse scoredFAs if waivers enabled)
+              const faCandidates: PlayerCandidate[] = considerWaivers
+                ? scoredFAs
+                    .filter((fa: any) => fa && fa.player_id && !fa.isByeOrOut)
+                    .map((fa: any) => ({
+                      player_id: fa.player_id,
+                      name: fa.name,
+                      pos: fa.pos,
+                      proj: fa.proj ?? 0,
+                      team: fa.team,
+                      opp: fa.opp,
+                      injury_status: fa.injury_status
+                    }))
+                : [];
+
+              // Convert projIdx to Map for empty slot filler
+              const projMap = new Map(Object.entries(projIdx));
+
+              // Calculate weekly pickup cap remaining (assume unlimited if not set)
+              const pickupCapRemaining = considerWaivers ? 999 : 0; // TODO: Fetch actual cap from league settings
+
+              // Find empty slots and suggest fills
+              emptySlotFixes = findEmptySlotFixes({
+                currentStarters: currentSlots.map((s: any) => ({
+                  slot: s.slot,
+                  player_id: s.player?.player_id
+                })),
+                bench: benchCandidates,
+                faPool: faCandidates,
+                projections: projMap,
+                schedule,
+                nowUtc: Date.now(),
+                playedPlayerIds,
+                pickupCapRemaining,
+                considerWaivers
+              });
+
+              console.log(`[EmptySlots] Found ${emptySlotFixes.length} empty slots for league ${lg.league_id}:`, emptySlotFixes);
+            } catch (emptyErr) {
+              console.error(`[EmptySlots] Error calculating fixes for league ${lg.league_id}:`, emptyErr);
+            }
+          }
+
           // Update the existing league entry with computed data
           setLeagueMetrics(prev => prev.map(metric => 
             metric.leagueId === lg.league_id
@@ -525,6 +598,8 @@ export default function MatchupsPage() {
                   warnings,
                   waiverSuggestions,
                   irList, // Include IR list for tracking moves from IR
+                  emptySlotFixes, // Suggested fills for empty slots
+                  hasEmptyStarters: checkHasEmptyStarters, // Flag to suppress "optimal" message
                   isComputing: false, // Done computing
                 }
               : metric
