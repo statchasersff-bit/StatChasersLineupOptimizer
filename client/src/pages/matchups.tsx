@@ -498,14 +498,12 @@ export default function MatchupsPage() {
               reachableOptimal: optPoints.toFixed(1),
               delta: (optPoints - actPoints).toFixed(1),
             },
-            blockedRecommendations: blockedRecommendations.length,
+            blockedRecommendations: blockedRecommendations.map(br => ({
+              out: { player_id: br.out.player_id, name: br.out.name },
+              in: { player_id: br.in.player_id, name: br.in.name },
+              reason: br.blockReason,
+            })),
           });
-          
-          // Log lock-blocked recommendations for diagnostics
-          if (blockedRecommendations.length > 0) {
-            console.log(`[Locks] Blocked ${blockedRecommendations.length} recommendations for league ${lg.league_id}:`, 
-              blockedRecommendations.map(r => r.blockReason));
-          }
 
           // Build warnings (keeping for backward compatibility, but will show in new format in UI)
           const warnings: string[] = [];
