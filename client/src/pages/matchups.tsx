@@ -1499,26 +1499,21 @@ export default function MatchupsPage() {
                             </div>
                           )}
 
-                          {/* Waiver Watchlist */}
-                          {league.waiverSuggestions && league.waiverSuggestions.length > 0 && (
+                          {/* Waiver Watchlist - NEW diff-based format */}
+                          {league.waiverRecommendations && league.waiverRecommendations.length > 0 && (
                             <div className="min-w-0">
-                              <h4 className="font-semibold text-sm mb-2">Waiver Watchlist</h4>
+                              <h4 className="font-semibold text-sm mb-2">
+                                Waiver Watchlist <span className="text-muted-foreground font-normal text-xs">(Top Free Agents)</span>
+                              </h4>
                               <div className="space-y-2">
-                                {league.waiverSuggestions.slice(0, 3).map((s: GroupedWaiverSuggestion, idx: number) => {
-                                  const bestAlt = s.alternatives[0];
-                                  const slotName = bestAlt?.slot === 'SUPER_FLEX' ? 'SF' : bestAlt?.slot;
-                                  return (
-                                  <div key={idx} className="text-xs bg-green-50 dark:bg-green-900/20 rounded p-2 border border-green-200 dark:border-green-800 min-w-0">
-                                    <div className="font-medium text-green-700 dark:text-green-300 break-words">
-                                      Add {s.name} ({s.pos}) → {slotName} +{s.bestDelta.toFixed(1)}
-                                    </div>
-                                    <div className="text-muted-foreground break-words">
-                                      {bestAlt && `over ${bestAlt.outP.name}`}
-                                      {s.alternatives.length > 1 && ` (+${s.alternatives.length - 1} more)`}
-                                    </div>
-                                  </div>
-                                  );
-                                })}
+                                {league.waiverRecommendations.map((rec, idx) => (
+                                  <WaiverRecItem
+                                    key={`${rec.added.player_id}-${idx}`}
+                                    rec={rec}
+                                    leagueId={league.leagueId}
+                                    variant="compact"
+                                  />
+                                ))}
                               </div>
                             </div>
                           )}
@@ -1841,119 +1836,26 @@ export default function MatchupsPage() {
                               </div>
                             )}
 
-                            {/* Waiver Watchlist */}
-                            {league.waiverSuggestions && league.waiverSuggestions.length > 0 && (
+                            {/* Waiver Watchlist - NEW diff-based format */}
+                            {league.waiverRecommendations && league.waiverRecommendations.length > 0 && (
                               <div className="mt-4 rounded-lg border p-4 bg-background" data-testid={`waiver-watchlist-${league.leagueId}`}>
                                 <h4 className="font-semibold mb-3">
                                   Waiver Watchlist <span className="text-sm text-muted-foreground font-normal">(Top Free Agents)</span>
                                 </h4>
                                 <ul className="space-y-3">
-                                  {league.waiverSuggestions.map((s, idx) => {
-                                    const bestAlt = s.alternatives[0];
-                                    const slotName = bestAlt.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : bestAlt.slot;
-                                    const hasActionPlan = s.actionPlan && s.actionPlan.steps.length > 0;
-                                    return (
-                                    <li
-                                      key={`${s.player_id}-${idx}`}
-                                      className="rounded-md border p-3 hover:bg-muted/50 transition-colors"
-                                      data-testid={`waiver-suggestion-${league.leagueId}-${idx}`}
-                                    >
-                                      <div className="flex items-center justify-between flex-wrap gap-2">
-                                        <div className="flex-1">
-                                          {hasActionPlan ? (
-                                            <div className="space-y-1.5">
-                                              {s.actionPlan!.steps.map((step, stepIdx) => (
-                                                <div key={stepIdx} className={`flex items-center gap-2 text-sm ${step.blocked ? 'opacity-50' : ''}`}>
-                                                  {step.type === 'add' && (
-                                                    <>
-                                                      <span className={step.blocked ? "text-gray-500 font-medium" : "text-green-700 font-medium"}>
-                                                        ➕ Add {step.player} ({step.pos})
-                                                      </span>
-                                                      <span className="text-muted-foreground">→ {step.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : step.slot}</span>
-                                                      {step.blocked && <span className="text-xs" title={step.blockReason}>🔒</span>}
-                                                    </>
-                                                  )}
-                                                  {step.type === 'move' && (
-                                                    <>
-                                                      <span className={step.blocked ? "text-gray-500 font-medium" : "text-blue-700 font-medium"}>
-                                                        🔁 Move {step.player}
-                                                      </span>
-                                                      <span className="text-muted-foreground">{step.from} → {step.to === 'SUPER_FLEX' ? 'SUPERFLEX' : step.to}</span>
-                                                      {step.blocked && <span className="text-xs" title={step.blockReason}>🔒</span>}
-                                                    </>
-                                                  )}
-                                                  {step.type === 'bench' && (
-                                                    <>
-                                                      <span className={step.blocked ? "text-gray-500 font-medium" : "text-red-700 font-medium"}>
-                                                        ⬇️ Bench {step.player} ({step.pos})
-                                                      </span>
-                                                      {step.blocked && <span className="text-xs" title={step.blockReason}>🔒</span>}
-                                                    </>
-                                                  )}
-                                                </div>
-                                              ))}
-                                              <div className="flex items-center gap-2 pt-1 mt-1 border-t">
-                                                {s.actionPlan!.steps.some(step => step.blocked) ? (
-                                                  <>
-                                                    <span className="text-sm font-semibold text-gray-600">🔒 Blocked by locks</span>
-                                                    <span className="text-xs text-muted-foreground">(Players already played)</span>
-                                                  </>
-                                                ) : (
-                                                  <>
-                                                    <span className="text-sm font-semibold">✅ Reachable gain:</span>
-                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                                      +{s.actionPlan!.totalDelta.toFixed(1)} pts
-                                                    </Badge>
-                                                  </>
-                                                )}
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              <span className="text-green-700 font-medium">
-                                                Add {s.name} ({s.pos}) → {slotName}
-                                              </span>
-                                              <span className="text-sm text-muted-foreground">
-                                                over <span className="text-red-600 font-medium">{bestAlt.outP.name} ({bestAlt.outP.pos})</span>
-                                              </span>
-                                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                                +{s.bestDelta.toFixed(1)} pts
-                                              </Badge>
-                                            </div>
-                                          )}
-                                        </div>
-                                        <a
-                                          className="text-sm underline text-primary hover:text-primary/80 whitespace-nowrap"
-                                          href={`https://sleeper.com/leagues/${league.leagueId}/players/${s.player_id}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          data-testid={`waiver-link-${league.leagueId}-${idx}`}
-                                        >
-                                          View in Sleeper
-                                        </a>
-                                      </div>
-                                      {!hasActionPlan && s.alternatives.length > 1 && (
-                                        <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                                          <div className="font-semibold text-foreground">Other options:</div>
-                                          {s.alternatives.slice(1).map((alt, altIdx) => {
-                                            const altSlotName = alt.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : alt.slot;
-                                            return (
-                                              <div key={altIdx}>
-                                                • {altSlotName} over {alt.outP.name} ({alt.outP.pos})
-                                                <span className="ml-1 text-green-600">+{alt.delta.toFixed(1)}</span>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                    </li>
-                                    );
-                                  })}
+                                  {league.waiverRecommendations.map((rec, idx) => (
+                                    <WaiverRecItem
+                                      key={`${rec.added.player_id}-${idx}`}
+                                      rec={rec}
+                                      leagueId={league.leagueId}
+                                      variant="detailed"
+                                    />
+                                  ))}
                                 </ul>
                               </div>
                             )}
 
-                            {(!league.waiverSuggestions || league.waiverSuggestions.length === 0) && (
+                            {(!league.waiverRecommendations || league.waiverRecommendations.length === 0) && (
                               <div className="mt-4 text-sm text-muted-foreground text-center py-3" data-testid={`no-waiver-suggestions-${league.leagueId}`}>
                                 No obvious waiver upgrades (≥ +1.5 pts)
                               </div>
