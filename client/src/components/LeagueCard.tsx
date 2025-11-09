@@ -96,8 +96,9 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
           </div>
 
           {/* Delta - Positioned on right on mobile, stays with other items on desktop */}
-          <div className={`text-sm sm:text-base font-semibold animate-fadeUp row-start-1 sm:row-auto ${lg.delta >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
-            {lg.delta >= 0 ? "+" : ""}{lg.delta.toFixed(1)} pts
+          {/* Use achievableDelta (lock-aware) if available, fallback to simple delta */}
+          <div className={`text-sm sm:text-base font-semibold animate-fadeUp row-start-1 sm:row-auto ${(lg.achievableDelta ?? lg.delta) >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-delta-${lg.league_id}`}>
+            {(lg.achievableDelta ?? lg.delta) >= 0 ? "+" : ""}{(lg.achievableDelta ?? lg.delta).toFixed(1)} pts
           </div>
 
           {/* Badges Row - Full width on mobile (row 2), inline on desktop */}
