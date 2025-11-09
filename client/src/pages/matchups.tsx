@@ -18,13 +18,16 @@ import { OptActCell } from "@/components/OptActCell";
 import { StarterBadge } from "@/components/StarterBadge";
 import { StatChasersLoader } from "@/components/StatChasersLoader";
 import { CompactLeagueRow } from "@/components/CompactLeagueRow";
+import { WaiverRecItem } from "@/components/WaiverRecItem";
 import {
   getFreeAgentsForLeague,
   scoreFreeAgents,
   pickWaiverUpgrades,
   groupWaiverSuggestions,
+  generateDiffBasedWaiverRecs,
   type WaiverSuggestion,
   type GroupedWaiverSuggestion,
+  type DiffWaiverRecommendation,
   type StarterWithSlot,
   type Slot,
 } from "@/lib/waivers";
@@ -110,7 +113,7 @@ interface LeagueMetrics {
   
   // Legacy format recommendations (keep for backward compatibility)
   benchRecommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>;
-  waiverRecommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean; isFA?: boolean }>;
+  legacyWaiverRecs?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean; isFA?: boolean }>; // Deprecated
   recommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>; // Legacy combined format
   
   // Dual-format recommendations (staged migration to diff-based system)
@@ -125,7 +128,8 @@ interface LeagueMetrics {
   opponentName?: string;
   opponentPoints?: number;
   warnings?: string[];
-  waiverSuggestions?: GroupedWaiverSuggestion[];
+  waiverRecommendations?: DiffWaiverRecommendation[]; // Diff-based waiver recommendations
+  waiverSuggestions?: GroupedWaiverSuggestion[]; // Legacy - for backward compat during migration
   irList?: string[]; // List of player IDs in IR for tracking moves from IR
   hasEmptyStarters?: boolean; // Flag indicating empty starting slots
   pickupsLeft?: number; // Remaining pickups available
@@ -551,6 +555,7 @@ export default function MatchupsPage() {
           
           // Calculate waiver suggestions (only if considerWaivers is enabled)
           let waiverSuggestions: GroupedWaiverSuggestion[] = [];
+          let diffWaiverRecs: DiffWaiverRecommendation[] = [];
           let scoredFAs: any[] = [];
           const pickupsLeft = 999; // TODO: Fetch actual from league settings
           
@@ -620,6 +625,32 @@ export default function MatchupsPage() {
               
               // Group suggestions to avoid showing same player multiple times
               waiverSuggestions = groupWaiverSuggestions(rawSuggestions, 8);
+              
+              // NEW: Generate diff-based waiver recommendations
+              diffWaiverRecs = generateDiffBasedWaiverRecs({
+                benchOptimal: benchOptimalSlots,
+                benchTotal: benchOptimal,
+                rosterPool: allEligible,
+                freeAgents: scoredFAs,
+                projectionMap: projMap,
+                playerNames: new Map(
+                  allEligible.map(p => [p.player_id, (p as any).name || p.player_id])
+                ),
+                playerPositions: new Map(
+                  allEligible.map(p => [p.player_id, p.position])
+                ),
+                slotsMap: slotCounts,
+                season,
+                week,
+                currentStarters: starters,
+                lockCheck: (playerId: string) => {
+                  const player = allEligible.find(p => p.player_id === playerId);
+                  return (player as any)?.locked || false;
+                },
+                enableDebug: false, // Set to true for debugging
+                threshold: 1.5,
+                maxFAs: 8, // Cap to 8 per architect recommendation
+              });
             } catch (waiverErr) {
               console.error(`[Waivers] Error calculating suggestions for league ${lg.league_id}:`, waiverErr);
             }
@@ -761,7 +792,8 @@ export default function MatchupsPage() {
                   opponentName,
                   opponentPoints,
                   warnings,
-                  waiverSuggestions,
+                  waiverRecommendations: diffWaiverRecs, // NEW: Diff-based waiver recommendations
+                  waiverSuggestions, // Legacy: for backward compat
                   irList, // Include IR list for tracking moves from IR
                   emptySlotFixes: [], // Suggested fills for empty slots - deprecated in favor of state system
                   hasEmptyStarters: rowState === 'EMPTY', // Flag derived from state
@@ -1268,86 +1300,21 @@ export default function MatchupsPage() {
                           </div>
                         )}
 
-                        {/* Waiver Watchlist */}
-                        {league.waiverSuggestions && league.waiverSuggestions.length > 0 && (
+                        {/* Waiver Watchlist - NEW diff-based format */}
+                        {league.waiverRecommendations && league.waiverRecommendations.length > 0 && (
                           <div className="rounded-lg border p-3 bg-background" data-testid={`waiver-watchlist-${league.leagueId}`}>
                             <h4 className="font-semibold text-sm mb-2">
                               Waiver Watchlist <span className="text-muted-foreground font-normal">(Top Free Agents)</span>
                             </h4>
                             <ul className="space-y-2">
-                              {league.waiverSuggestions.map((s, idx) => {
-                                const bestAlt = s.alternatives[0];
-                                const slotName = bestAlt?.slot === 'SUPER_FLEX' ? 'SUPERFLEX' : bestAlt?.slot;
-                                const hasActionPlan = s.actionPlan && s.actionPlan.steps.length > 0;
-                                return (
-                                <li
-                                  key={`${s.player_id}-${idx}`}
-                                  className="rounded-md border p-2 text-xs"
-                                  data-testid={`waiver-suggestion-${league.leagueId}-${idx}`}
-                                >
-                                  {hasActionPlan ? (
-                                    <div className="space-y-1">
-                                      {s.actionPlan!.steps.map((step, stepIdx) => (
-                                        <div key={stepIdx} className={`flex items-start gap-1.5 ${step.blocked ? 'opacity-50' : ''}`}>
-                                          {step.type === 'add' && (
-                                            <span className={step.blocked ? "text-gray-500 font-medium" : "text-green-700 font-medium"}>
-                                              ➕ {step.player} ({step.pos}) → {step.slot === 'SUPER_FLEX' ? 'SF' : step.slot}
-                                              {step.blocked && ' 🔒'}
-                                            </span>
-                                          )}
-                                          {step.type === 'move' && (
-                                            <span className={step.blocked ? "text-gray-500 font-medium" : "text-blue-700 font-medium"}>
-                                              🔁 {step.player}: {step.from} → {step.to === 'SUPER_FLEX' ? 'SF' : step.to}
-                                              {step.blocked && ' 🔒'}
-                                            </span>
-                                          )}
-                                          {step.type === 'bench' && (
-                                            <span className={step.blocked ? "text-gray-500 font-medium" : "text-red-700 font-medium"}>
-                                              ⬇️ {step.player}
-                                              {step.blocked && ' 🔒'}
-                                            </span>
-                                          )}
-                                        </div>
-                                      ))}
-                                      <div className="flex items-center gap-1 pt-1 mt-1 border-t font-semibold">
-                                        {s.actionPlan!.steps.some(step => step.blocked) ? (
-                                          <span className="text-gray-600 text-xs">
-                                            🔒 Blocked (players played)
-                                          </span>
-                                        ) : (
-                                          <span className="text-green-700">
-                                            ✅ +{s.actionPlan!.totalDelta.toFixed(1)} pts
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-green-700 font-medium">
-                                          Add {s.name} ({s.pos}) → {slotName}
-                                        </span>
-                                      </div>
-                                      <div className="text-muted-foreground mt-1">
-                                        over <span className="text-red-600">{bestAlt?.outP.name} ({bestAlt?.outP.pos})</span>
-                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs ml-1">
-                                          +{s.bestDelta.toFixed(1)} pts
-                                        </Badge>
-                                      </div>
-                                    </>
-                                  )}
-                                  <a
-                                    className="text-primary hover:underline text-xs mt-1 inline-block"
-                                    href={`https://sleeper.com/leagues/${league.leagueId}/players/${s.player_id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    View on Sleeper →
-                                  </a>
-                                </li>
-                                );
-                              })}
+                              {league.waiverRecommendations.map((rec, idx) => (
+                                <WaiverRecItem
+                                  key={`${rec.added.player_id}-${idx}`}
+                                  rec={rec}
+                                  leagueId={league.leagueId}
+                                  variant="compact"
+                                />
+                              ))}
                             </ul>
                           </div>
                         )}

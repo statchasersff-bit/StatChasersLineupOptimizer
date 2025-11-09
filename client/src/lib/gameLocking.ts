@@ -68,14 +68,20 @@ export function isPlayerLocked(
   playedPlayerIds?: Record<string, boolean>,
   actualPoints?: Record<string, number>
 ): boolean {
-  // Priority 1: Player has actual scoring data (even if 0 points) = definitive lock
-  if (player.player_id && actualPoints && player.player_id in actualPoints) {
-    return true;
-  }
-  
-  // Priority 2: Player marked as played in matchup data
-  if (playedPlayerIds && player.player_id && playedPlayerIds[player.player_id]) {
-    return true;
+  // Priority 1: Player has scored points OR is marked as played = definitive lock
+  if (player.player_id) {
+    // Check if player is marked as played
+    if (playedPlayerIds && playedPlayerIds[player.player_id]) {
+      return true;
+    }
+    
+    // Check if player has non-zero actual points (0 points before kickoff doesn't count)
+    if (actualPoints && player.player_id in actualPoints) {
+      const points = actualPoints[player.player_id];
+      if (points !== undefined && points !== 0) {
+        return true;
+      }
+    }
   }
   
   // Priority 3: Team's game has started (schedule-based fallback)

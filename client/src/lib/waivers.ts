@@ -1,6 +1,8 @@
 import { scoreByLeague } from "./scoring";
 import type { Projection } from "./types";
 import { interchangeable, isFlexSlot } from "./slotRules";
+import { buildReachableLineup, type PlayerLite } from "./optimizer";
+import type { RosterSlot as OptimizerRosterSlot } from "./optimizer";
 
 export type Slot =
   | "QB" | "RB" | "WR" | "TE" | "FLEX" | "SUPER_FLEX" | "K" | "DEF" | "BN";
@@ -71,6 +73,92 @@ export interface FreeAgent {
 export interface ScoredFreeAgent extends FreeAgent {
   proj: number;
   isByeOrOut: boolean;
+}
+
+// ========== DIFF-BASED WAIVER RECOMMENDATION SYSTEM ==========
+
+export interface RosterSlot {
+  playerId: string;
+  slot: Slot;
+  position: string;
+  name: string;
+  proj: number;
+}
+
+export interface DiffWaiverRecommendation {
+  // The FA being added
+  added: {
+    player_id: string;
+    name: string;
+    pos: string;
+    proj: number;
+    slot: Slot;
+  };
+  // The player(s) actually displaced from the lineup
+  removed: {
+    player_id: string;
+    name: string;
+    pos: string;
+    proj: number;
+    slot: Slot;
+  }[];
+  // Players that shifted slots
+  moved: {
+    player_id: string;
+    name: string;
+    fromSlot: Slot;
+    toSlot: Slot;
+  }[];
+  // Net improvement
+  deltaTotal: number;
+  // Debug diagnostics
+  debug?: {
+    benchTotal: number;
+    waiverTotal: number;
+    addedLocked: boolean;
+    removedLocked: boolean[];
+    removedStatuses: string[];
+  };
+}
+
+export interface LineupDiff {
+  added: RosterSlot[];
+  removed: RosterSlot[];
+  moved: { player: RosterSlot; fromSlot: Slot; toSlot: Slot }[];
+}
+
+/**
+ * Diff two lineups to find what changed
+ */
+export function diffLineups(
+  before: RosterSlot[],
+  after: RosterSlot[]
+): LineupDiff {
+  const beforeMap = new Map(before.map(s => [s.playerId, s]));
+  const afterMap = new Map(after.map(s => [s.playerId, s]));
+
+  const added: RosterSlot[] = [];
+  const removed: RosterSlot[] = [];
+  const moved: { player: RosterSlot; fromSlot: Slot; toSlot: Slot }[] = [];
+
+  // Find added players
+  for (const slot of after) {
+    if (!beforeMap.has(slot.playerId)) {
+      added.push(slot);
+    }
+  }
+
+  // Find removed and moved players
+  for (const slot of before) {
+    const afterSlot = afterMap.get(slot.playerId);
+    if (!afterSlot) {
+      removed.push(slot);
+    } else if (afterSlot.slot !== slot.slot) {
+      moved.push({ player: afterSlot, fromSlot: slot.slot, toSlot: afterSlot.slot });
+    }
+  }
+
+  return { added, removed, moved };
 }
 
 // Legacy helpers (kept for backward compatibility)
@@ -433,4 +521,217 @@ export function groupWaiverSuggestions(
   return grouped
     .sort((a, b) => b.bestDelta - a.bestDelta)
     .slice(0, maxPlayers);
+}
+
+// ========== DIFF-BASED WAIVER RECOMMENDATION GENERATOR ==========
+
+export interface DiffWaiverInput {
+  benchOptimal: OptimizerRosterSlot[]; // Roster-only optimal lineup
+  benchTotal: number; // Total points for benchOptimal
+  rosterPool: (PlayerLite & { proj?: number; locked?: boolean })[]; // Current roster players
+  freeAgents: ScoredFreeAgent[]; // Available FAs, already scored
+  projectionMap: Map<string, number>; // player_id → projection
+  playerNames: Map<string, string>; // player_id → name
+  playerPositions: Map<string, string>; // player_id → position
+  slotsMap: Record<string, number>; // League roster slots
+  season: string;
+  week: string;
+  currentStarters: (string | null)[]; // For lock detection
+  lockCheck?: (playerId: string) => boolean; // Optional lock checker
+  enableDebug?: boolean; // Enable debug diagnostics
+  threshold?: number; // Minimum delta to show (default 1.5)
+  maxFAs?: number; // Max FAs to evaluate (default 10)
+}
+
+/**
+ * Generate diff-based waiver recommendations by:
+ * 1. For each top FA, optimize with that FA added
+ * 2. Diff benchOptimal vs waiverOptimal lineups
+ * 3. Identify true displaced player(s)
+ * 4. Filter by threshold, locks, and eligibility
+ * 5. Return structured recommendations with debug info
+ */
+export function generateDiffBasedWaiverRecs(
+  input: DiffWaiverInput
+): DiffWaiverRecommendation[] {
+  const {
+    benchOptimal,
+    benchTotal,
+    rosterPool,
+    freeAgents,
+    projectionMap,
+    playerNames,
+    playerPositions,
+    slotsMap,
+    season,
+    week,
+    currentStarters,
+    lockCheck = () => false,
+    enableDebug = false,
+    threshold = 1.5,
+    maxFAs = 10,
+  } = input;
+
+  const recommendations: DiffWaiverRecommendation[] = [];
+
+  // Convert benchOptimal to RosterSlot format for diffing
+  const benchSlots: RosterSlot[] = benchOptimal.map(s => ({
+    playerId: s.playerId,
+    slot: s.slot as Slot,
+    position: playerPositions.get(s.playerId) || "",
+    name: playerNames.get(s.playerId) || s.playerId,
+    proj: s.points || projectionMap.get(s.playerId) || 0,
+  }));
+
+  // Limit FA evaluation to top N by projection
+  const topFAs = freeAgents
+    .filter(fa => !lockCheck(fa.player_id)) // Skip locked FAs
+    .sort((a, b) => (b.proj || 0) - (a.proj || 0))
+    .slice(0, maxFAs);
+
+  for (const fa of topFAs) {
+    try {
+      // Augment roster pool with this FA
+      const augmentedPool: (PlayerLite & { proj?: number; locked?: boolean })[] = [
+        ...rosterPool,
+        {
+          player_id: fa.player_id,
+          position: fa.pos,
+          proj: fa.proj,
+          locked: false,
+        },
+      ];
+
+      // Optimize with FA added
+      const waiverLineup = buildReachableLineup(
+        slotsMap,
+        augmentedPool,
+        season,
+        week,
+        currentStarters
+      );
+
+      // Calculate waiver total
+      const waiverTotal = waiverLineup.reduce((sum, s) => sum + (s.points || 0), 0);
+
+      // Calculate delta
+      const deltaTotal = waiverTotal - benchTotal;
+
+      // Filter: below threshold
+      if (!Number.isFinite(deltaTotal) || deltaTotal < threshold) {
+        continue;
+      }
+
+      // Convert to RosterSlot format for diffing
+      const waiverSlots: RosterSlot[] = waiverLineup.map(s => ({
+        playerId: s.playerId,
+        slot: s.slot as Slot,
+        position: playerPositions.get(s.playerId) || "",
+        name: playerNames.get(s.playerId) || s.playerId,
+        proj: s.points || projectionMap.get(s.playerId) || 0,
+      }));
+
+      // Diff the lineups
+      const diff = diffLineups(benchSlots, waiverSlots);
+
+      // The added player should be the FA
+      const addedSlot = diff.added.find(s => s.playerId === fa.player_id);
+      if (!addedSlot) {
+        // FA wasn't added to lineup, skip
+        if (enableDebug) {
+          console.warn(`[DiffWaiver] FA ${fa.name} not in optimal lineup, skipping`);
+        }
+        continue;
+      }
+
+      // Filter: check if any removed player is locked
+      const removedLocked = diff.removed.map(r => lockCheck(r.playerId));
+      if (removedLocked.some(locked => locked)) {
+        if (enableDebug) {
+          console.warn(`[DiffWaiver] FA ${fa.name} would displace locked player, skipping`);
+        }
+        continue;
+      }
+
+      // Filter: if any displaced player has higher proj and isn't O/BYE, skip this rec
+      let shouldSkip = false;
+      for (const removed of diff.removed) {
+        const removedProj = projectionMap.get(removed.playerId) || 0;
+        const removedPos = playerPositions.get(removed.playerId) || "";
+        
+        // Find if removed player is O/BYE (check roster pool)
+        const removedPlayer = rosterPool.find(p => p.player_id === removed.playerId);
+        const removedStatus = (removedPlayer as any)?.injury_status || "";
+        const isOutOrBye = removedStatus === "Out" || removedStatus === "BYE";
+
+        if (removedProj >= fa.proj && !isOutOrBye) {
+          if (enableDebug) {
+            console.warn(`[DiffWaiver] FA ${fa.name} (${fa.proj}) would displace ${removed.name} (${removedProj}), skipping`);
+          }
+          shouldSkip = true;
+          break;
+        }
+      }
+      
+      if (shouldSkip) {
+        continue;
+      }
+
+      // Build recommendation
+      const rec: DiffWaiverRecommendation = {
+        added: {
+          player_id: fa.player_id,
+          name: fa.name,
+          pos: fa.pos,
+          proj: fa.proj,
+          slot: addedSlot.slot,
+        },
+        removed: diff.removed.map(r => ({
+          player_id: r.playerId,
+          name: r.name,
+          pos: r.position,
+          proj: r.proj,
+          slot: r.slot,
+        })),
+        moved: diff.moved.map(m => ({
+          player_id: m.player.playerId,
+          name: m.player.name,
+          fromSlot: m.fromSlot,
+          toSlot: m.toSlot,
+        })),
+        deltaTotal,
+      };
+
+      // Add debug info if enabled
+      if (enableDebug) {
+        rec.debug = {
+          benchTotal,
+          waiverTotal,
+          addedLocked: lockCheck(fa.player_id),
+          removedLocked,
+          removedStatuses: diff.removed.map(r => {
+            const p = rosterPool.find(rp => rp.player_id === r.playerId);
+            return (p as any)?.injury_status || "NA";
+          }),
+        };
+
+        console.log(`[DiffWaiver] ${fa.name} → ${addedSlot.slot} (+${deltaTotal.toFixed(1)})`, {
+          removed: diff.removed.map(r => `${r.name} (${r.proj.toFixed(1)})`).join(", "),
+          moved: diff.moved.map(m => `${m.player.name}: ${m.fromSlot}→${m.toSlot}`).join(", "),
+          debug: rec.debug,
+        });
+      }
+
+      recommendations.push(rec);
+    } catch (err) {
+      if (enableDebug) {
+        console.error(`[DiffWaiver] Error processing FA ${fa.name}:`, err);
+      }
+      // Continue to next FA
+      continue;
+    }
+  }
+
+  // Sort by deltaTotal desc
+  return recommendations.sort((a, b) => b.deltaTotal - a.deltaTotal);
 }
