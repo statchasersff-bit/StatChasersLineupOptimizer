@@ -182,3 +182,56 @@ export function filterLockedRecommendations<T extends { in: {player_id: string};
   
   return { allowed, blocked };
 }
+
+/**
+ * Lock-aware wrapper for building reachable lineup (respects locks)
+ * Reusable for both bench-only and waiver-augmented pools
+ */
+export function buildReachableLineup(
+  slotsMap: Record<string, number>,
+  players: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[],
+  season: string,
+  week: string,
+  currentStarters: (string | null)[]
+): RosterSlot[] {
+  // Always respect locks when building reachable lineup
+  return optimizeLineup(slotsMap, players, season, week, currentStarters, true);
+}
+
+/**
+ * State decision tree evaluator per user spec
+ * Returns the league row state based on optimization metrics
+ */
+export type RowState = 'EMPTY' | 'BENCH' | 'WAIVER' | 'OPTIMAL' | 'UNKNOWN';
+
+export interface StateEvalInputs {
+  benchOptimalLineup: RosterSlot[];
+  deltaBench: number;
+  deltaWaiver: number;
+  pickupsLeft: number;
+  freeAgentsEnabled: boolean;
+  threshold?: number;
+}
+
+export function deriveRowState(inputs: StateEvalInputs): RowState {
+  const THRESH = inputs.threshold ?? 1.5;
+  
+  // Guard against NaN/undefined values
+  if (!Number.isFinite(inputs.deltaBench) || !Number.isFinite(inputs.deltaWaiver)) {
+    return 'UNKNOWN';
+  }
+  
+  // Check for empty starters (any slot without a player)
+  const hasEmpty = inputs.benchOptimalLineup.some(s => !s.player);
+  
+  // Decision tree per spec
+  if (hasEmpty) {
+    return 'EMPTY';
+  } else if (inputs.deltaBench >= THRESH) {
+    return 'BENCH';
+  } else if (inputs.pickupsLeft > 0 && inputs.freeAgentsEnabled && inputs.deltaWaiver >= THRESH) {
+    return 'WAIVER';
+  } else {
+    return 'OPTIMAL';
+  }
+}

@@ -1,0 +1,119 @@
+“Add Zonovan Knight over De’Von Achane” because the waiver rec engine and/or the labeler aren’t aligned with reality. Use this checklist to pin it down and fix it:
+
+1) Verify the math (one league, one rec)
+
+Instrument the waiver routine for the league that shows this:
+
+IDs & names
+
+added.id, added.name, added.pos
+
+displaced.id, displaced.name, displaced.pos (from a real lineup diff, not a heuristic)
+
+Projections (same snapshot)
+
+proj[added.id], proj[displaced.id]
+
+Totals
+
+currentTotal
+
+benchOptimalTotal (roster only, locks respected)
+
+waiverOptimalTotal (with this single add)
+
+deltaBench = benchOptimal - current
+
+deltaWaiver = waiverOptimal - benchOptimal
+
+deltaTotal = waiverOptimal - current
+
+Locks & eligibility
+
+isLocked(added), isLocked(displaced)
+
+status (Q/O/IR/NA), game_start (epoch)
+
+canFillSlot(added.pos, targetSlot)
+
+If proj[Achane] > proj[Knight] and deltaTotal <= 0, but you still output that rec, you’ve confirmed a logic bug (see steps 2–6).
+
+2) Label the true displaced player (no slot-based guesses)
+
+Your label currently says “over De’Von Achane,” which often happens when you choose the displaced player by slot family. Instead, compute the actual displacement:
+
+// after = optimal with the add; before = benchOptimal (respect locks)
+const beforeIds = new Set(before.map(s => s.playerId));
+const afterIds  = new Set(after.map(s => s.playerId));
+
+const added    = after.find(s => !beforeIds.has(s.playerId));  // the FA (or bench->start)
+const removed  = before.filter(s => !afterIds.has(s.playerId)); // the true benched player(s)
+const moved    = after
+  .map(s => ({...s, prev: before.find(b => b.playerId===s.playerId)?.slot}))
+  .filter(x => x.prev && x.prev !== x.slot);
+
+// Use removed[0] as displaced in the label (or pick by highest proj if >1)
+
+
+Render “over {removed.name}”; if there’s no removed, say “fills EMPTY starter”.
+
+3) Fix projection joins (Achane is a common alias pitfall)
+
+Achane’s name variants (De'Von Achane, Devon Achane) can break joins. Ensure all projections are keyed by Sleeper player_id, not name. Keep any alias map only for display.
+
+Quick guard: log proj[achaneId] right where you compute deltas. If it’s undefined/0 while your UI shows a high number elsewhere, you have a projection mismatch. Fix by:
+
+joining on player_id,
+
+carrying a single projectionVersionId through the entire compute.
+
+4) Respect locks & availability in the solver (and the label)
+
+Freeze locked starters in their current slot.
+
+Exclude locked bench players from the candidate pool.
+
+If a plan would touch a locked player, don’t emit it (or show “Blocked by lock” and suppress the rec).
+
+If Achane is locked or marked O/BYE and you zero his projection, you’ll wrongly bench him. Use status-first logic:
+
+if (status in {'in_progress','final'}) locked=true;
+else if (game_start && game_start <= nowUtc) locked=true;
+
+5) Enforce slot legality everywhere
+
+Both the optimizer and the explainer must use the same canFillSlot(pos, slot) rules. An illegal placement that gets “fixed” downstream can yield the wrong displaced label.
+
+6) Don’t show recs that don’t improve the reachable total
+
+Before rendering any row in “Waiver Watchlist”, require:
+
+if (deltaTotal < THRESHOLD || !Number.isFinite(deltaTotal)) skip;
+if (proj[removed.id] >= proj[added.id] && removed.status not in {'O','BYE'} ) skip; // safety guard
+
+
+(THRESHOLD typically 1.5 pts.)
+
+7) UI tweaks so users trust it
+
+Show the cascade on tap:
+
+➕ Add Zonovan Knight → RB (+8.5)
+⬇️ Benches Wan’Dale Robinson      (example)
+――――――――――――――――――――――――――――――
+Net: +8.5 pts
+
+
+If it’s filling an empty: Fills EMPTY RB (+8.5).
+
+If a rec is filtered due to lock/legality, don’t list it.
+
+8) Quick smoke tests (use fake data if needed)
+
+Higher-projected incumbent vs lower FA → no waiver rec.
+
+Empty slot with eligible FA → rec shows fills EMPTY (no “over X”).
+
+FLEX cascade → label shows the actual benched player from the diff.
+
+Locked starter → recs never touch them; totals are “reachable.”

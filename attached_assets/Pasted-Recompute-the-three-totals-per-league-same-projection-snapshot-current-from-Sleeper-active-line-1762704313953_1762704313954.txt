@@ -1,0 +1,119 @@
+Recompute the three totals per league (same projection snapshot)
+
+current – from Sleeper active lineup
+
+benchOptimal – best lineup using only your roster, respecting locks
+
+waiverOptimal – best lineup with waivers allowed (respect locks + pickup cap)
+
+Then:
+
+Δbench = benchOptimal − current
+
+Δwaiver = waiverOptimal − benchOptimal
+
+Δtotal = waiverOptimal − current
+
+Round only for display; keep full precision internally.
+
+2) Correct row-state decision tree (no shortcuts)
+const THRESH = 1.5; // or whatever you use
+const hasEmpty = benchOptimal.some(s => s.placeholder === 'EMPTY');
+
+let state: 'EMPTY'|'BENCH'|'WAIVER'|'OPTIMAL';
+
+if (hasEmpty) {
+  state = 'EMPTY';
+} else if (Δbench >= THRESH) {
+  state = 'BENCH';
+} else if (pickupsLeft > 0 && freeAgentsToggleOn && Δwaiver >= THRESH) {
+  state = 'WAIVER';
+} else {
+  state = 'OPTIMAL';
+}
+
+Common slip-ups that make everything “OPTIMAL”
+
+Using if (Δbench <= THRESH) instead of >=
+
+Rounding before comparison (e.g., 1.49 → 1.5 → treated as 0)
+
+Treating NaN as 0 (Number.isFinite(Δbench) guard it)
+
+pickupsLeft miscomputed as 0 for all leagues
+
+“Free Agents” toggle defaulting to off globally, skipping the waiver path
+
+A try/catch that sets state='OPTIMAL' on any optimizer error
+
+3) Enforce locks and slot rules everywhere
+
+Freeze locked starters in their current slot
+
+Exclude locked bench players from the candidate pool
+
+canFillSlot(position, slot) used in both optimizers and diff builder
+
+If locks aren’t enforced, your “reachable” deltas may compute as 0 after you filter illegal steps downstream, and you’ll mark as optimal.
+
+4) Fail closed (don’t fallback to “optimal”)
+
+If anything throws:
+
+Set state='UNKNOWN' (or show a ⚠️ chip: “calc error”)
+
+Hide the green check; show a “Tap to re-analyze” CTA
+
+try {
+  // compute totals/deltas
+} catch (e) {
+  state = 'UNKNOWN';
+  logger.warn({ leagueId, err:e.message }, 'row-state failed');
+}
+
+5) Add quick diagnostics (visible in dev)
+
+Temporarily render a tiny debug line per row:
+
+DBG: cur 119.4 | bench 122.1 | wvr 124.7 | Δb +2.7 | Δw +2.6 | pk 1 | FA:on | locks 3
+
+
+If you see NaN, pk 0 everywhere, or FA:off, you’ve found the culprit.
+
+6) UI rules (so copy never lies)
+
+Never show “Already optimal” if:
+
+any empty starter exists, or
+
+Δbench ≥ THRESH, or
+
+(pickupsLeft > 0 AND FreeAgents toggle on AND Δwaiver ≥ THRESH)
+
+Prefer explicit chips:
+
+Bench Δ +2.7 • Waiver Δ +2.6
+
+If FA toggle is off, gray the waiver chip: Waiver Δ +2.6 (off)
+
+7) Smoke tests (fast)
+
+A league you know has a bench improvement → row must show Needs bench fixes.
+
+Toggle Free Agents OFF → a league with waiver-only upgrades shows Optimal (bench) but includes a grayed chip Waiver Δ +X (off).
+
+Set pickupsLeft = 0 → no waiver state anywhere, but bench states still show.
+
+Lock a starter and re-run → “reachable” deltas drop appropriately; still shouldn’t mark optimal if a bench move exists.
+
+8) One-liner sanity check for your code
+
+Search the row builder for any of these anti-patterns:
+
+if (!delta || delta < THRESH) state='OPTIMAL' ← wrong when delta===0 or NaN
+
+const delta = Math.max(0, calc()) ← masks negatives/NaN
+
+default freeAgents=false at top-level
+
+Replace with explicit Number.isFinite(delta) checks and the decision tree above.

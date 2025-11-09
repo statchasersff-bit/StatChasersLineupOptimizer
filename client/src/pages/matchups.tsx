@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, AlertTriangle, FileSpreadsheet, ArrowLeft, A
 import { queryClient } from "@/lib/queryClient";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex } from "@/lib/projections";
-import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags, filterLockedRecommendations } from "@/lib/optimizer";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags, filterLockedRecommendations, buildReachableLineup, deriveRowState, type RowState } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye } from "@/lib/gameLocking";
 import { isBestBallLeague } from "@/lib/isBestBall";
 import { isDynastyLeague } from "@/lib/isDynasty";
@@ -69,16 +69,34 @@ interface LeagueMetrics {
   // Computed fields (may be undefined during progressive loading)
   record?: string;
   
-  // Three-tier optimization deltas
+  // Three-tier optimization totals (full precision)
   actPoints?: number;          // Current lineup score
-  benchOptimal?: number;       // Best using only roster (no FA)
-  waiverOptimal?: number;      // Best with FA pickups
+  benchOptimal?: number;       // Best using only roster, respecting locks
+  waiverOptimal?: number;      // Best with FA pickups, respecting locks + pickup cap
+  
+  // Three-tier deltas (full precision, round only for display)
   deltaBench?: number;         // benchOptimal - actPoints
   deltaWaiver?: number;        // waiverOptimal - benchOptimal
   deltaTotal?: number;         // waiverOptimal - actPoints
   
-  // Legacy field (computed as deltaTotal for compatibility)
-  optMinusAct?: number;
+  // Row state from decision tree
+  rowState?: 'EMPTY' | 'BENCH' | 'WAIVER' | 'OPTIMAL' | 'UNKNOWN';
+  
+  // Debug metrics for diagnostics
+  debugMetrics?: {
+    current: number;
+    bench: number;
+    waiver: number;
+    deltaBench: number;
+    deltaWaiver: number;
+    pickupsLeft: number;
+    freeAgentsEnabled: boolean;
+    lockedCount: number;
+  };
+  
+  // Legacy fields (computed for backward compatibility)
+  optPoints?: number;       // Legacy: Same as benchOptimal
+  optMinusAct?: number;     // Legacy: Same as deltaTotal
   
   projectedResult?: "W" | "L" | "T" | "N/A";
   margin?: number;
@@ -344,11 +362,7 @@ export default function MatchupsPage() {
           
           const allEligible = [...starterObjs, ...benchObjs, ...healthyIRObjs];
 
-          // Calculate optimal lineup
-          const optimalSlots = optimizeLineup(slotCounts, allEligible, season, week, starters);
-          const optPoints = sumProj(optimalSlots);
-
-          // Calculate actual points from current starters
+          // Calculate actual points from current starters (tier 1: current)
           const fixedSlots = roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s));
           const currentSlots = starters.slice(0, fixedSlots.length).map((pid, i) => {
             if (!pid) return { slot: fixedSlots[i] };
@@ -357,6 +371,14 @@ export default function MatchupsPage() {
             return { slot: fixedSlots[i], player };
           });
           const actPoints = sumProj(currentSlots as any);
+
+          // Calculate bench optimal lineup (tier 2: roster only, respecting locks)
+          const benchOptimalSlots = buildReachableLineup(slotCounts, allEligible, season, week, starters);
+          const benchOptimal = sumProj(benchOptimalSlots);
+
+          // Store for later use
+          const optimalSlots = benchOptimalSlots; // For backward compatibility
+          const optPoints = benchOptimal; // For backward compatibility
 
           // Use new availability classification system
           const startersForClassification: Starter[] = fixedSlots.map((slot: string, i: number) => {
@@ -523,9 +545,15 @@ export default function MatchupsPage() {
           if (quesCount > 0) warnings.push(`${quesCount} questionable starter${quesCount > 1 ? 's' : ''}`);
           if (notPlayingCount > 0) warnings.push(`${notPlayingCount} not playing${notPlayingCount > 1 ? ' starters' : ' starter'}`);
 
+          // Initialize waiver optimal to bench optimal (tier 3 starts equal to tier 2)
+          let waiverOptimal = benchOptimal;
+          let waiverOptimalSlots = benchOptimalSlots;
+          
           // Calculate waiver suggestions (only if considerWaivers is enabled)
           let waiverSuggestions: GroupedWaiverSuggestion[] = [];
           let scoredFAs: any[] = [];
+          const pickupsLeft = 999; // TODO: Fetch actual from league settings
+          
           if (considerWaivers) {
             try {
               // Build set of owned player IDs across all rosters
@@ -546,6 +574,26 @@ export default function MatchupsPage() {
 
               // Score free agents with league-adjusted projections
               scoredFAs = scoreFreeAgents(freeAgents, scoring, projMap);
+              
+              // Calculate waiver optimal (tier 3: roster + top FAs, respecting locks + pickup cap)
+              // Augment roster with top-scoring available FAs
+              const faPlayerPool = scoredFAs
+                .filter((fa: any) => fa && fa.player_id && !fa.locked) // Exclude locked FAs
+                .slice(0, pickupsLeft * 2) // Top N*2 to give optimizer choices
+                .map((fa: any) => ({
+                  player_id: fa.player_id,
+                  name: fa.name,
+                  pos: fa.pos,
+                  team: fa.team,
+                  proj: fa.proj ?? 0,
+                  opp: fa.opp,
+                  locked: false, // FAs are never locked
+                  injury_status: fa.injury_status
+                }));
+              
+              const waiverPool = [...allEligible, ...faPlayerPool];
+              waiverOptimalSlots = buildReachableLineup(slotCounts, waiverPool, season, week, starters);
+              waiverOptimal = sumProj(waiverOptimalSlots);
 
               // Convert optimal starters to StarterWithSlot format
               const startersWithSlots: StarterWithSlot[] = optimalSlots
@@ -642,15 +690,63 @@ export default function MatchupsPage() {
             }
           }
 
+          // Calculate three deltas (full precision)
+          const deltaBench = benchOptimal - actPoints;
+          const deltaWaiver = waiverOptimal - benchOptimal;
+          const deltaTotal = waiverOptimal - actPoints;
+          
+          // Derive row state using decision tree
+          let rowState: RowState = 'UNKNOWN';
+          try {
+            rowState = deriveRowState({
+              benchOptimalLineup: benchOptimalSlots,
+              deltaBench,
+              deltaWaiver,
+              pickupsLeft,
+              freeAgentsEnabled: considerWaivers,
+            });
+          } catch (stateErr) {
+            console.error(`[State] Error deriving state for league ${lg.league_id}:`, stateErr);
+            rowState = 'UNKNOWN';
+          }
+          
+          // Build debug metrics
+          const debugMetrics = {
+            current: actPoints,
+            bench: benchOptimal,
+            waiver: waiverOptimal,
+            deltaBench,
+            deltaWaiver,
+            pickupsLeft,
+            freeAgentsEnabled: considerWaivers,
+            lockedCount: lockedPlayerIds.size
+          };
+          
+          // Log diagnostic info (matches spec format)
+          console.log(`[Diagnostics] League ${lg.league_id}: cur ${actPoints.toFixed(1)} | bench ${benchOptimal.toFixed(1)} | wvr ${waiverOptimal.toFixed(1)} | Δb ${deltaBench >= 0 ? '+' : ''}${deltaBench.toFixed(1)} | Δw ${deltaWaiver >= 0 ? '+' : ''}${deltaWaiver.toFixed(1)} | pk ${pickupsLeft} | FA:${considerWaivers ? 'on' : 'off'} | locks ${lockedPlayerIds.size} | state ${rowState}`);
+
           // Update the existing league entry with computed data
           setLeagueMetrics(prev => prev.map(metric => 
             metric.leagueId === lg.league_id
               ? {
                   ...metric,
                   record: `${meRoster.settings?.wins || 0}-${meRoster.settings?.losses || 0}${meRoster.settings?.ties ? `-${meRoster.settings.ties}` : ''}`,
-                  optPoints,
+                  // Three-tier totals
                   actPoints,
-                  optMinusAct: optPoints - actPoints,
+                  benchOptimal,
+                  waiverOptimal,
+                  // Three-tier deltas
+                  deltaBench,
+                  deltaWaiver,
+                  deltaTotal,
+                  // Row state
+                  rowState,
+                  // Debug metrics
+                  debugMetrics,
+                  // Legacy fields (for backward compatibility)
+                  optPoints,
+                  optMinusAct: deltaTotal, // Use deltaTotal as legacy optMinusAct
+                  // Rest of the fields
                   projectedResult,
                   margin,
                   notPlayingCount,
@@ -659,14 +755,17 @@ export default function MatchupsPage() {
                   quesList,
                   currentStarters: currentSlots,
                   optimalStarters: optimalSlots,
+                  benchOptimalStarters: benchOptimalSlots,
+                  waiverOptimalStarters: waiverOptimalSlots,
                   recommendations: filteredRecommendations, // Use lock-filtered recommendations
                   opponentName,
                   opponentPoints,
                   warnings,
                   waiverSuggestions,
                   irList, // Include IR list for tracking moves from IR
-                  emptySlotFixes, // Suggested fills for empty slots
-                  hasEmptyStarters: checkHasEmptyStarters, // Flag to suppress "optimal" message
+                  emptySlotFixes: [], // Suggested fills for empty slots - deprecated in favor of state system
+                  hasEmptyStarters: rowState === 'EMPTY', // Flag derived from state
+                  pickupsLeft,
                   isComputing: false, // Done computing
                 }
               : metric
@@ -677,10 +776,24 @@ export default function MatchupsPage() {
 
         } catch (err) {
           console.error(`[Matchups] Error processing league ${lg.league_id}:`, err);
-          // Mark league as done computing even on error
+          // Fail closed: set state to UNKNOWN and zero derived fields
           setLeagueMetrics(prev => prev.map(metric => 
             metric.leagueId === lg.league_id
-              ? { ...metric, isComputing: false }
+              ? { 
+                  ...metric,
+                  // Zero out derived fields
+                  actPoints: 0,
+                  benchOptimal: 0,
+                  waiverOptimal: 0,
+                  deltaBench: 0,
+                  deltaWaiver: 0,
+                  deltaTotal: 0,
+                  // Set state to UNKNOWN
+                  rowState: 'UNKNOWN',
+                  // Add warning
+                  warnings: [`Error calculating metrics: ${err instanceof Error ? err.message : 'Unknown error'}`],
+                  isComputing: false 
+                }
               : metric
           ));
           // Still increment counter even on error
@@ -926,7 +1039,7 @@ export default function MatchupsPage() {
                     <TableHead className="w-12"></TableHead>
                     <TableHead>League</TableHead>
                     <TableHead className="text-center">Record</TableHead>
-                    <TableHead className="text-center">Opt-Act</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-center">Proj Result</TableHead>
                     <TableHead className="text-center">QUES?</TableHead>
                     <TableHead className="text-center">OUT/BYE/EMPTY?</TableHead>
@@ -1030,11 +1143,19 @@ export default function MatchupsPage() {
                   
                   <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
                     <div>
-                      <div className="text-xs text-muted-foreground">Opt-Act</div>
-                      {league.isComputing || league.optPoints === undefined ? (
+                      <div className="text-xs text-muted-foreground">Status</div>
+                      {league.isComputing || league.rowState === undefined ? (
                         <div className="h-4 bg-muted rounded w-16 animate-pulse" />
                       ) : (
-                        <OptActCell optPoints={league.optPoints} actPoints={league.actPoints ?? 0} />
+                        <OptActCell 
+                          rowState={league.rowState}
+                          deltaBench={league.deltaBench}
+                          deltaWaiver={league.deltaWaiver}
+                          deltaTotal={league.deltaTotal}
+                          freeAgentsEnabled={considerWaivers}
+                          pickupsLeft={league.pickupsLeft}
+                          lockedCount={league.debugMetrics?.lockedCount}
+                        />
                       )}
                     </div>
                     {league.projectedResult !== "N/A" && league.margin !== undefined && (
@@ -1569,11 +1690,19 @@ export default function MatchupsPage() {
                           league.record
                         )}
                       </TableCell>
-                      <TableCell className="text-center" data-label="Opt-Act" data-testid={`text-opt-act-${league.leagueId}`}>
-                        {league.isComputing || league.optPoints === undefined ? (
+                      <TableCell className="text-center" data-label="Status" data-testid={`text-status-${league.leagueId}`}>
+                        {league.isComputing || league.rowState === undefined ? (
                           <div className="h-4 bg-muted rounded w-16 mx-auto animate-pulse" />
                         ) : (
-                          <OptActCell optPoints={league.optPoints} actPoints={league.actPoints ?? 0} />
+                          <OptActCell 
+                            rowState={league.rowState}
+                            deltaBench={league.deltaBench}
+                            deltaWaiver={league.deltaWaiver}
+                            deltaTotal={league.deltaTotal}
+                            freeAgentsEnabled={considerWaivers}
+                            pickupsLeft={league.pickupsLeft}
+                            lockedCount={league.debugMetrics?.lockedCount}
+                          />
                         )}
                       </TableCell>
                       <TableCell className="text-center" data-label="Proj Result">
