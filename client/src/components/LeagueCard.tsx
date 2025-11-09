@@ -396,7 +396,7 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                         <div className="flex justify-between items-center text-xs font-semibold mb-1">
                           <span className="flex items-center gap-1">
                             Win Probability
-                            <InfoTooltip content="Calculated using a normal distribution with ~30 points standard deviation per team. Based on your optimal lineup vs opponent's current lineup point differential." />
+                            <InfoTooltip content="Win % uses historical score volatility (σ) for this league. Change in projections and late injuries will move this number." />
                           </span>
                         </div>
                         <div className="flex justify-between text-xs font-semibold">
