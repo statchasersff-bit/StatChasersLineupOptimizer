@@ -835,9 +835,10 @@ export default function MatchupsPage() {
     // This ensures both Home and Matchups use identical filtering logic
     let filtered = leagueMetrics;
     
-    // Non-optimal filter - show only leagues where improvements can be made
+    // Non-optimal filter - show only leagues where bench improvements can be made
+    // Use deltaBench (achievableDelta) to match Home's lock-aware filtering
     if (nonOptimalOnly) {
-      filtered = filtered.filter((metric) => (metric.optMinusAct ?? 0) > 0.01);
+      filtered = filtered.filter((metric) => (metric.deltaBench ?? 0) > 0.01);
     }
     
     const sorted = [...filtered].sort((a, b) => {
