@@ -48,36 +48,57 @@ export function isTeamOnBye(team: string | undefined, schedule: GameSchedule): b
 }
 
 /**
- * Check if a player should be excluded from waiver recommendations
- * (their team has already played or is on bye)
- * Enhanced version that can also check Sleeper matchup data for played players
+ * Reliable per-player lock detection using matchup data and team schedule
+ * 
+ * Lock Rules:
+ * 1. Player has points in matchup data (definitive - they played)
+ * 2. Player's team game has started (schedule-based)
+ * 3. Use single nowUtc timestamp for entire run to avoid flapping
+ * 
+ * @param player Player object with team and player_id
+ * @param schedule Week schedule with team game times
+ * @param nowUtc Single timestamp for entire run (DO NOT use Date.now() directly)
+ * @param playedPlayerIds Set of player IDs who have scored points
+ * @param actualPoints Map of actual points scored (to distinguish 0 from not played)
  */
 export function isPlayerLocked(
   player: { team?: string; player_id?: string }, 
   schedule: GameSchedule, 
-  now: number = Date.now(),
-  playedPlayerIds?: Record<string, boolean>
+  nowUtc: number,
+  playedPlayerIds?: Record<string, boolean>,
+  actualPoints?: Record<string, number>
 ): boolean {
-  // Priority 1: Check if player has already played in Sleeper matchup data
+  // Priority 1: Player has actual scoring data (even if 0 points) = definitive lock
+  if (player.player_id && actualPoints && player.player_id in actualPoints) {
+    return true;
+  }
+  
+  // Priority 2: Player marked as played in matchup data
   if (playedPlayerIds && player.player_id && playedPlayerIds[player.player_id]) {
     return true;
   }
   
-  // Priority 2: Fall back to game schedule data
-  return hasGameStarted(player.team, schedule, now) || isTeamOnBye(player.team, schedule);
+  // Priority 3: Team's game has started (schedule-based fallback)
+  return hasGameStarted(player.team, schedule, nowUtc) || isTeamOnBye(player.team, schedule);
 }
 
 /**
  * Filter out locked players from a list
- * Enhanced version that can also use Sleeper matchup data for played players
+ * 
+ * @param players List of players to filter
+ * @param schedule Week schedule with team game times
+ * @param nowUtc Single timestamp for entire run
+ * @param playedPlayerIds Set of player IDs who have scored points
+ * @param actualPoints Map of actual points scored
  */
 export function filterUnlockedPlayers<T extends { team?: string; player_id?: string }>(
   players: T[], 
   schedule: GameSchedule,
-  now: number = Date.now(),
-  playedPlayerIds?: Record<string, boolean>
+  nowUtc: number,
+  playedPlayerIds?: Record<string, boolean>,
+  actualPoints?: Record<string, number>
 ): T[] {
-  return players.filter(player => !isPlayerLocked(player, schedule, now, playedPlayerIds));
+  return players.filter(player => !isPlayerLocked(player, schedule, nowUtc, playedPlayerIds, actualPoints));
 }
 
 /**

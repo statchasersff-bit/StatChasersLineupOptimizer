@@ -250,6 +250,9 @@ export default function MatchupsPage() {
 
       for (const lg of leagues) {
         try {
+          // Capture single timestamp for this league's entire analysis run (prevents flapping)
+          const nowUtc = Date.now();
+          
           const [rosters, users, leagueDetails, matchups] = await Promise.all([
             getLeagueRosters(lg.league_id),
             getLeagueUsers(lg.league_id),
@@ -297,7 +300,9 @@ export default function MatchupsPage() {
             const flags = statusFlags({ ...lite, proj: adj, opp: pr?.opp });
             const isOut = flags.includes("OUT");
             const finalProj = isOut ? 0 : adj;
-            const locked = isPlayerLocked(lite, schedule, Date.now(), playedPlayerIds);
+            
+            // Use single nowUtc timestamp + actualPoints for reliable lock detection
+            const locked = isPlayerLocked(lite, schedule, nowUtc, playedPlayerIds, actualPoints);
             
             // Use actual points if available and player is locked
             const actual = actualPoints[pid];
@@ -564,7 +569,7 @@ export default function MatchupsPage() {
               // Calculate weekly pickup cap remaining (assume unlimited if not set)
               const pickupCapRemaining = considerWaivers ? 999 : 0; // TODO: Fetch actual cap from league settings
 
-              // Find empty slots and suggest fills
+              // Find empty slots and suggest fills (use consistent nowUtc + actualPoints)
               emptySlotFixes = findEmptySlotFixes({
                 currentStarters: currentSlots.map((s: any) => ({
                   slot: s.slot,
@@ -574,8 +579,9 @@ export default function MatchupsPage() {
                 faPool: faCandidates,
                 projections: projMap,
                 schedule,
-                nowUtc: Date.now(),
+                nowUtc,
                 playedPlayerIds,
+                actualPoints,
                 pickupCapRemaining,
                 considerWaivers
               });

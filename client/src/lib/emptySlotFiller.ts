@@ -36,6 +36,7 @@ interface BestFillParams {
   schedule?: GameSchedule;
   nowUtc?: number;
   playedPlayerIds?: Record<string, boolean>;
+  actualPoints?: Record<string, number>;
   pickupCapRemaining?: number;
   considerWaivers: boolean;
 }
@@ -52,18 +53,20 @@ export function bestFillForEmptySlot({
   schedule,
   nowUtc = Date.now(),
   playedPlayerIds = {},
+  actualPoints = {},
   pickupCapRemaining = 0,
   considerWaivers
 }: BestFillParams): EmptySlotFix {
   
-  // Helper to check if a player is locked
+  // Helper to check if a player is locked (use actualPoints for reliable detection)
   const checkLocked = (p: PlayerCandidate): boolean => {
     if (!schedule) return false;
     return isPlayerLocked(
       { player_id: p.player_id, team: p.team },
       schedule,
       nowUtc,
-      playedPlayerIds
+      playedPlayerIds,
+      actualPoints
     );
   };
 
@@ -132,6 +135,7 @@ export function findEmptySlotFixes(params: {
   schedule?: GameSchedule;
   nowUtc?: number;
   playedPlayerIds?: Record<string, boolean>;
+  actualPoints?: Record<string, number>;
   pickupCapRemaining?: number;
   considerWaivers: boolean;
 }): EmptySlotFix[] {
