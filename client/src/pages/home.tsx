@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target, Filter, ArrowUpDown, X, Check, RotateCcw } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
-import { buildSlotCounts, toPlayerLite, optimizeLineup, optimizeLineupWithLockComparison, sumProj, statusFlags } from "@/lib/optimizer";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, optimizeLineupWithLockComparison, sumProj, statusFlags, buildBenchRecommendations } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye, type GameSchedule } from "@/lib/gameLocking";
 import { filterLeagues } from "@/lib/leagueFilters";
 import { scoreByLeague } from "@/lib/scoring";
@@ -493,6 +493,21 @@ export default function Home() {
           });
           const currentTotal = sumProj(currentSlots as any);
 
+          // Build bench → starter recommendations using shared helper
+          const {
+            recommendations: benchRecommendations,
+            filteredRecommendations: filteredBenchRecs,
+            blockedRecommendations: blockedBenchRecs,
+            blockedDelta,
+            lockedPlayerIds
+          } = buildBenchRecommendations(
+            currentSlots,
+            optimalSlots,
+            validStarters,
+            allEligible,
+            irList
+          );
+
           // Build FA pool once per league (owned derived from league rosters)
           let waiverSuggestions: WaiverSuggestion[] = [];
           if (considerWaivers) {
@@ -747,6 +762,9 @@ export default function Home() {
           });
           const availSummary = summarizeStarters(startersForAvailability);
 
+          // Calculate achievable delta (accounts for locked recommendations)
+          const achievableDelta = Math.max(0, optimalTotal - currentTotal - blockedDelta);
+
           out.push({
             league_id: lg.league_id,
             name: lg.name,
@@ -758,6 +776,7 @@ export default function Home() {
             optimalTotal,
             currentTotal,
             delta: optimalTotal - currentTotal,
+            achievableDelta, // Lock-aware delta accounting for blocked recommendations
             fullOptimalTotal, // Full optimal ignoring locks (for comparison)
             hasLockedPlayers, // Whether there are any locked players
             waiverSuggestions,
