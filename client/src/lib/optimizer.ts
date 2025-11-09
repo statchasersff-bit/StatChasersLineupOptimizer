@@ -184,6 +184,147 @@ export function filterLockedRecommendations<T extends { in: {player_id: string};
 }
 
 /**
+ * Compute lock-aware achievable delta
+ * Returns the actual points that can be gained after filtering out locked recommendations
+ * 
+ * @param reachableOptimalTotal - Lock-respecting optimal total (from optimizeLineupWithLockComparison)
+ * @param currentTotal - Current lineup total
+ * @param recommendations - List of bench → starter recommendations
+ * @param lockedPlayerIds - Set of player IDs that are locked
+ * @returns Object with achievableDelta, blockedDelta, and filtered recommendations
+ */
+export function computeAchievableDelta<T extends { delta: number; in: {player_id: string}; out: {player_id: string} }>(
+  reachableOptimalTotal: number,
+  currentTotal: number,
+  recommendations: T[],
+  lockedPlayerIds: Set<string>
+): {
+  achievableDelta: number;
+  blockedDelta: number;
+  allowedRecommendations: T[];
+  blockedRecommendations: Array<T & { blockReason: string }>;
+} {
+  // Filter recommendations to remove those blocked by locks
+  const { allowed, blocked } = filterLockedRecommendations(recommendations, lockedPlayerIds);
+  
+  // Calculate blocked delta (sum of deltas from blocked recommendations)
+  const blockedDelta = blocked.reduce((sum, rec) => sum + rec.delta, 0);
+  
+  // Calculate achievable delta using lock-respecting baseline
+  // This matches Matchups' calculation: achievableDelta = max(0, optPoints - actPoints - blockedDelta)
+  const benchDelta = reachableOptimalTotal - currentTotal;
+  const achievableDelta = Math.max(0, benchDelta - blockedDelta);
+  
+  return {
+    achievableDelta,
+    blockedDelta,
+    allowedRecommendations: allowed,
+    blockedRecommendations: blocked
+  };
+}
+
+/**
+ * Build bench → starter recommendations by comparing current vs optimal lineups
+ * Shared logic for both Home and Matchups views
+ * 
+ * @param currentSlots - Current starting lineup (with players)
+ * @param optimalSlots - Optimal starting lineup (lock-respecting)
+ * @param validStarters - Array of current starter player IDs
+ * @param allEligible - All eligible players (for lock detection)
+ * @param irList - List of IR player IDs (optional)
+ * @returns Recommendations with lock filtering and delta calculations
+ */
+export function buildBenchRecommendations(
+  currentSlots: RosterSlot[],
+  optimalSlots: RosterSlot[],
+  validStarters: string[],
+  allEligible: (PlayerLite & { proj?: number; locked?: boolean })[],
+  irList: string[] = []
+): {
+  recommendations: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>;
+  filteredRecommendations: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>;
+  blockedRecommendations: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean; blockReason: string }>;
+  blockedDelta: number;
+  lockedPlayerIds: Set<string>;
+} {
+  const recommendations: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }> = [];
+  
+  // Create set of IR player IDs for tracking moves from IR
+  const irPlayerIds = new Set(irList);
+  
+  // Identify which players are in current starters vs optimal starters
+  const currStarterIds = new Set(validStarters);
+  const optStarterIds = new Set(
+    optimalSlots.map(s => s.player?.player_id).filter(Boolean)
+  );
+  
+  // Find promotions (bench players entering starting lineup)
+  const promotions = optimalSlots
+    .filter(s => s.player && !currStarterIds.has(s.player.player_id))
+    .map(s => ({ ...s.player, slot: s.slot }));
+  
+  // Find demotions (starters being benched)
+  const demotions = currentSlots
+    .filter(s => s.player && !optStarterIds.has(s.player.player_id))
+    .map(s => ({ ...s.player, slot: s.slot }));
+  
+  // Pair promotions with demotions using greedy algorithm (highest gain first)
+  const demotedPool = [...demotions];
+  for (const inPlayer of promotions) {
+    // Find best demotion to pair with (highest gain)
+    let bestIdx = -1;
+    let bestGain = -Infinity;
+    let bestOut: any = null;
+    
+    for (let i = 0; i < demotedPool.length; i++) {
+      const outPlayer = demotedPool[i];
+      // Make sure it's not the same player and calculate gain
+      if (inPlayer.player_id !== outPlayer.player_id) {
+        const gain = (inPlayer.proj ?? 0) - (outPlayer.proj ?? 0);
+        if (gain > bestGain) {
+          bestGain = gain;
+          bestIdx = i;
+          bestOut = outPlayer;
+        }
+      }
+    }
+    
+    if (bestOut && bestIdx >= 0) {
+      recommendations.push({
+        out: bestOut,
+        in: inPlayer,
+        slot: inPlayer.slot,
+        delta: bestGain,
+        fromIR: inPlayer.player_id ? irPlayerIds.has(inPlayer.player_id) : false
+      });
+      demotedPool.splice(bestIdx, 1);
+    }
+  }
+
+  // Filter out recommendations that touch locked players
+  const lockedPlayerIds = new Set<string>();
+  allEligible.forEach(p => {
+    if (p.locked) lockedPlayerIds.add(p.player_id);
+  });
+  
+  const { allowed: filteredRecommendations, blocked: blockedRecommendations } = filterLockedRecommendations(
+    recommendations,
+    lockedPlayerIds
+  );
+  
+  // Calculate blocked delta (sum of deltas from blocked recommendations)
+  const blockedDelta = blockedRecommendations.reduce((sum, rec) => sum + rec.delta, 0);
+  
+  return {
+    recommendations,
+    filteredRecommendations,
+    blockedRecommendations,
+    blockedDelta,
+    lockedPlayerIds
+  };
+}
+
+/**
  * Lock-aware wrapper for building reachable lineup (respects locks)
  * Reusable for both bench-only and waiver-augmented pools
  */
