@@ -17,25 +17,44 @@ import { detectGlobalAutoSubSettings } from "@/lib/autoSubsGlobal";
 import { summarizeStarters, type Starter } from "@/lib/availability";
 import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
 
-// Calculate win probability based on point differential using realistic fantasy football variance
-function calculateWinProbability(pointDifferential: number): number {
-  if (pointDifferential === 0) return 50; // Tie = 50% chance
+// Error function (erf) approximation using Abramowitz and Stegun formula
+function erf(x: number): number {
+  const sign = x >= 0 ? 1 : -1;
+  x = Math.abs(x);
   
-  // Typical fantasy scoring has ~30 points standard deviation per team
-  // For the difference between two teams: sqrt(30^2 + 30^2) ≈ 42.4
-  const teamStdDev = 30;
-  const combinedStdDev = Math.sqrt(teamStdDev * teamStdDev + teamStdDev * teamStdDev); // ≈ 42.43
+  const a1 = 0.254829592;
+  const a2 = -0.284496736;
+  const a3 = 1.421413741;
+  const a4 = -1.453152027;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
   
-  // Calculate Z-score: how many standard deviations is the point differential
-  const z = pointDifferential / combinedStdDev;
+  const t = 1 / (1 + p * x);
+  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
   
-  // Use more accurate normal CDF approximation (Abramowitz and Stegun)
-  const t = 1 / (1 + 0.2316419 * Math.abs(z));
-  const polynomial = 0.319381530 * t - 0.356563782 * t * t + 1.781477937 * t * t * t - 1.821255978 * t * t * t * t + 1.330274429 * t * t * t * t * t;
-  const cdf = z >= 0 ? 1 - (0.3989423 * Math.exp(-0.5 * z * z) * polynomial) : 0.3989423 * Math.exp(-0.5 * z * z) * polynomial;
+  return sign * y;
+}
+
+// Calculate win probability using Normal distribution model
+// Models each team score as Normal random variable with historical volatility
+function calculateWinProbability(pointDifferential: number, myStd = 25, oppStd = 25, rho = 0): number {
+  // μ = my projected total - opponent projected total (passed as pointDifferential)
+  const mu = pointDifferential;
+  
+  // σ = √(σ₁² + σ₂² - 2ρσ₁σ₂)
+  // For uncorrelated teams (ρ = 0): σ = √(σ₁² + σ₂²)
+  const sigma = Math.sqrt(myStd * myStd + oppStd * oppStd - 2 * rho * myStd * oppStd);
+  
+  // Calculate z-score
+  const z = mu / (sigma || 1e-6);
+  
+  // Standard normal CDF: Φ(z) = 0.5 * (1 + erf(z / √2))
+  const SQRT2 = Math.sqrt(2);
+  const phi = 0.5 * (1 + erf(z / SQRT2));
   
   // Convert to percentage and clamp between 1-99%
-  return Math.max(1, Math.min(99, Math.round(cdf * 100)));
+  const winProb = Math.max(0, Math.min(1, phi)) * 100;
+  return Math.max(1, Math.min(99, Math.round(winProb)));
 }
 import { motion, AnimatePresence } from "framer-motion";
 import LeagueCard from "@/components/LeagueCard";
