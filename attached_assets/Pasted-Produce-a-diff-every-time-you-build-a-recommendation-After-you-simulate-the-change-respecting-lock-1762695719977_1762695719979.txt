@@ -1,0 +1,109 @@
+Produce a diff every time you build a recommendation
+
+After you simulate the change (respecting locks & slot rules), diff before vs after by playerId.
+
+type Starter = { playerId: string; name: string; pos: string; slot: string };
+type Rec = {
+  add: { playerId: string; name: string; slot: string; source: "FA"|"BENCH" };
+  moves: Array<{ playerId: string; name: string; from: string; to: string }>;
+  bench: Array<{ playerId: string; name: string; pos: string }>;
+  netDelta: number;  // optimalAfter - optimalBefore (same projection snapshot)
+};
+
+function diffLineups(before: Starter[], after: Starter[]): Rec {
+  const b = new Map(before.map(s => [s.playerId, s]));
+  const a = new Map(after.map(s => [s.playerId, s]));
+
+  const add = [...a.values()].find(s => !b.has(s.playerId))!;
+  const bench = [...b.values()].filter(s => !a.has(s.playerId));
+  const moves = [...a.values()]
+    .map(s => ({ ...s, prev: b.get(s.playerId)?.slot }))
+    .filter(x => x.prev && x.prev !== x.slot)
+    .map(x => ({ playerId: x.playerId, name: x.name, from: x.prev!, to: x.slot }));
+
+  return { add: { playerId: add.playerId, name: add.name, slot: add.slot, source: "FA" }, moves, bench, netDelta: 0 };
+}
+
+
+If the “empty starter” case, bench will be length 0 and moves may be empty; that’s fine (see UI below).
+
+2) Choose the displayed “removed” player
+
+If bench.length > 0, display the primary displaced player:
+
+Prefer the benched player whose position is interchangeable with the add (same slot family).
+
+Tie-break by highest projection (the true displacement).
+
+const SLOT_RULES: Record<string,string[]> = {
+  QB:["QB","SUPER_FLEX"], RB:["RB","FLEX","SUPER_FLEX"],
+  WR:["WR","FLEX","SUPER_FLEX"], TE:["TE","FLEX","SUPER_FLEX"],
+  K:["K"], DEF:["DEF"]
+};
+const interchangeable = (a:string,b:string)=> {
+  const A = new Set(SLOT_RULES[a]||[]);
+  return (SLOT_RULES[b]||[]).some(s=>A.has(s));
+};
+
+function primaryBenched(addPos:string, benched: {name:string;pos:string}[], proj:Map<string,number>) {
+  const group = benched.sort((x,y)=>{
+    const a = interchangeable(addPos, x.pos) ? 1 : 0;
+    const b = interchangeable(addPos, y.pos) ? 1 : 0;
+    if (a!==b) return b-a;
+    return (proj.get(y as any)??0) - (proj.get(x as any)??0);
+  });
+  return group[0] || null;
+}
+
+3) Send this minimal payload to the home card
+
+For each recommendation, include:
+
+{
+  title: "Start Zonovan Knight",
+  slot: "FLEX",
+  netDelta: +8.5,
+  displaced: { name: "Jakobi Meyers", pos: "WR" } | null, // null if filling EMPTY
+  moves: [{ name: "Dalton Kincaid", from:"TE", to:"FLEX" }], // optional cascade
+  source: "FA" // or "BENCH"
+}
+
+4) Render it clearly on the card
+
+Primary line: Start Zonovan Knight → FLEX (+8.5)
+
+Secondary line:
+
+if displaced: Benches Jakobi Meyers
+
+else (empty slot): Fills EMPTY starter
+
+Add an Info chevron to expand and show any moves rows (cascade).
+
+Chip style suggestions
+
+Add chip: Add FA
+
+Lock-aware subtitle: Respects locked starters
+
+If weekly pickup cap needed: Uses 1 pickup (1/2 left)
+
+5) Edge cases you must cover
+
+Empty starter → show “Fills EMPTY starter” (no “benches …” line).
+
+Multiple benches (rare with multi-FA plans) → show the primary benched on the card; reveal the full list in the expand.
+
+Locks → never propose a plan that moves/benches a locked player; if a plan would, mark it as Blocked by lock and omit from “Suggested Changes.”
+
+6) Quick test list
+
+Add FA to fill EMPTY slot → card shows “Fills EMPTY starter”.
+
+Add FA causing FLEX cascade → card shows “Benches {True displaced}” + expand shows the move chain.
+
+No locks vs locks present → card never references a locked player in “displaced”.
+
+Delta equals the recomputed after − before with the same projections.
+
+Implementing that diff pipeline + payload will let the home view always state exactly who gets removed (or that it’s filling an empty) instead of just “Start Zonovan Knight”.
