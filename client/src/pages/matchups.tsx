@@ -68,9 +68,18 @@ interface LeagueMetrics {
   
   // Computed fields (may be undefined during progressive loading)
   record?: string;
-  optPoints?: number;
-  actPoints?: number;
+  
+  // Three-tier optimization deltas
+  actPoints?: number;          // Current lineup score
+  benchOptimal?: number;       // Best using only roster (no FA)
+  waiverOptimal?: number;      // Best with FA pickups
+  deltaBench?: number;         // benchOptimal - actPoints
+  deltaWaiver?: number;        // waiverOptimal - benchOptimal
+  deltaTotal?: number;         // waiverOptimal - actPoints
+  
+  // Legacy field (computed as deltaTotal for compatibility)
   optMinusAct?: number;
+  
   projectedResult?: "W" | "L" | "T" | "N/A";
   margin?: number;
   notPlayingCount?: number;
@@ -78,15 +87,17 @@ interface LeagueMetrics {
   quesCount?: number;
   quesList?: Array<{ id?: string; name?: string; slot: string }>;
   currentStarters?: any[];
-  optimalStarters?: any[];
-  recommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>;
+  benchOptimalStarters?: any[];  // Optimal lineup using only roster
+  waiverOptimalStarters?: any[]; // Optimal lineup with FA
+  benchRecommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>;
+  waiverRecommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean; isFA?: boolean }>;
   opponentName?: string;
   opponentPoints?: number;
   warnings?: string[];
   waiverSuggestions?: GroupedWaiverSuggestion[];
   irList?: string[]; // List of player IDs in IR for tracking moves from IR
-  emptySlotFixes?: EmptySlotFix[]; // Suggested fills for empty starting slots
-  hasEmptyStarters?: boolean; // Flag to suppress "optimal" message
+  hasEmptyStarters?: boolean; // Flag indicating empty starting slots
+  pickupsLeft?: number; // Remaining pickups available
   
   // Loading state
   isComputing?: boolean;
