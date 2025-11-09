@@ -76,9 +76,12 @@ export async function getLeagueMatchupsForLocking(leagueIds: string[], week: str
               // Store actual points (can be 0, negative, or positive)
               actualPoints[playerId] = points;
               
-              // Don't use players_points for locking - it contains all starters even if they haven't played
-              // Instead, rely on schedule-based locking in gameLocking.ts which checks team game states
-              // Only track actual points here for display purposes
+              // Mark player as played if they have non-zero points
+              // This provides definitive evidence that a player has already played
+              // (0 points before kickoff doesn't count as played, but 0 after playing does get caught by schedule)
+              if (points !== 0) {
+                playedPlayerIds[playerId] = true;
+              }
             }
           }
         }
