@@ -226,8 +226,9 @@ export default function Home() {
     let filtered = summaries;
     
     // Filter non-optimal lineups (where improvements can be made)
+    // Use achievableDelta (lock-aware) if available, fallback to delta
     if (filterNonOptimal) {
-      filtered = filtered.filter(s => s.delta > 0.01); // More than 0.01 points improvement available
+      filtered = filtered.filter(s => (s.achievableDelta ?? s.delta) > 0.01); // More than 0.01 points improvement available
     }
     
     // Filter by injuries (3+)
@@ -236,8 +237,9 @@ export default function Home() {
     }
     
     // Filter by big delta (5+ pts)
+    // Use achievableDelta (lock-aware) if available, fallback to delta
     if (filterBigDelta) {
-      filtered = filtered.filter(s => s.delta >= 5);
+      filtered = filtered.filter(s => (s.achievableDelta ?? s.delta) >= 5);
     }
     
     // Sort based on selected option
