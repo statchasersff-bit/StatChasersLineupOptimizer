@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, AlertTriangle, FileSpreadsheet, ArrowLeft, A
 import { queryClient } from "@/lib/queryClient";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex } from "@/lib/projections";
-import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags, filterLockedRecommendations, buildReachableLineup, deriveRowState, type RowState } from "@/lib/optimizer";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags, filterLockedRecommendations, buildReachableLineup, deriveRowState, buildBenchRecommendations, type RowState } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye } from "@/lib/gameLocking";
 import { filterLeagues } from "@/lib/leagueFilters";
 import { scoreByLeague } from "@/lib/scoring";
@@ -472,75 +472,23 @@ export default function MatchupsPage() {
             }
           }
 
-          // Build recommendations - only show bench → starter promotions
-          const recommendations: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }> = [];
-          
-          // Create set of IR player IDs for tracking moves from IR
-          const irPlayerIds = new Set(irList);
-          
-          // Identify which players are in current starters vs optimal starters
-          const currStarterIds = new Set(validStarters);
-          const optStarterIds = new Set(
-            optimalSlots.map(s => s.player?.player_id).filter(Boolean)
-          );
-          
-          // Find promotions (bench players entering starting lineup)
-          const promotions = optimalSlots
-            .filter(s => s.player && !currStarterIds.has(s.player.player_id))
-            .map(s => ({ ...s.player, slot: s.slot }));
-          
-          // Find demotions (starters being benched)
-          const demotions = currentSlots
-            .filter(s => s.player && !optStarterIds.has(s.player.player_id))
-            .map(s => ({ ...s.player, slot: s.slot }));
-          
-          // Pair promotions with demotions
-          const demotedPool = [...demotions];
-          for (const inPlayer of promotions) {
-            // Find best demotion to pair with (highest gain)
-            let bestIdx = -1;
-            let bestGain = -Infinity;
-            let bestOut: any = null;
-            
-            for (let i = 0; i < demotedPool.length; i++) {
-              const outPlayer = demotedPool[i];
-              // Make sure it's not the same player and calculate gain
-              if (inPlayer.player_id !== outPlayer.player_id) {
-                const gain = (inPlayer.proj ?? 0) - (outPlayer.proj ?? 0);
-                if (gain > bestGain) {
-                  bestGain = gain;
-                  bestIdx = i;
-                  bestOut = outPlayer;
-                }
-              }
-            }
-            
-            if (bestOut && bestIdx >= 0) {
-              recommendations.push({
-                out: bestOut,
-                in: inPlayer,
-                slot: inPlayer.slot,
-                delta: bestGain,
-                fromIR: inPlayer.player_id ? irPlayerIds.has(inPlayer.player_id) : false // Mark if this player is coming from IR
-              });
-              demotedPool.splice(bestIdx, 1);
-            }
-          }
-
-          // Filter out recommendations that touch locked players
-          const lockedPlayerIds = new Set<string>();
-          allEligible.forEach(p => {
-            if (p.locked) lockedPlayerIds.add(p.player_id);
-          });
-          
-          const { allowed: filteredRecommendations, blocked: blockedRecommendations } = filterLockedRecommendations(
+          // Build bench → starter recommendations using shared helper
+          const {
             recommendations,
+            filteredRecommendations,
+            blockedRecommendations,
+            blockedDelta,
             lockedPlayerIds
+          } = buildBenchRecommendations(
+            currentSlots,
+            optimalSlots,
+            validStarters,
+            allEligible,
+            irList
           );
           
           // Recalculate reachable delta based on filtered recommendations only
           // This ensures the displayed delta matches what's actually achievable
-          const blockedDelta = blockedRecommendations.reduce((sum, rec) => sum + rec.delta, 0);
           const achievableDelta = Math.max(0, optPoints - actPoints - blockedDelta);
           
           // Diagnostic logging for lock handling
