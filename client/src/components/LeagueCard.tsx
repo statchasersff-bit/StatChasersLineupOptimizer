@@ -182,8 +182,98 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                 </div>
               </CollapsibleSection>
 
-              {/* Suggested Changes Section */}
-              {diff.moves.length > 0 && (
+              {/* Suggested Changes Section - Enhanced Format */}
+              {(diff.enrichedMoves && diff.enrichedMoves.length > 0) ? (
+                <CollapsibleSection
+                  title="Suggested Changes"
+                  subtitle={`${diff.enrichedMoves.length} recommendation${diff.enrichedMoves.length !== 1 ? 's' : ''}`}
+                  defaultOpen={true}
+                >
+                  <div className="space-y-3 mt-3">
+                    {diff.enrichedMoves.map((rec, i) => {
+                      const isFA = rec.source === 'FA';
+                      const fromIR = rec.source === 'IR';
+                      
+                      return (
+                        <motion.div 
+                          key={i} 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="relative bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg p-4 border border-green-200 dark:border-green-800"
+                          data-testid={`card-suggestion-${i}`}
+                        >
+                          {/* Point Gain Badge - Top Right */}
+                          <motion.div 
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: i * 0.05 + 0.2, type: "spring", stiffness: 200 }}
+                            className="absolute top-3 right-3 bg-green-500 dark:bg-green-600 text-white px-3 py-1.5 rounded-full font-bold text-sm shadow-lg"
+                            data-testid="badge-point-gain"
+                          >
+                            +{rec.netDelta.toFixed(1)} pts
+                          </motion.div>
+
+                          {/* Action Badges */}
+                          <div className="flex gap-2 mb-2 flex-wrap">
+                            {isFA && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                <UserPlus className="w-3 h-3" />
+                                Add FA
+                              </span>
+                            )}
+                            {fromIR && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                <Activity className="w-3 h-3" />
+                                From IR
+                              </span>
+                            )}
+                            {rec.isFillingEmpty && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                Fills EMPTY
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Primary Action - Per Spec Format */}
+                          <div className="mb-2">
+                            <div className="font-bold text-green-700 dark:text-green-300 text-base">
+                              {rec.title} → {rec.slot} (+{rec.netDelta.toFixed(1)})
+                            </div>
+                          </div>
+
+                          {/* Secondary Line - Displaced or Fills Empty */}
+                          <div className="text-sm text-muted-foreground">
+                            {rec.displaced ? (
+                              <span>Benches <span className="font-medium">{rec.displaced.name}</span> ({rec.displaced.pos})</span>
+                            ) : (
+                              <span className="text-amber-600 dark:text-amber-400 font-medium">Fills EMPTY starter</span>
+                            )}
+                          </div>
+
+                          {/* Cascade Moves (Expandable) - If any */}
+                          {rec.cascadeMoves && rec.cascadeMoves.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
+                              <details className="text-xs">
+                                <summary className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                                  Show {rec.cascadeMoves.length} cascade move{rec.cascadeMoves.length !== 1 ? 's' : ''}
+                                </summary>
+                                <div className="mt-2 space-y-1 pl-4">
+                                  {rec.cascadeMoves.map((cascade, idx) => (
+                                    <div key={idx} className="text-muted-foreground">
+                                      {cascade.name}: {cascade.from} → {cascade.to}
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </CollapsibleSection>
+              ) : diff.moves.length > 0 && (
                 <CollapsibleSection
                   title="Suggested Changes"
                   subtitle={`${diff.moves.length} recommendation${diff.moves.length !== 1 ? 's' : ''}`}

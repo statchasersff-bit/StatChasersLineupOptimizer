@@ -1,4 +1,5 @@
 import type { LeagueSummary } from "./types";
+import { interchangeable } from "./slotRules";
 
 export type LineupDiff = {
   ins: { player_id: string; name: string; pos: string; proj: number }[];
@@ -6,6 +7,33 @@ export type LineupDiff = {
   // Best-effort mapping of which player should move into which slot
   moves: { slot: string; in_pid: string; in_name: string; out_pid?: string; out_name?: string; gain: number; fromIR?: boolean }[];
   delta: number;
+  // Enhanced recommendation format for rich UI display
+  enrichedMoves?: EnrichedRecommendation[];
+};
+
+/**
+ * Enhanced recommendation format per user specification.
+ * Provides all data needed for rich UI display including displaced player identification,
+ * cascade moves, source indicators, and fill-empty detection.
+ */
+export type EnrichedRecommendation = {
+  // Primary action
+  title: string; // e.g., "Start Zonovan Knight"
+  slot: string; // e.g., "FLEX"
+  netDelta: number; // Projected point gain
+  inPlayer: { player_id: string; name: string; pos: string; proj: number };
+  
+  // What's happening to existing lineup
+  displaced: { name: string; pos: string } | null; // null if filling empty slot
+  isFillingEmpty: boolean; // Quick check for empty slot fills
+  
+  // Cascade moves (other players shifting slots as a result)
+  cascadeMoves: Array<{ player_id: string; name: string; from: string; to: string }>;
+  
+  // Context indicators
+  source: 'FA' | 'BENCH' | 'IR'; // Where the player is coming from
+  fromIR?: boolean; // Legacy flag for IR moves
+  respectsLocks?: boolean; // Whether this recommendation respects locked players
 };
 
 export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?: string[]): LineupDiff {
@@ -101,5 +129,108 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     }
   });
 
-  return { ins, outs, moves, delta: lg.delta };
+  // Generate enriched recommendations with proper pairing to avoid bench player reuse
+  const enrichedMoves: EnrichedRecommendation[] = [];
+  
+  // Identify all players being benched (in current but not optimal)
+  const allBenchedPlayers = curIds
+    .filter(pid => !optSet.has(pid))
+    .map(pid => {
+      const player = optPlayers.find(p => p.player_id === pid) || allEligible?.find(p => p.player_id === pid);
+      return player ? {
+        player_id: pid,
+        name: player.name,
+        pos: player.pos,
+        proj: player.proj ?? 0
+      } : null;
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null);
+  
+  // Track which bench players have been consumed
+  const consumedBenchIds = new Set<string>();
+  
+  // Detect cascade moves once for all recommendations
+  const allCascadeMoves: { player_id: string; name: string; from: string; to: string }[] = [];
+  curIds.forEach((curPid, idx) => {
+    if (curPid && optSet.has(curPid)) {
+      const optIdx = optIds.indexOf(curPid);
+      if (optIdx !== -1 && optIdx !== idx) {
+        const player = optPlayers.find(p => p.player_id === curPid);
+        if (player) {
+          allCascadeMoves.push({
+            player_id: curPid,
+            name: player.name,
+            from: fixedSlots[idx] || 'unknown',
+            to: fixedSlots[optIdx] || 'unknown'
+          });
+        }
+      }
+    }
+  });
+  
+  // For each promotion, pair with an available benched player
+  for (const inPid of optIds.filter(pid => !curSet.has(pid))) {
+    const inPlayer = optPlayers.find(p => p.player_id === inPid);
+    if (!inPlayer) continue;
+    
+    const slotIdx = optIds.indexOf(inPid);
+    const slot = fixedSlots[slotIdx];
+    if (!slot) continue;
+    
+    // Find available (unconsumed) benched players
+    const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
+    
+    // Determine primary displaced player using slot family logic
+    let displaced: { name: string; pos: string } | null = null;
+    let displacedId: string | null = null;
+    
+    if (availableBenched.length > 0) {
+      // Prefer interchangeable position players
+      const interchangeableBenched = availableBenched.filter(p => 
+        interchangeable(inPlayer.pos, p.pos)
+      );
+      
+      // Sort by projection (highest first)
+      const candidates = interchangeableBenched.length > 0 ? interchangeableBenched : availableBenched;
+      candidates.sort((a, b) => b.proj - a.proj);
+      
+      displaced = {
+        name: candidates[0].name,
+        pos: candidates[0].pos
+      };
+      displacedId = candidates[0].player_id;
+      
+      // Mark this bench player as consumed
+      consumedBenchIds.add(displacedId);
+    }
+    
+    // Determine source
+    const isFromIR = irList ? irList.includes(inPid) : false;
+    const isFA = allEligible?.find(p => p.player_id === inPid)?.isFA || false;
+    const source: 'FA' | 'BENCH' | 'IR' = isFromIR ? 'IR' : (isFA ? 'FA' : 'BENCH');
+    
+    // Calculate accurate netDelta
+    const outProj = displaced && allBenchedPlayers.find(p => p.player_id === displacedId)?.proj || 0;
+    const netDelta = (inPlayer.proj ?? 0) - outProj;
+    
+    enrichedMoves.push({
+      title: `Start ${inPlayer.name}`,
+      slot,
+      netDelta,
+      inPlayer: {
+        player_id: inPlayer.player_id,
+        name: inPlayer.name,
+        pos: inPlayer.pos,
+        proj: inPlayer.proj ?? 0
+      },
+      displaced,
+      isFillingEmpty: displaced === null,
+      cascadeMoves: allCascadeMoves, // Include all cascades in each recommendation
+      source,
+      fromIR: isFromIR,
+      respectsLocks: false
+    });
+  }
+
+  return { ins, outs, moves, delta: lg.delta, enrichedMoves };
 }

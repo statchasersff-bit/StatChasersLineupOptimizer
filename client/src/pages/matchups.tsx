@@ -89,8 +89,21 @@ interface LeagueMetrics {
   currentStarters?: any[];
   benchOptimalStarters?: any[];  // Optimal lineup using only roster
   waiverOptimalStarters?: any[]; // Optimal lineup with FA
+  
+  // Legacy format recommendations (keep for backward compatibility)
   benchRecommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>;
   waiverRecommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean; isFA?: boolean }>;
+  recommendations?: Array<{ out: any; in: any; slot: string; delta: number; fromIR?: boolean }>; // Legacy combined format
+  
+  // Dual-format recommendations (staged migration to diff-based system)
+  benchDualRecommendations?: Array<any>; // DualFormatRecommendation[] - avoiding import cycle
+  waiverDualRecommendations?: Array<any>; // DualFormatRecommendation[] - avoiding import cycle
+  
+  // Diff-format recommendations (for new home page rendering)
+  benchRecommendationDiffs?: Array<any>; // RecommendationDiff[] - avoiding import cycle
+  waiverRecommendationDiffs?: Array<any>; // RecommendationDiff[] - avoiding import cycle
+  recommendationDiffs?: Array<any>; // RecommendationDiff[] - avoiding import cycle
+  
   opponentName?: string;
   opponentPoints?: number;
   warnings?: string[];
