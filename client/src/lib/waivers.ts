@@ -1,8 +1,24 @@
 import { scoreByLeague } from "./scoring";
 import type { Projection } from "./types";
-import { canFillSlot, interchangeable, isFlexSlot } from "./slotRules";
+import { interchangeable, isFlexSlot } from "./slotRules";
 
-export type Slot = "QB" | "RB" | "WR" | "TE" | "K" | "DEF" | "FLEX" | "SUPER_FLEX" | "BN";
+export type Slot =
+  | "QB" | "RB" | "WR" | "TE" | "FLEX" | "SUPER_FLEX" | "K" | "DEF" | "BN";
+
+export type Position = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
+
+export const SLOT_RULES: Record<Position, Slot[]> = {
+  QB: ["QB", "SUPER_FLEX"],
+  RB: ["RB", "FLEX", "SUPER_FLEX"],
+  WR: ["WR", "FLEX", "SUPER_FLEX"],
+  TE: ["TE", "FLEX", "SUPER_FLEX"],
+  K:  ["K"],
+  DEF:["DEF"],
+};
+
+export function canFillSlot(pos: string, slot: Slot): boolean {
+  return (SLOT_RULES[pos as Position] ?? []).includes(slot);
+}
 
 export interface WaiverSuggestion {
   slot: Slot;
