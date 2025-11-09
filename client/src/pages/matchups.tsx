@@ -6,8 +6,7 @@ import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLea
 import { buildProjectionIndex } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags, filterLockedRecommendations, buildReachableLineup, deriveRowState, type RowState } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye } from "@/lib/gameLocking";
-import { isBestBallLeague } from "@/lib/isBestBall";
-import { isDynastyLeague } from "@/lib/isDynasty";
+import { filterLeagues } from "@/lib/leagueFilters";
 import { scoreByLeague } from "@/lib/scoring";
 import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
@@ -257,11 +256,20 @@ export default function MatchupsPage() {
 
       const allLeagues = await getUserLeagues(user.user_id, season);
       
-      // Filter out Best Ball leagues
-      const leagues = allLeagues.filter((lg) => !isBestBallLeague(lg));
-      const bestBallCount = allLeagues.length - leagues.length;
-      if (bestBallCount > 0) {
-        console.log(`[Matchups] Filtered out ${bestBallCount} Best Ball leagues`);
+      // Use centralized filtering logic (always exclude Best Ball, optionally exclude Dynasty/Keeper)
+      const filterResult = filterLeagues(allLeagues, {
+        excludeBestBall: true,
+        excludeDynasty: redraftOnly
+      });
+      
+      const leagues = filterResult.filtered;
+      
+      // Log filtering results
+      if (filterResult.counts.bestBallExcluded > 0) {
+        console.log(`[Matchups] Filtered out ${filterResult.counts.bestBallExcluded} Best Ball leagues`);
+      }
+      if (filterResult.counts.dynastyExcluded > 0) {
+        console.log(`[Matchups] Filtered out ${filterResult.counts.dynastyExcluded} Dynasty/Keeper leagues`);
       }
 
       // Set total leagues count for progress tracking
@@ -860,16 +868,12 @@ export default function MatchupsPage() {
     };
     
     analyze();
-  }, [username, projections, season, week, projIdx, toast, considerWaivers, oppOptimal]);
+  }, [username, projections, season, week, projIdx, toast, considerWaivers, oppOptimal, redraftOnly]);
 
   const sortedMetrics = useMemo(() => {
-    // Apply filters
+    // Note: Best Ball and Dynasty/Keeper filtering happens at initial load
+    // This ensures both Home and Matchups use identical filtering logic
     let filtered = leagueMetrics;
-    
-    // Redraft filter - show only non-dynasty leagues
-    if (redraftOnly) {
-      filtered = filtered.filter((metric) => !isDynastyLeague(metric.league));
-    }
     
     // Non-optimal filter - show only leagues where improvements can be made
     if (nonOptimalOnly) {
@@ -926,7 +930,7 @@ export default function MatchupsPage() {
       return sortOrder === "desc" ? bVal - aVal : aVal - bVal;
     });
     return sorted;
-  }, [leagueMetrics, sortBy, sortOrder, redraftOnly, nonOptimalOnly]);
+  }, [leagueMetrics, sortBy, sortOrder, nonOptimalOnly]);
 
   const toggleExpanded = (leagueId: string) => {
     const newSet = new Set(expandedLeagues);
