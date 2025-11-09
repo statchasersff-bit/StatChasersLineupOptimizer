@@ -518,6 +518,11 @@ export default function MatchupsPage() {
             lockedPlayerIds
           );
           
+          // Recalculate reachable delta based on filtered recommendations only
+          // This ensures the displayed delta matches what's actually achievable
+          const blockedDelta = blockedRecommendations.reduce((sum, rec) => sum + rec.delta, 0);
+          const achievableDelta = Math.max(0, optPoints - actPoints - blockedDelta);
+          
           // Diagnostic logging for lock handling
           const lockedStarters = currentSlots.filter(s => s.player?.locked).length;
           const lockedBench = benchObjs.filter(p => p.locked).length;
@@ -535,11 +540,14 @@ export default function MatchupsPage() {
             totals: {
               current: actPoints.toFixed(1),
               reachableOptimal: optPoints.toFixed(1),
-              delta: (optPoints - actPoints).toFixed(1),
+              optimizerDelta: (optPoints - actPoints).toFixed(1),
+              blockedDelta: blockedDelta.toFixed(1),
+              achievableDelta: achievableDelta.toFixed(1),
             },
             blockedRecommendations: blockedRecommendations.map(br => ({
               out: { player_id: br.out.player_id, name: br.out.name },
               in: { player_id: br.in.player_id, name: br.in.name },
+              delta: br.delta.toFixed(1),
               reason: br.blockReason,
             })),
           });
@@ -627,12 +635,17 @@ export default function MatchupsPage() {
               waiverSuggestions = groupWaiverSuggestions(rawSuggestions, 8);
               
               // NEW: Generate diff-based waiver recommendations
+              // Extract projection numbers from projMap
+              const projectionNumberMap = new Map(
+                Array.from(projMap.entries()).map(([id, proj]) => [id, proj.proj || 0])
+              );
+              
               diffWaiverRecs = generateDiffBasedWaiverRecs({
                 benchOptimal: benchOptimalSlots,
                 benchTotal: benchOptimal,
                 rosterPool: allEligible,
                 freeAgents: scoredFAs,
-                projectionMap: projMap,
+                projectionMap: projectionNumberMap,
                 playerNames: new Map(
                   allEligible.map(p => [p.player_id, (p as any).name || p.player_id])
                 ),
@@ -722,7 +735,8 @@ export default function MatchupsPage() {
           }
 
           // Calculate three deltas (full precision)
-          const deltaBench = benchOptimal - actPoints;
+          // Use achievableDelta for bench tier to match filtered recommendations
+          const deltaBench = achievableDelta;
           const deltaWaiver = waiverOptimal - benchOptimal;
           const deltaTotal = waiverOptimal - actPoints;
           
@@ -1848,7 +1862,7 @@ export default function MatchupsPage() {
                                       key={`${rec.added.player_id}-${idx}`}
                                       rec={rec}
                                       leagueId={league.leagueId}
-                                      variant="detailed"
+                                      variant="expanded"
                                     />
                                   ))}
                                 </ul>
