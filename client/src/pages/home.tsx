@@ -7,8 +7,7 @@ import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLea
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
 import { buildSlotCounts, toPlayerLite, optimizeLineup, optimizeLineupWithLockComparison, sumProj, statusFlags } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye, type GameSchedule } from "@/lib/gameLocking";
-import { isBestBallLeague } from "@/lib/isBestBall";
-import { isDynastyLeague } from "@/lib/isDynasty";
+import { filterLeagues } from "@/lib/leagueFilters";
 import { scoreByLeague } from "@/lib/scoring";
 import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
 import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
@@ -322,22 +321,21 @@ export default function Home() {
       // Additional check: if user exists but has 0 leagues, this might be normal
       // However, for completely fake usernames, we should catch this earlier
 
-      // EXCLUDE Best Ball leagues by default and optionally dynasty leagues
-      let filteredLeagues = lgs.filter((lg) => !isBestBallLeague(lg));
-      const bestBallCount = lgs.length - filteredLeagues.length;
-      if (bestBallCount > 0) {
-        console.log(`[Home] Filtered out ${bestBallCount} Best Ball leagues`);
-      }
+      // Use centralized filtering logic (always exclude Best Ball, optionally exclude Dynasty/Keeper)
+      const filterResult = filterLeagues(lgs, {
+        excludeBestBall: true,
+        excludeDynasty: filterDynasty
+      });
       
-      if (filterDynasty) {
-        const beforeDynastyFilter = filteredLeagues.length;
-        filteredLeagues = filteredLeagues.filter((lg) => !isDynastyLeague(lg));
-        const dynastyCount = beforeDynastyFilter - filteredLeagues.length;
-        if (dynastyCount > 0) {
-          console.log(`[Home] Filtered out ${dynastyCount} Dynasty leagues`);
-        }
-      }
+      const filteredLeagues = filterResult.filtered;
       
+      // Log filtering results
+      if (filterResult.counts.bestBallExcluded > 0) {
+        console.log(`[Home] Filtered out ${filterResult.counts.bestBallExcluded} Best Ball leagues`);
+      }
+      if (filterResult.counts.dynastyExcluded > 0) {
+        console.log(`[Home] Filtered out ${filterResult.counts.dynastyExcluded} Dynasty leagues`);
+      }
       console.log(`[Home] Processing ${filteredLeagues.length} leagues after filtering`);
       setLeagues(filteredLeagues);
       

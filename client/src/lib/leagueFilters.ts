@@ -20,21 +20,27 @@ export interface LeagueFilterResult<T> {
  * Centralized league filtering logic used across Home and Matchups views.
  * Ensures consistent filtering behavior throughout the application.
  * 
- * @param leagues - Array of league objects to filter
+ * Handles two types of inputs:
+ * 1. Raw league objects (from Sleeper API) - used in Home view
+ * 2. Objects with .league property (like LeagueMetrics) - used in Matchups view
+ * 
+ * @param items - Array of league objects or objects containing league property
  * @param options - Filtering options
- * @returns Filtered leagues and exclusion counts
+ * @param extractLeague - Function to extract league from item (defaults to item => item.league || item)
+ * @returns Filtered items and exclusion counts
  */
-export function filterLeagues<T extends { league?: any }>(
-  leagues: T[],
-  options: LeagueFilterOptions = {}
+export function filterLeagues<T>(
+  items: T[],
+  options: LeagueFilterOptions = {},
+  extractLeague: (item: T) => any = (item: any) => item.league || item
 ): LeagueFilterResult<T> {
   const {
     excludeBestBall = true,  // Default: always exclude Best Ball
     excludeDynasty = false,  // Default: include dynasty/keeper unless toggled
   } = options;
 
-  const total = leagues.length;
-  let filtered = [...leagues];
+  const total = items.length;
+  let filtered = [...items];
   let bestBallExcluded = 0;
   let dynastyExcluded = 0;
 
@@ -42,7 +48,7 @@ export function filterLeagues<T extends { league?: any }>(
   if (excludeBestBall) {
     const beforeBestBall = filtered.length;
     filtered = filtered.filter(item => {
-      const league = item.league || item;
+      const league = extractLeague(item);
       return !isBestBallLeague(league);
     });
     bestBallExcluded = beforeBestBall - filtered.length;
@@ -52,7 +58,7 @@ export function filterLeagues<T extends { league?: any }>(
   if (excludeDynasty) {
     const beforeDynasty = filtered.length;
     filtered = filtered.filter(item => {
-      const league = item.league || item;
+      const league = extractLeague(item);
       return !isDynastyLeague(league);
     });
     dynastyExcluded = beforeDynasty - filtered.length;
@@ -67,18 +73,4 @@ export function filterLeagues<T extends { league?: any }>(
       remaining: filtered.length,
     },
   };
-}
-
-/**
- * Simple wrapper for filtering an array of raw league objects.
- * Useful when leagues don't have a nested .league property.
- */
-export function filterRawLeagues(
-  leagues: any[],
-  options: LeagueFilterOptions = {}
-): LeagueFilterResult<any> {
-  return filterLeagues(
-    leagues.map(lg => ({ league: lg })),
-    options
-  ).filtered.map(item => item.league) as any;
 }
