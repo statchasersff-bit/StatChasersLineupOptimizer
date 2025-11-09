@@ -737,8 +737,12 @@ export default function MatchupsPage() {
           // Calculate three deltas (full precision)
           // Use achievableDelta for bench tier to match filtered recommendations
           const deltaBench = achievableDelta;
-          const deltaWaiver = waiverOptimal - benchOptimal;
-          const deltaTotal = waiverOptimal - actPoints;
+          
+          // Calculate waiver delta from filtered recommendations to exclude locked FA swaps
+          const deltaWaiver = diffWaiverRecs.reduce((sum, rec) => sum + rec.deltaTotal, 0);
+          
+          // Total delta is bench + waiver achievable gains
+          const deltaTotal = deltaBench + deltaWaiver;
           
           // Derive row state using decision tree
           let rowState: RowState = 'UNKNOWN';
