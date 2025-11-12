@@ -39,7 +39,8 @@ export type EnrichedRecommendation = {
 export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?: string[]): LineupDiff {
   const fixedSlots = lg.roster_positions;
 
-  // current starters (by player_id -> info)
+  // current starters - KEEP INDICES INTACT (don't filter nulls yet)
+  const curStarters = lg.starters; // includes nulls for empty slots
   const curIds = lg.starters.filter((x): x is string => !!x);
   const curSet = new Set(curIds);
 
@@ -177,34 +178,51 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     const slot = fixedSlots[slotIdx];
     if (!slot) continue;
     
-    // Find available (unconsumed) benched players
-    const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
-    
-    // Determine primary displaced player using slot family logic
+    // Determine primary displaced player
     let displaced: { name: string; pos: string } | null = null;
     let displacedId: string | null = null;
     
-    if (availableBenched.length > 0) {
-      // CRITICAL FIX: Only show benched players who can actually fill the slot being filled
-      // This prevents showing "Start WR over QB" when WR is going to WR slot and QB is in QB slot
-      const slotCompatibleBenched = availableBenched.filter(p => 
-        canFillSlot(p.pos, slot)
-      );
+    // CRITICAL FIX: First check who's currently at this slot position  
+    // Use curStarters (unfiltered) to preserve index alignment with optimal lineup
+    const currentPlayerAtSlot = curStarters[slotIdx];
+    
+    if (currentPlayerAtSlot && typeof currentPlayerAtSlot === 'string') {
+      // Someone is at this slot in current lineup - they're being directly replaced
+      const currentPlayer = optPlayers.find(p => p.player_id === currentPlayerAtSlot) 
+        || allEligible?.find(p => p.player_id === currentPlayerAtSlot);
       
-      // IMPORTANT: Only use slot-compatible candidates, never fall back to incompatible players
-      // If no compatible candidates exist, leave displaced as null (shows "Fills EMPTY starter")
-      if (slotCompatibleBenched.length > 0) {
-        // Sort by projection (highest first)
-        slotCompatibleBenched.sort((a, b) => b.proj - a.proj);
-        
+      if (currentPlayer && !consumedBenchIds.has(currentPlayerAtSlot)) {
         displaced = {
-          name: slotCompatibleBenched[0].name,
-          pos: slotCompatibleBenched[0].pos
+          name: currentPlayer.name,
+          pos: currentPlayer.pos
         };
-        displacedId = slotCompatibleBenched[0].player_id;
+        displacedId = currentPlayerAtSlot;
+        consumedBenchIds.add(currentPlayerAtSlot);
+      }
+    }
+    
+    // If no direct replacement, look for slot-compatible benched players
+    if (!displaced) {
+      const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
+      
+      if (availableBenched.length > 0) {
+        // Only show benched players who can actually fill the slot being filled
+        const slotCompatibleBenched = availableBenched.filter(p => 
+          canFillSlot(p.pos, slot)
+        );
         
-        // Mark this bench player as consumed
-        consumedBenchIds.add(displacedId);
+        // Only use slot-compatible candidates, never fall back to incompatible players
+        if (slotCompatibleBenched.length > 0) {
+          // Sort by projection (highest first)
+          slotCompatibleBenched.sort((a, b) => b.proj - a.proj);
+          
+          displaced = {
+            name: slotCompatibleBenched[0].name,
+            pos: slotCompatibleBenched[0].pos
+          };
+          displacedId = slotCompatibleBenched[0].player_id;
+          consumedBenchIds.add(displacedId);
+        }
       }
     }
     
