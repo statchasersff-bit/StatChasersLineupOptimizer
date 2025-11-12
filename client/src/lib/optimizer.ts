@@ -269,17 +269,23 @@ export function buildBenchRecommendations(
     .map(s => ({ ...s.player, slot: s.slot }));
   
   // Pair promotions with demotions using greedy algorithm (highest gain first)
+  // CRITICAL: Only pair if promoted player can actually fill the demoted player's slot
   const demotedPool = [...demotions];
   for (const inPlayer of promotions) {
-    // Find best demotion to pair with (highest gain)
+    // Find best demotion to pair with (highest gain, slot-compatible only)
     let bestIdx = -1;
     let bestGain = -Infinity;
     let bestOut: any = null;
     
     for (let i = 0; i < demotedPool.length; i++) {
       const outPlayer = demotedPool[i];
-      // Make sure it's not the same player and calculate gain
-      if (inPlayer.player_id !== outPlayer.player_id) {
+      
+      // CRITICAL FIX: Check if inPlayer can actually fill outPlayer's slot
+      // This prevents invalid recommendations like "Start WR over QB"
+      const isCompatible = canFillSlot(inPlayer.pos || '', outPlayer.slot || '');
+      
+      // Make sure it's not the same player, slots are compatible, and calculate gain
+      if (inPlayer.player_id !== outPlayer.player_id && isCompatible) {
         const gain = (inPlayer.proj ?? 0) - (outPlayer.proj ?? 0);
         if (gain > bestGain) {
           bestGain = gain;

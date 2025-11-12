@@ -1,5 +1,5 @@
 import type { LeagueSummary } from "./types";
-import { interchangeable } from "./slotRules";
+import { interchangeable, canFillSlot } from "./slotRules";
 
 export type LineupDiff = {
   ins: { player_id: string; name: string; pos: string; proj: number }[];
@@ -185,23 +185,27 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     let displacedId: string | null = null;
     
     if (availableBenched.length > 0) {
-      // Prefer interchangeable position players
-      const interchangeableBenched = availableBenched.filter(p => 
-        interchangeable(inPlayer.pos, p.pos)
+      // CRITICAL FIX: Only show benched players who can actually fill the slot being filled
+      // This prevents showing "Start WR over QB" when WR is going to WR slot and QB is in QB slot
+      const slotCompatibleBenched = availableBenched.filter(p => 
+        canFillSlot(p.pos, slot)
       );
       
-      // Sort by projection (highest first)
-      const candidates = interchangeableBenched.length > 0 ? interchangeableBenched : availableBenched;
-      candidates.sort((a, b) => b.proj - a.proj);
-      
-      displaced = {
-        name: candidates[0].name,
-        pos: candidates[0].pos
-      };
-      displacedId = candidates[0].player_id;
-      
-      // Mark this bench player as consumed
-      consumedBenchIds.add(displacedId);
+      // IMPORTANT: Only use slot-compatible candidates, never fall back to incompatible players
+      // If no compatible candidates exist, leave displaced as null (shows "Fills EMPTY starter")
+      if (slotCompatibleBenched.length > 0) {
+        // Sort by projection (highest first)
+        slotCompatibleBenched.sort((a, b) => b.proj - a.proj);
+        
+        displaced = {
+          name: slotCompatibleBenched[0].name,
+          pos: slotCompatibleBenched[0].pos
+        };
+        displacedId = slotCompatibleBenched[0].player_id;
+        
+        // Mark this bench player as consumed
+        consumedBenchIds.add(displacedId);
+      }
     }
     
     // Determine source
