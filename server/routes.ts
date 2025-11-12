@@ -19,7 +19,7 @@ const ESPN_TEAM_MAP: Record<string, string> = {
   'HOU': 'HOU', 'IND': 'IND', 'JAX': 'JAX', 'KC': 'KC', 'LV': 'LV', 'LAC': 'LAC',
   'LAR': 'LAR', 'MIA': 'MIA', 'MIN': 'MIN', 'NE': 'NE', 'NO': 'NO', 'NYG': 'NYG',
   'NYJ': 'NYJ', 'PHI': 'PHI', 'PIT': 'PIT', 'SF': 'SF', 'SEA': 'SEA', 'TB': 'TB',
-  'TEN': 'TEN', 'WAS': 'WAS'
+  'TEN': 'TEN', 'WAS': 'WAS', 'WSH': 'WAS'
 };
 
 async function fetchESPNSchedule(season: string, week: string): Promise<Record<string, { start: number; state: 'pre' | 'in' | 'post' }>> {
