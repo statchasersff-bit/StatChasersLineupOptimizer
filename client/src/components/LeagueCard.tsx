@@ -146,8 +146,8 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
           <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <div 
               className={`h-full motion-safe:transition-all motion-safe:duration-500 rounded-full ${
-                lg.winProbability >= 70 ? 'bg-gradient-to-r from-green-400 to-green-600' :
-                lg.winProbability >= 30 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                lg.winProbability >= 61 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                lg.winProbability >= 40 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
                 'bg-gradient-to-r from-red-400 to-red-600'
               }`}
               style={{ width: `${lg.winProbability}%` }}

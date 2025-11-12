@@ -134,7 +134,11 @@ export function CompactLeagueRow({
           <div className="flex-1 flex items-center gap-2">
             <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden relative">
               <div 
-                className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all" 
+                className={`h-full transition-all ${
+                  pct >= 61 ? 'bg-gradient-to-r from-green-500 to-green-600' :
+                  pct >= 40 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                  'bg-gradient-to-r from-red-400 to-red-600'
+                }`}
                 style={{width: `${pct}%`}} 
               />
               <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white mix-blend-difference">
