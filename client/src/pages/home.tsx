@@ -393,6 +393,14 @@ export default function Home() {
                           rosters.find((r: any) => r.owner_id === lg.user_id) || 
                           rosters.find((r: any) => r.roster_id === lg.roster_id) || 
                           rosters[0];
+          
+          // Skip leagues where user has fewer than 3 rostered players
+          const totalPlayers = (meRoster?.players || []).length;
+          if (totalPlayers < 3) {
+            console.log(`Skipping league ${lg.name} - only ${totalPlayers} players rostered`);
+            continue;
+          }
+          
           const owner = users.find((u: any) => u.user_id === meRoster?.owner_id);
           const display = owner?.metadata?.team_name || owner?.display_name || "Unknown Manager";
 

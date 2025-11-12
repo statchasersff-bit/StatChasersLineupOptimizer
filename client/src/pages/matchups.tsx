@@ -317,6 +317,13 @@ export default function MatchupsPage() {
             continue;
           }
           
+          // Skip leagues where user has fewer than 3 rostered players
+          const totalPlayers = (meRoster?.players || []).length;
+          if (totalPlayers < 3) {
+            console.log(`[Matchups] Skipping league ${lg.name} - only ${totalPlayers} players rostered`);
+            continue;
+          }
+          
           // Log when fallback was used
           const usedFallback = !rosters.find((r: any) => r.owner_id === user.user_id) && 
                               !rosters.find((r: any) => r.owner_id === lg.user_id) && 
