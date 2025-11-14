@@ -46,6 +46,17 @@ StatChasers Lineup Checker is a fantasy football web application designed to opt
   - client/src/pages/home.tsx (lines 250-255): Updated "Show only Non-Optimal Leagues" filter to check rowState !== 'OPTIMAL' instead of delta > 0.01
 - Impact: Leagues with OUT/BYE/EMPTY players will never be marked as optimal on home page, matching matchups page behavior. Filter now correctly includes all non-optimal leagues (EMPTY, BENCH, WAIVER states)
 
+**Bug Fix #5: Home Page FA Improvements Not Showing WAIVER State**
+- Fixed inconsistency where home page showed FA improvements but didn't mark leagues as WAIVER state
+- Root cause: Home page merged FAs into optimization pool, conflating tier 2 (bench optimal) and tier 3 (waiver optimal), always setting deltaWaiver to 0
+- Solution: Implemented three-tier optimization system matching matchups page behavior
+- Changes made:
+  - client/src/lib/types.ts: Added EnrichedPlayer type alias, added benchOptimalTotal and waiverOptimalTotal to LeagueSummary
+  - client/src/lib/optimizer.ts (lines 393-514): Implemented buildThreeTierOptimization helper that calculates tier 1 (current), tier 2 (bench optimal, roster-only), and tier 3 (waiver optimal, roster+FAs) separately
+  - client/src/pages/home.tsx (lines 490-556): Refactored to use buildThreeTierOptimization, separating roster and FA pools, using bench optimal for recommendations and waiver optimal for UI display when FAs enabled
+  - client/src/pages/home.tsx (line 831): Updated deriveRowState call to use proper deltaWaiver instead of hardcoded 0, set pickupsLeft=999
+- Impact: Leagues with FA-only improvements (deltaBench < 1.5, deltaWaiver >= 1.5) now correctly show WAIVER state on both home and matchups pages. Both pages use identical three-tier optimization logic for consistency.
+
 **UI Improvements**
 - Removed "Sort Alphabetically" checkbox from home page (redundant with sort dropdown)
 - Removed gray "empty spot" badge from league cards (redundant with red OUT/BYE/EMPTY badge)
