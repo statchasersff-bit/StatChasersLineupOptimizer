@@ -8,6 +8,7 @@ import { buildSlotCounts, toPlayerLite, optimizeLineup, sumProj, statusFlags, fi
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye } from "@/lib/gameLocking";
 import { filterLeagues } from "@/lib/leagueFilters";
 import { scoreByLeague } from "@/lib/scoring";
+import { buildFACandidates } from "@/lib/faIntegration";
 import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
 import type { Projection } from "@/lib/types";
@@ -564,22 +565,30 @@ export default function MatchupsPage() {
               scoredFAs = scoreFreeAgents(freeAgents, scoring, projMap);
               
               // Calculate waiver optimal (tier 3: roster + top FAs, respecting locks + pickup cap)
-              // Augment roster with top-scoring available FAs
-              const faPlayerPool = scoredFAs
-                .filter((fa: any) => fa && fa.player_id && !fa.locked) // Exclude locked FAs
-                .slice(0, pickupsLeft * 2) // Top N*2 to give optimizer choices
-                .map((fa: any) => ({
+              // Use buildFACandidates for FA integration to match home page behavior
+              const faCandidates = await buildFACandidates(ownedPlayerIds, playersIndex, projIdx, scoring, schedule, playedPlayerIds);
+              
+              // Normalize FA candidates to PlayerLite shape for optimizer
+              const normalizedFAs = faCandidates.map(fa => {
+                const player = playersIndex[fa.player_id];
+                return {
                   player_id: fa.player_id,
                   name: fa.name,
-                  pos: fa.pos,
                   team: fa.team,
-                  proj: fa.proj ?? 0,
+                  pos: fa.pos,
+                  multiPos: player?.fantasy_positions?.map((p: string) => p.toUpperCase()) || [fa.pos],
+                  injury_status: fa.injury_status,
+                  proj: fa.proj,
                   opp: fa.opp,
                   locked: false, // FAs are never locked
-                  injury_status: fa.injury_status
-                }));
+                };
+              });
               
-              const waiverPool = [...allEligible, ...faPlayerPool];
+              // Merge FAs with roster, filtering out duplicates
+              const existingIds = new Set(allEligible.map(p => p.player_id));
+              const newFAs = normalizedFAs.filter(fa => !existingIds.has(fa.player_id));
+              const waiverPool = [...allEligible, ...newFAs];
+              
               waiverOptimalSlots = buildReachableLineup(slotCounts, waiverPool, season, week, starters);
               waiverOptimal = sumProj(waiverOptimalSlots);
 
