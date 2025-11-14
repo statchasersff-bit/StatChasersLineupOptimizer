@@ -808,8 +808,12 @@ export default function Home() {
           });
           const availSummary = summarizeStarters(startersForAvailability);
 
-          // Calculate achievable delta (accounts for locked recommendations)
-          const achievableDelta = Math.max(0, optimalTotal - currentTotal - blockedDelta);
+          // Calculate achievable bench delta (accounts for locked recommendations)
+          // CRITICAL: Use benchOptimalTotal (tier 2) not optimalTotal (which might be tier 3 when FAs enabled)
+          const achievableBenchDelta = Math.max(0, benchOptimalTotal - currentTotal - blockedDelta);
+          
+          // Calculate achievable waiver delta for UI display
+          const achievableWaiverDelta = Math.max(0, optimalTotal - currentTotal - blockedDelta);
 
           // Build current starters as RosterSlot[] for deriveRowState
           // This allows hasEmpty check to detect empty slots in CURRENT lineup, not optimal
@@ -825,10 +829,11 @@ export default function Home() {
 
           // Calculate row state using deriveRowState
           // Pass CURRENT starters (not optimal) so hasEmpty and notPlayingCount check the actual lineup
+          // CRITICAL: Use achievableBenchDelta (lock-aware tier 2 delta) for deltaBench, NOT achievableWaiverDelta
           const rowState = deriveRowState({
             benchOptimalLineup: currentStarterSlots, // Current starters, not optimal lineup
-            deltaBench: achievableDelta, // Lock-aware bench delta
-            deltaWaiver: deltaWaiver, // Now properly calculated from three-tier optimization!
+            deltaBench: achievableBenchDelta, // Lock-aware BENCH delta (tier 2 - tier 1)
+            deltaWaiver: deltaWaiver, // Waiver delta (tier 3 - tier 2) from three-tier optimization
             pickupsLeft: 999, // TODO: Get from league settings
             freeAgentsEnabled: considerWaivers,
             notPlayingCount: availSummary.notPlayingCount
@@ -845,7 +850,7 @@ export default function Home() {
             optimalTotal,
             currentTotal,
             delta: optimalTotal - currentTotal,
-            achievableDelta, // Lock-aware delta accounting for blocked recommendations
+            achievableDelta: achievableWaiverDelta, // Lock-aware delta for UI display (total improvement including FAs)
             fullOptimalTotal, // Full optimal ignoring locks (for comparison)
             hasLockedPlayers, // Whether there are any locked players
             rowState, // State from deriveRowState (EMPTY if OUT/BYE/EMPTY players)

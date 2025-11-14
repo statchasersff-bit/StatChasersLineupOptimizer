@@ -1,67 +1,7 @@
 # StatChasers Lineup Checker
 
 ## Overview
-StatChasers Lineup Checker is a fantasy football web application designed to optimize user lineups by comparing current rosters against projection data.
-
-## Recent Changes (11/14/2025)
-
-**Bug Fix #1: Home vs Matchups Optimization Inconsistency**
-- Fixed inconsistency where home page and matchups table views showed different optimization results for the same league
-- Root cause: Matchups page was calculating waiver optimal using different FA source (getFreeAgentsForLeague/scoreFreeAgents) than home page (buildFACandidates)
-- Solution: Updated matchups page to use buildFACandidates for waiver optimal calculation, matching home page behavior
-- Changes made to client/src/pages/matchups.tsx:
-  - Added static import of buildFACandidates from @/lib/faIntegration
-  - Updated waiver optimal calculation (lines 569-593) to use buildFACandidates instead of duplicate FA fetching
-  - Normalized FA candidates to PlayerLite shape with multiPos and locked fields for optimizer compatibility
-  - Preserved three-tier optimization system: current → bench optimal (roster only) → waiver optimal (roster + FAs)
-- Both views now use the same FA pool for optimization, ensuring consistent recommendations across pages
-
-**Bug Fix #2: Leagues Marked OPTIMAL Despite OUT/BYE/EMPTY Players**
-- Fixed issue where matchups table showed leagues as "optimal" even when they had OUT/BYE/EMPTY players in starter positions
-- Root cause: deriveRowState logic did not receive or check notPlayingCount, allowing leagues with availability issues to be marked OPTIMAL
-- Solution: Updated deriveRowState to prioritize availability issues over optimization status
-- Changes made:
-  - client/src/lib/optimizer.ts: Added notPlayingCount to StateEvalInputs interface, updated deriveRowState to check for availability issues first
-  - client/src/pages/matchups.tsx: Updated deriveRowState call to pass notPlayingCount parameter
-- Priority order: EMPTY (if OUT/BYE/EMPTY players) → BENCH (if delta >= 1.5) → WAIVER (if FA enabled and delta >= 1.5) → OPTIMAL
-- Leagues with OUT/BYE/EMPTY starters are now correctly flagged as EMPTY state, never OPTIMAL
-
-**Bug Fix #3: Kickers on BYE Not Being Flagged**
-- Fixed issue where kickers on BYE weeks were not being flagged with the red "OUT/BYE/EMPTY" badge
-- Root cause: BYE detection fallback logic only applied to defenses (DEF position), missing kickers and other positions
-- Solution: Extended BYE detection to all positions when opponent data is missing from projections
-- Changes made:
-  - client/src/pages/home.tsx (line 470): Removed position-specific check, now applies to all players with a team
-  - client/src/pages/matchups.tsx (line 379): Same fix applied for consistency
-  - Changed condition from `if (!opp && lite.pos === "DEF" && lite.team)` to `if (!opp && lite.team)`
-- Impact: Any position (QB, RB, WR, TE, K, DEF) missing opponent data in projections will now correctly detect BYE weeks
-
-**Bug Fix #4: Home Page Incorrectly Showing Leagues with OUT/BYE/EMPTY as Optimal**
-- Fixed issue where home page could mark leagues as optimal even when they had OUT/BYE/EMPTY players in starter positions
-- Root cause: Home page never called deriveRowState to determine league state - it only used delta values. deriveRowState was also receiving the optimal lineup instead of current starters, so availability checks didn't detect issues in the actual lineup
-- Solution: Implemented rowState calculation on home page and updated filter logic to use rowState instead of delta-only checks
-- Changes made:
-  - client/src/lib/types.ts (line 62): Added rowState field to LeagueSummary type
-  - client/src/pages/home.tsx (lines 801-822): Built currentStarterSlots from current starters (not optimal lineup) and called deriveRowState with proper parameters including notPlayingCount
-  - client/src/pages/home.tsx (lines 250-255): Updated "Show only Non-Optimal Leagues" filter to check rowState !== 'OPTIMAL' instead of delta > 0.01
-- Impact: Leagues with OUT/BYE/EMPTY players will never be marked as optimal on home page, matching matchups page behavior. Filter now correctly includes all non-optimal leagues (EMPTY, BENCH, WAIVER states)
-
-**Bug Fix #5: Home Page FA Improvements Not Showing WAIVER State**
-- Fixed inconsistency where home page showed FA improvements but didn't mark leagues as WAIVER state
-- Root cause: Home page merged FAs into optimization pool, conflating tier 2 (bench optimal) and tier 3 (waiver optimal), always setting deltaWaiver to 0
-- Solution: Implemented three-tier optimization system matching matchups page behavior
-- Changes made:
-  - client/src/lib/types.ts: Added EnrichedPlayer type alias, added benchOptimalTotal and waiverOptimalTotal to LeagueSummary
-  - client/src/lib/optimizer.ts (lines 393-514): Implemented buildThreeTierOptimization helper that calculates tier 1 (current), tier 2 (bench optimal, roster-only), and tier 3 (waiver optimal, roster+FAs) separately
-  - client/src/pages/home.tsx (lines 490-556): Refactored to use buildThreeTierOptimization, separating roster and FA pools, using bench optimal for recommendations and waiver optimal for UI display when FAs enabled
-  - client/src/pages/home.tsx (line 831): Updated deriveRowState call to use proper deltaWaiver instead of hardcoded 0, set pickupsLeft=999
-- Impact: Leagues with FA-only improvements (deltaBench < 1.5, deltaWaiver >= 1.5) now correctly show WAIVER state on both home and matchups pages. Both pages use identical three-tier optimization logic for consistency.
-
-**UI Improvements**
-- Removed "Sort Alphabetically" checkbox from home page (redundant with sort dropdown)
-- Removed gray "empty spot" badge from league cards (redundant with red OUT/BYE/EMPTY badge)
-
-It integrates with the Sleeper API to fetch league, roster, and player information, then processes uploaded CSV projections to calculate optimal lineups. The application offers a detailed home page with comprehensive league analysis and a streamlined matchups table for quick summary views. Key features include projected point deltas, win/loss predictions, identification of risky starters, and free agent integration for lineup improvements and waiver watchlist suggestions. The ultimate goal is to provide users with actionable insights to gain a competitive edge in their fantasy football leagues.
+StatChasers Lineup Checker is a fantasy football web application designed to optimize user lineups by comparing current rosters against projection data. It integrates with the Sleeper API to fetch league, roster, and player information, processes uploaded CSV projections, and calculates optimal lineups. The application provides detailed league analysis on a home page and a streamlined matchups table for quick overviews. Key capabilities include projected point deltas, win/loss predictions, identification of risky starters, and free agent integration for lineup improvements and waiver watchlist suggestions, aiming to give users a competitive edge in their fantasy leagues.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -69,28 +9,28 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
-The frontend is a modern React application built with Vite and TypeScript, utilizing `shadcn/ui` components based on Radix UI for a consistent and accessible design system. TailwindCSS handles styling, supporting dark mode and custom theming. The UI provides two main views: a detailed home page with league cards and a streamlined matchups table. The matchups table uses a consistent table layout across all screen sizes (desktop and mobile) with horizontal scrolling enabled on smaller devices for optimal data viewing. Visual indicators like color-coded deltas, win/loss badges, and player availability badges enhance user understanding.
+The frontend is a modern React application built with Vite and TypeScript, utilizing `shadcn/ui` components based on Radix UI for a consistent and accessible design system. TailwindCSS handles styling, supporting dark mode and custom theming. The UI offers a detailed home page with league cards and a streamlined matchups table. The matchups table ensures consistent layout across all screen sizes with horizontal scrolling on smaller devices. Visual indicators like color-coded deltas, win/loss badges, and player availability badges enhance user understanding.
 
 ### Technical Implementations
-The application follows a component-based architecture for the frontend and a RESTful API pattern for the Express.js (TypeScript) backend. Client-side state is managed with React Query for server state synchronization and caching, while local state uses React hooks. Form management is handled by React Hook Form with Zod for validation. The core logic includes a sophisticated lineup optimization engine that respects fantasy football roster rules (e.g., FLEX, SUPER_FLEX), integrates free agents, and identifies risky starters. A greedy pairing algorithm powers the recommendations engine, focusing on actionable bench-to-starter promotions and distinguishing between roster moves and free agent pickups. Advanced league filtering detects dynasty/keeper leagues using multiple criteria and persists preferences. A waiver watchlist system suggests optimal free agent pickups, considering league-specific roster slots, excluding kickers, and applying blocklist filters. **Special Scoring Rules**: Kickers (K position) and Defenses (DEF/DST) use only the "proj" column value directly, bypassing league-specific calculations. Only offensive positions (QB, RB, WR, TE) use league-specific scoring settings. **Automatic Week Detection**: The system scans from week 18 down to week 1 to find the latest available projections file, automatically selecting the current week without manual configuration.
+The application follows a component-based architecture for the frontend and a RESTful API pattern for the Express.js (TypeScript) backend. Client-side state is managed with React Query for server state synchronization and caching, while local state uses React hooks. Form management is handled by React Hook Form with Zod for validation. The core includes a sophisticated lineup optimization engine that respects fantasy football roster rules (e.g., FLEX, SUPER_FLEX), integrates free agents, and identifies risky starters. A greedy pairing algorithm powers the recommendations engine, focusing on actionable bench-to-starter promotions and distinguishing between roster moves and free agent pickups. Advanced league filtering detects dynasty/keeper leagues and persists preferences. A waiver watchlist system suggests optimal free agent pickups, considering league-specific roster slots, excluding kickers, and applying blocklist filters. Special scoring rules apply: kickers (K) and defenses (DEF/DST) use direct "proj" values, while offensive positions (QB, RB, WR, TE) use league-specific scoring settings. The system automatically detects the current week by scanning projection files from week 18 down to 1.
 
 ### Feature Specifications
-- **Auto-Detection of Latest Projections**: Automatically detects and loads the latest uploaded week's projections (probes weeks 18 down to 1, verifying CSV content). No manual code changes needed when uploading new projections - simply add the new weekXX.csv file to `public/projections/2025/` and the app will automatically use it.
-- **Last Update Timestamp**: Displays a small gray timestamp above the "StatChasers Lineup Checker" heading on both the home page and matchups page showing when the projections were last updated (format: "Last Update: MM/DD/YYYY H:MMam/pm EDT").
-- **Home Page**: Displays detailed league cards with projected point totals for current and optimal lineups, Sleeper username input, season/week selectors, CSV projection upload, "Consider Free Agents" toggle, "Opp Optimal" toggle (choose between opponent's optimal or current lineup), player availability badges (OUT, BYE, QUES), total potential points, current vs. optimal lineups, recommended roster changes (including "Add FA"), opponent analysis, and a waiver watchlist.
-- **Matchups Table View**: Provides a streamlined view with automatic data loading, opponent analysis toggle (optimal vs current lineup), redraft filter, responsive layouts (cards on mobile, table on desktop), visual win/loss indicators, expandable rows showing lineup comparisons, recommendations, point improvement deltas, player availability warnings, and a waiver watchlist. Removed redundant OUT/BYE/EMPTY and QUES badges from league names since dedicated columns display this information.
+- **Auto-Detection of Latest Projections**: Automatically loads the latest week's projections from `public/projections/2025/` without manual configuration.
+- **Last Update Timestamp**: Displays the timestamp of the last projection update on both home and matchups pages.
+- **Home Page**: Provides detailed league cards with projected point totals, Sleeper username input, season/week selectors, CSV projection upload, "Consider Free Agents" toggle, "Opp Optimal" toggle, player availability badges, current vs. optimal lineups, recommended roster changes (including "Add FA"), opponent analysis, and a waiver watchlist.
+- **Matchups Table View**: Offers a streamlined view with automatic data loading, opponent analysis toggle, redraft filter, responsive layouts, visual win/loss indicators, expandable rows showing lineup comparisons, recommendations, point improvement deltas, player availability warnings, and a waiver watchlist.
 - **Lineup Optimization**: Calculates optimal lineups considering all roster rules and player eligibility.
-- **Opponent Analysis Toggle**: Users can choose to compare their optimal lineup against the opponent's optimal lineup (default) or current lineup. This toggle is persisted in localStorage and triggers automatic recalculation of projected results and margins.
-- **Free Agent Integration**: When enabled, scans available free agents, scores them using league-specific settings, and integrates them into optimal lineup calculations and waiver suggestions, excluding kickers and locked/unavailable players.
-- **Matchup Analysis**: Calculates Opt-Act, Proj Result (W/L), QUES Starters, BYE/OUT Starters, and Margin for quick assessment. Projected results compare user's optimal lineup against opponent's lineup (optimal or current, based on toggle).
-- **Recommendations Engine**: Identifies meaningful bench → starter promotions and free agent pickups, filtering out internal lineup reshuffles. **Position Eligibility Enforcement**: Recommendations strictly respect position eligibility rules - promoted players are only paired with demoted players if the promoted player can fill the demoted player's slot, and displaced players shown must be able to fill the same slot type. If no slot-compatible benched player exists, the UI displays "Fills EMPTY starter" rather than showing an incompatible player. **Enhanced Recommendation Display** (Home Page): Shows enriched recommendation format with clear displaced player information. For each recommendation: displays "Start {Player} → {Slot} (+{delta})" as primary line, shows "Benches {displaced player}" vs "Fills EMPTY starter" as secondary line, includes visual chips (Add FA, From IR, Fills EMPTY), supports expandable cascade moves section showing slot-to-slot player shifts, uses bench player consumption tracking to prevent duplicate assignments in multi-promotion scenarios, and applies slot-compatibility logic when selecting primary displaced players.
-- **League Filtering**: Automatically excludes Best Ball leagues, leagues with fewer than 3 rostered players (to filter abandoned/incomplete rosters), and provides robust filtering for Dynasty/Keeper leagues with persistence.
-- **Waiver Watchlist System**: Analyzes free agent availability, suggests top upgrades based on projections, considers roster slots, and filters problematic or low-impact players (like kickers). Deduplicates suggestions by player, showing highest delta with multiple swap alternatives.
-- **Auto-Subs Intelligence**: Smart detection of uniform auto-sub settings across leagues. Shows global banner when all leagues share the same configuration; displays per-league chips only when settings differ, auto-subs are OFF, or league is at capacity. Prevents duplicate information and reduces visual noise.
-- **Compact League Header Design**: Mobile-optimized grid layout gives league name its own row (no width competition with chips/scores). On mobile: 3-row grid (header: avatar|name|chevron, bar: scores+win%, meta: stats). Name uses 2-line clamp that expands when row opens. Desktop uses traditional flex layout. Chevron rotates on expand/collapse.
+- **Opponent Analysis Toggle**: Allows users to compare their optimal lineup against the opponent's optimal or current lineup, with preference persistence.
+- **Free Agent Integration**: When enabled, scans and scores available free agents, integrating them into optimal lineup calculations and waiver suggestions (excluding kickers and locked/unavailable players).
+- **Matchup Analysis**: Provides metrics like Opt-Act, Proj Result (W/L), QUES Starters, BYE/OUT Starters, and Margin.
+- **Recommendations Engine**: Identifies meaningful bench-to-starter promotions and free agent pickups, enforcing position eligibility and displaying clear, enriched recommendation formats (e.g., "Start {Player} → {Slot} (+{delta})", "Benches {displaced player}" or "Fills EMPTY starter"), including cascade moves.
+- **League Filtering**: Automatically excludes Best Ball leagues, incomplete rosters, and provides robust, persistent filtering for Dynasty/Keeper leagues.
+- **Waiver Watchlist System**: Analyzes free agent availability, suggests top upgrades based on projections, considering roster slots and filtering low-impact players.
+- **Auto-Subs Intelligence**: Detects uniform auto-sub settings across leagues, showing a global banner when consistent or per-league chips when settings differ, auto-subs are OFF, or the league is at capacity.
+- **Compact League Header Design**: Mobile-optimized grid layout for league headers ensures readability and reduces visual clutter.
 
 ### System Design Choices
-A monorepo structure with shared types facilitates development. The build process uses Vite for the frontend and esbuild for the backend. A hybrid storage approach integrates Drizzle ORM with PostgreSQL for primary data, and in-memory storage for development. Authentication is basic, focusing on Sleeper API integration without requiring user credentials for core functionality.
+The project uses a monorepo structure with shared types. The build process uses Vite for the frontend and esbuild for the backend. Data storage combines Drizzle ORM with PostgreSQL for primary data and in-memory storage for development. Authentication is basic, focusing on Sleeper API integration.
 
 ## External Dependencies
 
@@ -124,10 +64,9 @@ A monorepo structure with shared types facilitates development. The build proces
 - tailwind-merge
 
 ### External APIs
-- Sleeper Fantasy Football API (public, no authentication)
+- Sleeper Fantasy Football API
 
 ### Development Tools
 - TypeScript
 - ESBuild
 - PostCSS
-- Replit development tools
