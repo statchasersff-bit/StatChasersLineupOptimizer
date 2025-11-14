@@ -26,9 +26,21 @@ StatChasers Lineup Checker is a fantasy football web application designed to opt
 - Priority order: EMPTY (if OUT/BYE/EMPTY players) → BENCH (if delta >= 1.5) → WAIVER (if FA enabled and delta >= 1.5) → OPTIMAL
 - Leagues with OUT/BYE/EMPTY starters are now correctly flagged as EMPTY state, never OPTIMAL
 
+**Bug Fix #3: Kickers on BYE Not Being Flagged**
+- Fixed issue where kickers on BYE weeks were not being flagged with the red "OUT/BYE/EMPTY" badge
+- Root cause: BYE detection fallback logic only applied to defenses (DEF position), missing kickers and other positions
+- Solution: Extended BYE detection to all positions when opponent data is missing from projections
+- Changes made:
+  - client/src/pages/home.tsx (line 470): Removed position-specific check, now applies to all players with a team
+  - client/src/pages/matchups.tsx (line 379): Same fix applied for consistency
+  - Changed condition from `if (!opp && lite.pos === "DEF" && lite.team)` to `if (!opp && lite.team)`
+- Impact: Any position (QB, RB, WR, TE, K, DEF) missing opponent data in projections will now correctly detect BYE weeks
+
 **UI Improvements**
 - Removed "Sort Alphabetically" checkbox from home page (redundant with sort dropdown)
-- Removed gray "empty spot" badge from league cards (redundant with red OUT/BYE/EMPTY badge) It integrates with the Sleeper API to fetch league, roster, and player information, then processes uploaded CSV projections to calculate optimal lineups. The application offers a detailed home page with comprehensive league analysis and a streamlined matchups table for quick summary views. Key features include projected point deltas, win/loss predictions, identification of risky starters, and free agent integration for lineup improvements and waiver watchlist suggestions. The ultimate goal is to provide users with actionable insights to gain a competitive edge in their fantasy football leagues.
+- Removed gray "empty spot" badge from league cards (redundant with red OUT/BYE/EMPTY badge)
+
+It integrates with the Sleeper API to fetch league, roster, and player information, then processes uploaded CSV projections to calculate optimal lineups. The application offers a detailed home page with comprehensive league analysis and a streamlined matchups table for quick summary views. Key features include projected point deltas, win/loss predictions, identification of risky starters, and free agent integration for lineup improvements and waiver watchlist suggestions. The ultimate goal is to provide users with actionable insights to gain a competitive edge in their fantasy football leagues.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

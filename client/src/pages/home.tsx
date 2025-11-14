@@ -462,9 +462,9 @@ export default function Home() {
             const actual = actualPoints[pid];
             const displayProj = (locked && actual !== undefined) ? actual : finalProj;
             
-            // Determine opponent - for defenses without projections, check if team is on BYE
+            // Determine opponent - if missing from projections, check if team is on BYE
             let opp = pr?.opp;
-            if (!opp && lite.pos === "DEF" && lite.team) {
+            if (!opp && lite.team) {
               opp = isTeamOnBye(lite.team, schedule) ? "BYE" : undefined;
             }
             
