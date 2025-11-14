@@ -36,6 +36,16 @@ StatChasers Lineup Checker is a fantasy football web application designed to opt
   - Changed condition from `if (!opp && lite.pos === "DEF" && lite.team)` to `if (!opp && lite.team)`
 - Impact: Any position (QB, RB, WR, TE, K, DEF) missing opponent data in projections will now correctly detect BYE weeks
 
+**Bug Fix #4: Home Page Incorrectly Showing Leagues with OUT/BYE/EMPTY as Optimal**
+- Fixed issue where home page could mark leagues as optimal even when they had OUT/BYE/EMPTY players in starter positions
+- Root cause: Home page never called deriveRowState to determine league state - it only used delta values. deriveRowState was also receiving the optimal lineup instead of current starters, so availability checks didn't detect issues in the actual lineup
+- Solution: Implemented rowState calculation on home page and updated filter logic to use rowState instead of delta-only checks
+- Changes made:
+  - client/src/lib/types.ts (line 62): Added rowState field to LeagueSummary type
+  - client/src/pages/home.tsx (lines 801-822): Built currentStarterSlots from current starters (not optimal lineup) and called deriveRowState with proper parameters including notPlayingCount
+  - client/src/pages/home.tsx (lines 250-255): Updated "Show only Non-Optimal Leagues" filter to check rowState !== 'OPTIMAL' instead of delta > 0.01
+- Impact: Leagues with OUT/BYE/EMPTY players will never be marked as optimal on home page, matching matchups page behavior. Filter now correctly includes all non-optimal leagues (EMPTY, BENCH, WAIVER states)
+
 **UI Improvements**
 - Removed "Sort Alphabetically" checkbox from home page (redundant with sort dropdown)
 - Removed gray "empty spot" badge from league cards (redundant with red OUT/BYE/EMPTY badge)
