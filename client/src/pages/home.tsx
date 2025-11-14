@@ -1206,17 +1206,6 @@ export default function Home() {
                     </TooltipContent>
                   </Tooltip>
                   
-                  <label className={`flex items-center gap-2 text-sm ${!username.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} data-testid="checkbox-alphabetical">
-                    <input
-                      type="checkbox"
-                      checked={sortAlphabetical}
-                      onChange={(e) => setSortAlphabetical(e.target.checked)}
-                      disabled={!username.trim()}
-                      className="rounded border-input disabled:cursor-not-allowed"
-                    />
-                    <span>Sort Alphabetically</span>
-                  </label>
-                  
                   <label className={`flex items-center gap-2 text-sm ${!username.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} data-testid="checkbox-non-optimal">
                     <input
                       type="checkbox"

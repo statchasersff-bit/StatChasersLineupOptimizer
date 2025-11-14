@@ -113,11 +113,6 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                 QUES: {lg.quesCount}
               </span>
             )}
-            {(lg.benchEmpty ?? 0) > 0 && (
-              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-400 text-white shadow-sm whitespace-nowrap" data-testid={`badge-bench-empty-${lg.league_id}`}>
-                {lg.benchEmpty} empty {lg.benchEmpty === 1 ? "spot" : "spots"}
-              </span>
-            )}
             {/* Auto-sub chip (only when needed) */}
             {showAutoChip && autoChipText && (
               <span 
