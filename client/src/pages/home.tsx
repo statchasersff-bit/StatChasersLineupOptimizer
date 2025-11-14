@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target, Filter, ArrowUpDown, X, Check, RotateCcw } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
-import { buildSlotCounts, toPlayerLite, optimizeLineup, optimizeLineupWithLockComparison, sumProj, statusFlags, buildBenchRecommendations, deriveRowState, type RosterSlot } from "@/lib/optimizer";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, optimizeLineupWithLockComparison, sumProj, statusFlags, buildBenchRecommendations, deriveRowState, buildThreeTierOptimization } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye, type GameSchedule } from "@/lib/gameLocking";
 import { filterLeagues } from "@/lib/leagueFilters";
 import { scoreByLeague } from "@/lib/scoring";
@@ -15,7 +15,7 @@ import { saveProjections, loadProjections } from "@/lib/storage";
 import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
 import { detectGlobalAutoSubSettings } from "@/lib/autoSubsGlobal";
 import { summarizeStarters, type Starter } from "@/lib/availability";
-import type { LeagueSummary, Projection, WaiverSuggestion } from "@/lib/types";
+import type { LeagueSummary, Projection, WaiverSuggestion, RosterSlot } from "@/lib/types";
 
 // Error function (erf) approximation using Abramowitz and Stegun formula
 function erf(x: number): number {
@@ -484,9 +484,11 @@ export default function Home() {
             return !flags.includes("OUT");
           });
           
-          let allEligible = [...starterObjs, ...benchObjs, ...healthyIRObjs];
+          // Build roster pool (no FAs) - tier 1 and tier 2 use roster only
+          const rosterPlayers = [...starterObjs, ...benchObjs, ...healthyIRObjs];
 
-          // If considerWaivers is enabled, fetch and merge free agents into the candidate pool
+          // Fetch free agents if enabled (for tier 3)
+          let freeAgents: any[] = [];
           if (considerWaivers) {
             try {
               const { buildFACandidates } = await import("@/lib/faIntegration");
@@ -495,35 +497,49 @@ export default function Home() {
                 (roster.players || []).forEach((pid: string) => owned.add(pid));
               });
 
-              const faCandidates = await buildFACandidates(owned, currentPlayersIndex, projIdx, scoring, schedule, playedPlayerIds);
-              
-              // Merge FAs into allEligible, filtering out duplicates
-              const existingIds = new Set(allEligible.map(p => p.player_id));
-              const newFAs = faCandidates.filter(fa => !existingIds.has(fa.player_id));
-              allEligible = [...allEligible, ...newFAs];
+              freeAgents = await buildFACandidates(owned, currentPlayersIndex, projIdx, scoring, schedule, playedPlayerIds);
             } catch (err) {
               console.error("[FA Integration] Error fetching free agents:", err);
             }
           }
 
-          // Use lock-aware optimization to get both reachable and full optimal
-          const optimizationResult = optimizeLineupWithLockComparison(slotCounts, allEligible, season, week, starters);
-          const optimalSlots = optimizationResult.lineup;
-          const optimalTotal = optimizationResult.reachableTotal || optimizationResult.total;
-          const fullOptimalTotal = optimizationResult.fullTotal || optimizationResult.total;
-          const hasLockedPlayers = optimizationResult.hasLockedPlayers || false;
-
-          // Calculate current total
-          const fixedSlots = roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s));
-          const currentSlots = starters.slice(0, fixedSlots.length).map((pid, i) => {
-            if (!pid) return { slot: fixedSlots[i] }; // Handle empty slots
-            const player = addWithProj(pid);
-            if (!player) return { slot: fixedSlots[i] };
-            return { slot: fixedSlots[i], player };
+          // THREE-TIER OPTIMIZATION: current → bench optimal (roster) → waiver optimal (roster + FAs)
+          const threeTierResult = buildThreeTierOptimization({
+            slotCounts,
+            rosterPlayers,
+            freeAgents,
+            season,
+            week,
+            currentStarters: starters
           });
-          const currentTotal = sumProj(currentSlots as any);
 
-          // Build bench → starter recommendations using shared helper
+          const {
+            currentSlots,
+            currentTotal,
+            benchOptimalSlots,
+            benchOptimalTotal,
+            deltaBench,
+            waiverOptimalSlots,
+            waiverOptimalTotal,
+            deltaWaiver,
+            hasLockedPlayers,
+            fullBenchOptimalTotal,
+            fullWaiverOptimalTotal
+          } = threeTierResult;
+
+          // Extract fixed slots for later use
+          const fixedSlots = roster_positions.filter((s: string) => !["BN","IR","TAXI"].includes(s));
+
+          // Use bench optimal (tier 2) for bench recommendations (roster moves only, no FAs)
+          // Display waiver optimal (tier 3) as "optimal" in UI when FAs enabled
+          const optimalSlots = considerWaivers ? waiverOptimalSlots : benchOptimalSlots;
+          const optimalTotal = considerWaivers ? waiverOptimalTotal : benchOptimalTotal;
+          const fullOptimalTotal = considerWaivers 
+            ? (fullWaiverOptimalTotal ?? waiverOptimalTotal)
+            : (fullBenchOptimalTotal ?? benchOptimalTotal);
+
+          // Build bench → starter recommendations using BENCH optimal (tier 2, roster-only)
+          // This ensures bench recommendations only suggest roster moves, not FA adds
           const {
             recommendations: benchRecommendations,
             filteredRecommendations: filteredBenchRecs,
@@ -532,9 +548,9 @@ export default function Home() {
             lockedPlayerIds
           } = buildBenchRecommendations(
             currentSlots,
-            optimalSlots,
+            benchOptimalSlots, // Use tier 2 (bench optimal), not tier 3
             validStarters,
-            allEligible,
+            rosterPlayers, // Use roster only, not roster + FAs
             irList
           );
 
@@ -811,9 +827,9 @@ export default function Home() {
           // Pass CURRENT starters (not optimal) so hasEmpty and notPlayingCount check the actual lineup
           const rowState = deriveRowState({
             benchOptimalLineup: currentStarterSlots, // Current starters, not optimal lineup
-            deltaBench: achievableDelta,
-            deltaWaiver: 0, // Home page doesn't separately track waiver delta
-            pickupsLeft: 0, // Not tracked on home page
+            deltaBench: achievableDelta, // Lock-aware bench delta
+            deltaWaiver: deltaWaiver, // Now properly calculated from three-tier optimization!
+            pickupsLeft: 999, // TODO: Get from league settings
             freeAgentsEnabled: considerWaivers,
             notPlayingCount: availSummary.notPlayingCount
           });
@@ -833,9 +849,11 @@ export default function Home() {
             fullOptimalTotal, // Full optimal ignoring locks (for comparison)
             hasLockedPlayers, // Whether there are any locked players
             rowState, // State from deriveRowState (EMPTY if OUT/BYE/EMPTY players)
+            benchOptimalTotal, // Tier 2: optimal from roster only
+            waiverOptimalTotal, // Tier 3: optimal from roster + FAs
             waiverSuggestions,
             starterObjs, // Include enriched starter objects with names
-            allEligible, // Include all player objects for lookup
+            allEligible: considerWaivers ? [...rosterPlayers, ...freeAgents] : rosterPlayers, // Include all player objects for lookup
             benchCapacity,
             benchCount,
             benchEmpty,
