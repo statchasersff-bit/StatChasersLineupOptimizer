@@ -357,6 +357,7 @@ export interface StateEvalInputs {
   deltaWaiver: number;
   pickupsLeft: number;
   freeAgentsEnabled: boolean;
+  notPlayingCount?: number;
   threshold?: number;
 }
 
@@ -371,8 +372,11 @@ export function deriveRowState(inputs: StateEvalInputs): RowState {
   // Check for empty starters (any slot without a player)
   const hasEmpty = inputs.benchOptimalLineup.some(s => !s.player);
   
-  // Decision tree per spec
-  if (hasEmpty) {
+  // Check for OUT/BYE/EMPTY players - this takes priority over optimization status
+  const hasAvailabilityIssues = hasEmpty || (inputs.notPlayingCount !== undefined && inputs.notPlayingCount > 0);
+  
+  // Decision tree per spec - availability issues take priority
+  if (hasAvailabilityIssues) {
     return 'EMPTY';
   } else if (inputs.deltaBench >= THRESH) {
     return 'BENCH';

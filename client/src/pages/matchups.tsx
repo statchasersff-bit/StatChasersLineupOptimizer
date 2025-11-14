@@ -737,6 +737,7 @@ export default function MatchupsPage() {
               deltaWaiver,
               pickupsLeft,
               freeAgentsEnabled: considerWaivers,
+              notPlayingCount,
             });
           } catch (stateErr) {
             console.error(`[State] Error deriving state for league ${lg.league_id}:`, stateErr);
