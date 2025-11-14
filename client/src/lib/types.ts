@@ -56,6 +56,7 @@ export type LeagueSummary = {
   achievableDelta?: number;   // lock-aware delta (optimal - current - blockedDelta)
   fullOptimalTotal?: number;  // full optimal ignoring locks (for comparison when locked players exist)
   hasLockedPlayers?: boolean; // whether any players have locked (game started)
+  rowState?: 'EMPTY' | 'BENCH' | 'WAIVER' | 'OPTIMAL' | 'UNKNOWN'; // state from deriveRowState (EMPTY if OUT/BYE/EMPTY players)
   waiverSuggestions?: WaiverSuggestion[]; // sorted by gain desc
   starterObjs?: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[]; // enriched starter objects
   allEligible?: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[]; // all eligible players for lookup

@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { ChartLine, Settings, Search, Users, TrendingUp, AlertTriangle, FileSpreadsheet, Download, Share, Code, ChevronDown, Table as TableIcon, Info, Loader2, Trophy, Flame, XCircle, HelpCircle, Target, Filter, ArrowUpDown, X, Check, RotateCcw } from "lucide-react";
 import { getUserByName, getUserLeagues, getLeagueRosters, getLeagueUsers, getLeagueDetails, getLeagueMatchups, getPlayersIndex, getLeagueMatchupsForLocking } from "@/lib/sleeper";
 import { buildProjectionIndex, normalizePos } from "@/lib/projections";
-import { buildSlotCounts, toPlayerLite, optimizeLineup, optimizeLineupWithLockComparison, sumProj, statusFlags, buildBenchRecommendations } from "@/lib/optimizer";
+import { buildSlotCounts, toPlayerLite, optimizeLineup, optimizeLineupWithLockComparison, sumProj, statusFlags, buildBenchRecommendations, deriveRowState, type RosterSlot } from "@/lib/optimizer";
 import { isPlayerLocked, getWeekSchedule, isTeamOnBye, type GameSchedule } from "@/lib/gameLocking";
 import { filterLeagues } from "@/lib/leagueFilters";
 import { scoreByLeague } from "@/lib/scoring";
@@ -244,10 +244,11 @@ export default function Home() {
   const sortedSummaries = useMemo(() => {
     let filtered = summaries;
     
-    // Filter non-optimal lineups (where improvements can be made)
-    // Use achievableDelta (lock-aware) if available, fallback to delta
+    // Filter non-optimal lineups using rowState
+    // A league is only optimal if rowState is 'OPTIMAL'
+    // Leagues with OUT/BYE/EMPTY, bench improvements, or waiver opportunities are non-optimal
     if (filterNonOptimal) {
-      filtered = filtered.filter(s => (s.achievableDelta ?? s.delta) > 0.01); // More than 0.01 points improvement available
+      filtered = filtered.filter(s => s.rowState !== 'OPTIMAL');
     }
     
     // Filter by injuries (3+)
@@ -794,6 +795,29 @@ export default function Home() {
           // Calculate achievable delta (accounts for locked recommendations)
           const achievableDelta = Math.max(0, optimalTotal - currentTotal - blockedDelta);
 
+          // Build current starters as RosterSlot[] for deriveRowState
+          // This allows hasEmpty check to detect empty slots in CURRENT lineup, not optimal
+          const currentStarterSlots: RosterSlot[] = fixedSlots.map((slot: string, i: number) => {
+            const pid = starters[i];
+            const validPid = (pid && pid !== "0") ? pid : null;
+            const player = validPid ? starterObjs.find((p: any) => p.player_id === validPid) : null;
+            return {
+              slot,
+              player: player || null
+            };
+          });
+
+          // Calculate row state using deriveRowState
+          // Pass CURRENT starters (not optimal) so hasEmpty and notPlayingCount check the actual lineup
+          const rowState = deriveRowState({
+            benchOptimalLineup: currentStarterSlots, // Current starters, not optimal lineup
+            deltaBench: achievableDelta,
+            deltaWaiver: 0, // Home page doesn't separately track waiver delta
+            pickupsLeft: 0, // Not tracked on home page
+            freeAgentsEnabled: considerWaivers,
+            notPlayingCount: availSummary.notPlayingCount
+          });
+
           out.push({
             league_id: lg.league_id,
             name: lg.name,
@@ -808,6 +832,7 @@ export default function Home() {
             achievableDelta, // Lock-aware delta accounting for blocked recommendations
             fullOptimalTotal, // Full optimal ignoring locks (for comparison)
             hasLockedPlayers, // Whether there are any locked players
+            rowState, // State from deriveRowState (EMPTY if OUT/BYE/EMPTY players)
             waiverSuggestions,
             starterObjs, // Include enriched starter objects with names
             allEligible, // Include all player objects for lookup
