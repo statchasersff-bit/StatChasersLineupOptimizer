@@ -386,3 +386,126 @@ export function deriveRowState(inputs: StateEvalInputs): RowState {
     return 'OPTIMAL';
   }
 }
+
+/**
+ * Three-tier optimization result
+ */
+export interface ThreeTierResult {
+  // Tier 1 (current lineup)
+  currentSlots: RosterSlot[];
+  currentTotal: number;
+  
+  // Tier 2 (bench optimal - roster only)
+  benchOptimalSlots: RosterSlot[];
+  benchOptimalTotal: number;
+  deltaBench: number;
+  
+  // Tier 3 (waiver optimal - roster + FAs)
+  waiverOptimalSlots: RosterSlot[];
+  waiverOptimalTotal: number;
+  deltaWaiver: number;
+  
+  // Lock metadata
+  hasLockedPlayers: boolean;
+  fullBenchOptimalTotal?: number; // Ignoring locks (only when locks exist)
+  fullWaiverOptimalTotal?: number; // Ignoring locks (only when locks exist)
+}
+
+/**
+ * Shared helper to calculate three-tier optimization:
+ * - Tier 1: Current lineup
+ * - Tier 2: Bench optimal (roster only, no FAs)
+ * - Tier 3: Waiver optimal (roster + FAs)
+ * 
+ * Returns all three tiers with slots, totals, and deltas for consistent rowState calculation
+ */
+export function buildThreeTierOptimization(params: {
+  slotCounts: Record<string, number>;
+  rosterPlayers: import("./types").EnrichedPlayer[];
+  freeAgents: import("./types").EnrichedPlayer[];
+  season: string;
+  week: string;
+  currentStarters: (string | null)[];
+}): ThreeTierResult {
+  const { slotCounts, rosterPlayers, freeAgents, season, week, currentStarters } = params;
+  
+  // Build tier 1: current lineup from current starters
+  const fixedSlots = Object.entries(slotCounts).flatMap(([slot, count]) => 
+    Array(count).fill(slot)
+  );
+  
+  const currentSlots: RosterSlot[] = currentStarters.slice(0, fixedSlots.length).map((pid, i) => {
+    const slot = fixedSlots[i];
+    if (!pid || pid === "0" || pid === "") {
+      return { slot };
+    }
+    const player = rosterPlayers.find(p => p.player_id === pid);
+    return { slot, player: player || undefined };
+  });
+  
+  const currentTotal = sumProj(currentSlots);
+  
+  // Build tier 2: bench optimal from roster only (no FAs)
+  const benchOptimizationResult = optimizeLineupWithLockComparison(
+    slotCounts,
+    rosterPlayers,
+    season,
+    week,
+    currentStarters
+  );
+  
+  const benchOptimalSlots = benchOptimizationResult.lineup;
+  const benchOptimalTotal = benchOptimizationResult.reachableTotal ?? benchOptimizationResult.total;
+  const fullBenchOptimalTotal = benchOptimizationResult.fullTotal;
+  const hasBenchLocks = benchOptimizationResult.hasLockedPlayers ?? false;
+  
+  const deltaBench = Math.max(0, benchOptimalTotal - currentTotal);
+  
+  // Build tier 3: waiver optimal from roster + FAs (if FAs provided)
+  let waiverOptimalSlots: RosterSlot[];
+  let waiverOptimalTotal: number;
+  let fullWaiverOptimalTotal: number | undefined;
+  let hasWaiverLocks: boolean;
+  let deltaWaiver: number;
+  
+  if (freeAgents.length > 0) {
+    const combinedPool = [...rosterPlayers, ...freeAgents];
+    const waiverOptimizationResult = optimizeLineupWithLockComparison(
+      slotCounts,
+      combinedPool,
+      season,
+      week,
+      currentStarters
+    );
+    
+    waiverOptimalSlots = waiverOptimizationResult.lineup;
+    waiverOptimalTotal = waiverOptimizationResult.reachableTotal ?? waiverOptimizationResult.total;
+    fullWaiverOptimalTotal = waiverOptimizationResult.fullTotal;
+    hasWaiverLocks = waiverOptimizationResult.hasLockedPlayers ?? false;
+    deltaWaiver = Math.max(0, waiverOptimalTotal - benchOptimalTotal);
+  } else {
+    // No FAs: tier 3 equals tier 2
+    waiverOptimalSlots = benchOptimalSlots;
+    waiverOptimalTotal = benchOptimalTotal;
+    fullWaiverOptimalTotal = fullBenchOptimalTotal;
+    hasWaiverLocks = hasBenchLocks;
+    deltaWaiver = 0;
+  }
+  
+  // Aggregate lock metadata
+  const hasLockedPlayers = hasBenchLocks || hasWaiverLocks;
+  
+  return {
+    currentSlots,
+    currentTotal,
+    benchOptimalSlots,
+    benchOptimalTotal,
+    deltaBench,
+    waiverOptimalSlots,
+    waiverOptimalTotal,
+    deltaWaiver,
+    hasLockedPlayers,
+    fullBenchOptimalTotal: hasLockedPlayers ? fullBenchOptimalTotal : undefined,
+    fullWaiverOptimalTotal: hasLockedPlayers ? fullWaiverOptimalTotal : undefined,
+  };
+}

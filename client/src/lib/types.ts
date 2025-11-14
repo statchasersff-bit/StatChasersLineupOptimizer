@@ -18,9 +18,15 @@ export type PlayerLite = {
   gameStart?: number;  // Game start time for auto-sub timing
 };
 
+export type EnrichedPlayer = PlayerLite & { 
+  proj?: number; 
+  opp?: string; 
+  locked?: boolean;
+};
+
 export type RosterSlot = {
   slot: string;        // QB, RB, WR, TE, FLEX, SUPER_FLEX, K, DEF
-  player?: PlayerLite & { proj?: number; opp?: string; locked?: boolean };
+  player?: EnrichedPlayer;
 };
 
 export type WaiverSuggestion = {
@@ -57,9 +63,11 @@ export type LeagueSummary = {
   fullOptimalTotal?: number;  // full optimal ignoring locks (for comparison when locked players exist)
   hasLockedPlayers?: boolean; // whether any players have locked (game started)
   rowState?: 'EMPTY' | 'BENCH' | 'WAIVER' | 'OPTIMAL' | 'UNKNOWN'; // state from deriveRowState (EMPTY if OUT/BYE/EMPTY players)
+  benchOptimalTotal?: number; // tier 2: optimal from roster only (no FAs)
+  waiverOptimalTotal?: number; // tier 3: optimal from roster + FAs
   waiverSuggestions?: WaiverSuggestion[]; // sorted by gain desc
-  starterObjs?: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[]; // enriched starter objects
-  allEligible?: (PlayerLite & { proj?: number; opp?: string; locked?: boolean })[]; // all eligible players for lookup
+  starterObjs?: EnrichedPlayer[]; // enriched starter objects
+  allEligible?: EnrichedPlayer[]; // all eligible players for lookup
   benchCapacity: number;   // how many BN slots the league has
   benchCount: number;      // how many players currently on BN (excl. IR/Taxi)
   benchEmpty: number;      // benchCapacity - benchCount (min 0)
