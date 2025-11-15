@@ -729,10 +729,11 @@ export default function MatchupsPage() {
           const deltaTotal = deltaBench + deltaWaiver;
           
           // Derive row state using decision tree
+          // CRITICAL: Pass CURRENT starters (not optimal) so hasEmpty check detects empty slots in CURRENT lineup
           let rowState: RowState = 'UNKNOWN';
           try {
             rowState = deriveRowState({
-              benchOptimalLineup: benchOptimalSlots,
+              benchOptimalLineup: currentSlots, // Use current starters to detect BYE/OUT/EMPTY in actual lineup
               deltaBench,
               deltaWaiver,
               pickupsLeft,
