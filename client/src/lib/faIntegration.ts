@@ -74,7 +74,7 @@ export async function buildFACandidates(
     if (EXCLUDE_FA_STATUSES.has(status)) continue;
 
     // Exclude players whose game has already started/finished (locked players)
-    if (schedule && isPlayerLocked({ team: p.team, player_id: pid }, schedule, Date.now(), playedPlayerIds)) {
+    if (schedule && isPlayerLocked({ team: p.team, player_id: pid, name: playerName }, schedule, Date.now(), playedPlayerIds)) {
       continue;
     }
 
