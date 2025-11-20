@@ -950,7 +950,7 @@ export default function MatchupsPage() {
           
           <div className="flex flex-col gap-4">
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Last Update: 11/18/2025 2:30pm ET</div>
+              <div className="text-xs text-muted-foreground mb-1">Last Update: 11/20/2025 4:46pm EST</div>
               <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-page-title">StatChasers Lineup Checker</h1>
               <p className="text-muted-foreground mt-1 text-sm sm:text-base" data-testid="text-username">
                 Analyzing leagues for <span className="font-semibold">{username}</span>
