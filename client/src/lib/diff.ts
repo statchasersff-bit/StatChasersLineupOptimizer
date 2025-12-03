@@ -1,5 +1,5 @@
 import type { LeagueSummary } from "./types";
-import { interchangeable, canFillSlot } from "./slotRules";
+import { interchangeable, canFillSlot, isFlexSlot } from "./slotRules";
 
 export type LineupDiff = {
   ins: { player_id: string; name: string; pos: string; proj: number }[];
@@ -133,10 +133,20 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
   const enrichedMoves: EnrichedRecommendation[] = [];
   
   // Identify all players being benched (in current but not optimal)
+  // CRITICAL FIX: Also look in lg.starterObjs for player info, since benched players
+  // are current starters and might not be in optPlayers or allEligible
+  const starterObjs = (lg as any).starterObjs || [];
+  
   const allBenchedPlayers = curIds
     .filter(pid => !optSet.has(pid))
     .map(pid => {
-      const player = optPlayers.find(p => p.player_id === pid) || allEligible?.find(p => p.player_id === pid);
+      // Look up player info in multiple sources:
+      // 1. starterObjs - current starter objects (most likely for benched players)
+      // 2. optPlayers - players in optimal lineup
+      // 3. allEligible - bench/eligible pool
+      const player = starterObjs.find((p: any) => p.player_id === pid) 
+        || optPlayers.find(p => p.player_id === pid) 
+        || allEligible?.find(p => p.player_id === pid);
       return player ? {
         player_id: pid,
         name: player.name,
@@ -168,8 +178,33 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     }
   });
   
+  // Get new players (in optimal but not in current)
+  // Sort by projection (highest first) to ensure higher-impact recommendations
+  // get paired with weaker displaced players first
+  const newPlayerIds = optIds.filter(pid => !curSet.has(pid));
+  const newPlayersWithProj = newPlayerIds
+    .map(pid => {
+      const p = optPlayers.find(x => x.player_id === pid);
+      return { pid, name: p?.name ?? pid, proj: p?.proj ?? 0 };
+    });
+  
+  // DEBUG: Log before and after sorting for Big Ole TDs
+  if ((lg as any).name?.includes('Big Ole TDs')) {
+    console.log('[DIFF-DEBUG] Before sorting:', newPlayersWithProj.map(p => `${p.name}: ${p.proj}`));
+    console.log('[DIFF-DEBUG] allBenchedPlayers:', allBenchedPlayers.map(p => `${p.name}: ${p.proj}`));
+  }
+  
+  const sortedNewPlayers = [...newPlayersWithProj]
+    .sort((a, b) => b.proj - a.proj) // Highest projection first
+    .map(x => x.pid);
+  
+  if ((lg as any).name?.includes('Big Ole TDs')) {
+    const sorted = [...newPlayersWithProj].sort((a, b) => b.proj - a.proj);
+    console.log('[DIFF-DEBUG] After sorting:', sorted.map(p => `${p.name}: ${p.proj}`));
+  }
+  
   // For each promotion, pair with an available benched player
-  for (const inPid of optIds.filter(pid => !curSet.has(pid))) {
+  for (const inPid of sortedNewPlayers) {
     const inPlayer = optPlayers.find(p => p.player_id === inPid);
     if (!inPlayer) continue;
     
@@ -182,38 +217,39 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     const currentSlotPlayerId = curIds[slotIdx];
     const slotIsTrulyEmpty = !currentSlotPlayerId;
     
-    // Debug logging for slot occupancy
-    if (inPlayer.name?.includes('Knight')) {
-      console.log(`[DEBUG-SLOT] Player: ${inPlayer.name}, Slot: ${slot}, SlotIdx: ${slotIdx}`);
-      console.log(`[DEBUG-SLOT] curIds:`, curIds);
-      console.log(`[DEBUG-SLOT] Current at slotIdx ${slotIdx}:`, currentSlotPlayerId);
-      console.log(`[DEBUG-SLOT] slotIsTrulyEmpty:`, slotIsTrulyEmpty);
-    }
-    
     // Find available (unconsumed) benched players
     const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
     
-    // Determine primary displaced player using slot family logic
+    // Determine primary displaced player
+    // KEY INSIGHT: When an FA enters the optimal lineup, it causes a chain reaction.
+    // The actual displaced player is someone who WAS starting but is NOT in optimal.
+    // 
+    // PAIRING STRATEGY:
+    // 1. First try to find a position-compatible displaced player (same position family)
+    // 2. If none found, fall back to the weakest remaining displaced player
+    // This ensures RB additions prefer to show benched RB/FLEX players, etc.
     let displaced: { name: string; pos: string } | null = null;
     let displacedId: string | null = null;
     
     if (availableBenched.length > 0) {
-      // CRITICAL FIX: Only show benched players who can actually fill the slot being filled
-      // This prevents showing "Start WR over QB" when WR is going to WR slot and QB is in QB slot
-      const slotCompatibleBenched = availableBenched.filter(p => 
-        canFillSlot(p.pos, slot)
-      );
+      // SIMPLIFIED PAIRING STRATEGY:
+      // Due to cascade effects, position matching doesn't work well.
+      // Example: RB enters RB slot → pushes existing RB to FLEX → pushes WR from FLEX
+      // The actual benched player is often a different position than the entering player.
+      // 
+      // New approach: Simply assign the weakest remaining displaced player.
+      // This ensures each recommendation shows SOMEONE being benched.
       
-      // Only use slot-compatible candidates
-      if (slotCompatibleBenched.length > 0) {
-        // Sort by projection (highest first)
-        slotCompatibleBenched.sort((a, b) => b.proj - a.proj);
-        
+      // Sort by lowest projection first - weakest player gets paired first
+      const sortedBenched = [...availableBenched].sort((a, b) => a.proj - b.proj);
+      const chosenPlayer = sortedBenched[0];
+      
+      if (chosenPlayer) {
         displaced = {
-          name: slotCompatibleBenched[0].name,
-          pos: slotCompatibleBenched[0].pos
+          name: chosenPlayer.name,
+          pos: chosenPlayer.pos
         };
-        displacedId = slotCompatibleBenched[0].player_id;
+        displacedId = chosenPlayer.player_id;
         
         // Mark this bench player as consumed
         consumedBenchIds.add(displacedId);
