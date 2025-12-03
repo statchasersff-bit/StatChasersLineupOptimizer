@@ -242,8 +242,10 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                           <div className="text-sm text-muted-foreground">
                             {rec.displaced ? (
                               <span>Benches <span className="font-medium">{rec.displaced.name}</span> ({rec.displaced.pos})</span>
-                            ) : (
+                            ) : rec.isFillingEmpty ? (
                               <span className="text-amber-600 dark:text-amber-400 font-medium">Fills EMPTY starter</span>
+                            ) : (
+                              <span>Upgrades current starter</span>
                             )}
                           </div>
 

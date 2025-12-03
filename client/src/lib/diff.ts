@@ -177,6 +177,19 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     const slot = fixedSlots[slotIdx];
     if (!slot) continue;
     
+    // CRITICAL: Check if the current slot is actually empty (no player assigned)
+    // This is the TRUE empty check - not whether we have a bench player to displace
+    const currentSlotPlayerId = curIds[slotIdx];
+    const slotIsTrulyEmpty = !currentSlotPlayerId;
+    
+    // Debug logging for slot occupancy
+    if (inPlayer.name?.includes('Knight')) {
+      console.log(`[DEBUG-SLOT] Player: ${inPlayer.name}, Slot: ${slot}, SlotIdx: ${slotIdx}`);
+      console.log(`[DEBUG-SLOT] curIds:`, curIds);
+      console.log(`[DEBUG-SLOT] Current at slotIdx ${slotIdx}:`, currentSlotPlayerId);
+      console.log(`[DEBUG-SLOT] slotIsTrulyEmpty:`, slotIsTrulyEmpty);
+    }
+    
     // Find available (unconsumed) benched players
     const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
     
@@ -191,8 +204,7 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
         canFillSlot(p.pos, slot)
       );
       
-      // IMPORTANT: Only use slot-compatible candidates, never fall back to incompatible players
-      // If no compatible candidates exist, leave displaced as null (shows "Fills EMPTY starter")
+      // Only use slot-compatible candidates
       if (slotCompatibleBenched.length > 0) {
         // Sort by projection (highest first)
         slotCompatibleBenched.sort((a, b) => b.proj - a.proj);
@@ -228,7 +240,7 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
         proj: inPlayer.proj ?? 0
       },
       displaced,
-      isFillingEmpty: displaced === null,
+      isFillingEmpty: slotIsTrulyEmpty, // Use TRUE empty check, not displaced === null
       cascadeMoves: allCascadeMoves, // Include all cascades in each recommendation
       source,
       fromIR: isFromIR,
