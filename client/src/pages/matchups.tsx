@@ -307,8 +307,9 @@ export default function MatchupsPage() {
           // Fetch matchup data for THIS league only to get correct actual points per league's scoring
           const { playedPlayerIds, actualPoints } = await getLeagueMatchupsForLocking([lg.league_id], week);
 
-          // Find user's roster (with fallback to first roster if resolution fails)
+          // Find user's roster (check both owner_id and co_owners array for co-managers)
           const meRoster = rosters.find((r: any) => r.owner_id === user.user_id) || 
+                          rosters.find((r: any) => Array.isArray(r.co_owners) && r.co_owners.includes(user.user_id)) ||
                           rosters.find((r: any) => r.owner_id === lg.user_id) || 
                           rosters.find((r: any) => r.roster_id === lg.roster_id) || 
                           rosters[0];
@@ -325,8 +326,9 @@ export default function MatchupsPage() {
             continue;
           }
           
-          // Log when fallback was used
+          // Log when fallback was used (now includes co_owners check)
           const usedFallback = !rosters.find((r: any) => r.owner_id === user.user_id) && 
+                              !rosters.find((r: any) => Array.isArray(r.co_owners) && r.co_owners.includes(user.user_id)) &&
                               !rosters.find((r: any) => r.owner_id === lg.user_id) && 
                               !rosters.find((r: any) => r.roster_id === lg.roster_id);
           if (usedFallback) {
