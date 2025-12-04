@@ -1494,21 +1494,21 @@ export default function MatchupsPage() {
               <TableHeader className="bg-primary">
                 <TableRow>
                   <TableHead 
-                    className="cursor-pointer hover:bg-primary/80 px-2 py-1 text-primary-foreground"
+                    className="cursor-pointer hover:bg-primary/80 px-2 py-1 text-primary-foreground border-r border-primary-foreground/30"
                     onClick={() => handleSort("league")}
                     data-testid="header-league"
                   >
                     League {sortBy === "league" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground border-r border-primary-foreground/30"
                     onClick={() => handleSort("record")}
                     data-testid="header-record"
                   >
                     Record {sortBy === "record" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground border-r border-primary-foreground/30"
                     onClick={() => handleSort("optMinusAct")}
                     data-testid="header-opt-act"
                   >
@@ -1522,7 +1522,7 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground border-r border-primary-foreground/30"
                     onClick={() => handleSort("projectedResult")}
                     data-testid="header-projected-result"
                   >
@@ -1536,7 +1536,7 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground border-r border-primary-foreground/30"
                     onClick={() => handleSort("quesCount")}
                     data-testid="header-ques"
                   >
@@ -1577,7 +1577,7 @@ export default function MatchupsPage() {
                       onClick={() => toggleExpanded(league.leagueId)}
                       data-testid={`row-league-${league.leagueId}`}
                     >
-                      <TableCell className="px-2 py-1">
+                      <TableCell className="px-2 py-1 border-r border-border">
                         <div className="min-w-0">
                           <div className="font-semibold leading-tight truncate max-w-[100px] sm:max-w-[120px] md:max-w-none" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
                             {league.leagueName}
@@ -1589,14 +1589,14 @@ export default function MatchupsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap" data-testid={`text-record-${league.leagueId}`}>
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap border-r border-border" data-testid={`text-record-${league.leagueId}`}>
                         {league.isComputing || !league.record ? (
                           <div className="h-4 bg-muted rounded w-10 mx-auto animate-pulse" />
                         ) : (
                           league.record
                         )}
                       </TableCell>
-                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap" data-testid={`text-status-${league.leagueId}`}>
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap border-r border-border" data-testid={`text-status-${league.leagueId}`}>
                         {league.isComputing || league.rowState === undefined ? (
                           <div className="h-4 bg-muted rounded w-6 mx-auto animate-pulse" />
                         ) : (
@@ -1621,7 +1621,7 @@ export default function MatchupsPage() {
                           </Tooltip>
                         )}
                       </TableCell>
-                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap">
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap border-r border-border">
                         {league.isComputing || !league.projectedResult ? (
                           <div className="h-5 bg-muted rounded w-6 mx-auto animate-pulse" />
                         ) : (
@@ -1657,7 +1657,7 @@ export default function MatchupsPage() {
                           </Tooltip>
                         )}
                       </TableCell>
-                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap">
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap border-r border-border">
                         {league.isComputing || league.quesCount === undefined ? (
                           <div className="h-4 bg-muted rounded w-6 mx-auto animate-pulse" />
                         ) : league.quesCount > 0 ? (
