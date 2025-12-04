@@ -1514,7 +1514,7 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        Optimal? {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
+                        OPT? {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         ✓ = Optimal lineup, ✗ = Issues found (empty slots, OUT starters, or better bench options)
