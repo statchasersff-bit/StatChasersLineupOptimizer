@@ -1514,7 +1514,7 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        OPT? {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
+                        Opt? {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         ✓ = Optimal lineup, ✗ = Issues found (empty slots, OUT starters, or better bench options)
@@ -1542,7 +1542,7 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        QUES? {sortBy === "quesCount" && (sortOrder === "desc" ? "↓" : "↑")}
+                        Ques? {sortBy === "quesCount" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         Questionable/Doubtful starters
@@ -1557,8 +1557,8 @@ export default function MatchupsPage() {
                     <Tooltip>
                       <TooltipTrigger className="w-full">
                         <div className="flex flex-col leading-tight">
-                          <span>OUT/</span>
-                          <span>EMPTY?</span>
+                          <span>Out/</span>
+                          <span>Empty?</span>
                         </div>
                         {sortBy === "notPlayingCount" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
