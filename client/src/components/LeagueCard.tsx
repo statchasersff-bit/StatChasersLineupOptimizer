@@ -150,19 +150,19 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
         data-testid={`button-toggle-${lg.league_id}`}
       >
         {/* Row 1: Avatar, Name, Delta, Status Icons */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* League Avatar - Smaller */}
+        <div className="flex items-start gap-1.5 sm:gap-3">
+          {/* League Avatar - Smaller on mobile */}
           <div 
-            className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full ${leagueColor} flex items-center justify-center font-bold text-xs sm:text-sm shadow`}
+            className={`flex-shrink-0 w-7 h-7 sm:w-10 sm:h-10 rounded-full ${leagueColor} flex items-center justify-center font-bold text-[10px] sm:text-sm shadow mt-0.5`}
             data-testid={`avatar-${lg.league_id}`}
           >
             {leagueInitials}
           </div>
 
-          {/* League Name - Truncated */}
+          {/* League Name - 2 lines on mobile, single on desktop */}
           <div className="flex-1 min-w-0">
             <h3 
-              className="text-sm sm:text-base font-semibold truncate" 
+              className="text-[13px] sm:text-base font-semibold leading-tight line-clamp-2 sm:truncate sm:line-clamp-none" 
               data-testid={`text-league-name-${lg.league_id}`}
               title={lg.name}
             >
@@ -208,7 +208,7 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
         </div>
 
         {/* Row 2: Meta info - tiny text */}
-        <div className="flex items-center gap-2 mt-1.5 ml-10 sm:ml-13 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
+        <div className="flex items-center gap-2 mt-1 ml-[34px] sm:ml-[52px] text-[10px] sm:text-xs text-muted-foreground flex-wrap">
           {/* Auto-subs indicator */}
           {showAutoChip && autoChipText && (
             <span className={`flex items-center gap-0.5 ${autoChipVariant === 'warn' ? 'text-red-500' : ''}`}>
