@@ -1551,13 +1551,17 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-accent"
+                    className="px-1 py-1 text-center w-[1%] cursor-pointer hover:bg-accent"
                     onClick={() => handleSort("notPlayingCount")}
                     data-testid="header-not-playing"
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        OUT/EMPTY? {sortBy === "notPlayingCount" && (sortOrder === "desc" ? "↓" : "↑")}
+                        <div className="flex flex-col leading-tight">
+                          <span>OUT/</span>
+                          <span>EMPTY?</span>
+                        </div>
+                        {sortBy === "notPlayingCount" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         OUT/BYE/EMPTY starters
