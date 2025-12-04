@@ -1685,115 +1685,117 @@ export default function MatchupsPage() {
                       </TableCell>
                     </TableRow>
                     
-                    {/* Expanded Row Content */}
+                    {/* Expanded Row Content - Accordion style */}
                     {expandedLeagues.has(league.leagueId) && (
-                      <TableRow data-testid={`expanded-${league.leagueId}`}>
-                        <TableCell colSpan={6} className="bg-muted/50 p-3 sm:p-6">
+                      <TableRow data-testid={`expanded-${league.leagueId}`} className="hover:bg-transparent">
+                        <TableCell colSpan={6} className="p-0 border-t-0">
+                          <div className="bg-muted/30 border-l-4 border-l-primary px-3 py-3 sm:px-4 sm:py-4">
                           {league.isComputing ? (
                             <StatChasersLoader message="Analyzing league..." />
                           ) : (
-                            <div className="space-y-6">
-                              {/* Not playing list */}
-                              {league.notPlayingCount !== undefined && league.notPlayingCount > 0 && league.notPlayingList && (
-                                <div className="my-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-800" data-testid={`not-playing-warning-${league.leagueId}`}>
-                                  <div className="font-medium">OUT/BYE/EMPTY starters</div>
-                                  <div className="text-sm">
-                                    {(league.notPlayingList ?? []).map((p, i) => (
-                                      <span key={p.id || i}>
-                                        {p.name || "—"}{p.tag ? ` (${p.tag})` : ""}{i < (league.notPlayingList ?? []).length - 1 ? ", " : ""}
-                                      </span>
-                                    ))}
-                                  </div>
+                            <div className="space-y-3">
+                              {/* Alerts Section */}
+                              {((league.notPlayingCount ?? 0) > 0 || (league.quesCount ?? 0) > 0) && (
+                                <div className="space-y-2">
+                                  {/* Not playing list */}
+                                  {league.notPlayingCount !== undefined && league.notPlayingCount > 0 && league.notPlayingList && (
+                                    <div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-3 py-2 text-red-800 dark:text-red-300 text-xs sm:text-sm" data-testid={`not-playing-warning-${league.leagueId}`}>
+                                      <span className="font-medium">🔴 OUT/BYE/EMPTY: </span>
+                                      {(league.notPlayingList ?? []).map((p, i) => (
+                                        <span key={p.id || i}>
+                                          {p.name || "—"}{p.tag ? ` (${p.tag})` : ""}{i < (league.notPlayingList ?? []).length - 1 ? ", " : ""}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Questionable list */}
+                                  {league.quesCount !== undefined && league.quesCount > 0 && league.quesList && (
+                                    <div className="rounded-md border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-700 px-3 py-2 text-yellow-800 dark:text-yellow-300 text-xs sm:text-sm" data-testid={`ques-warning-${league.leagueId}`}>
+                                      <span className="font-medium">🟡 Questionable: </span>
+                                      {(league.quesList ?? []).map((p, i) => (
+                                        <span key={p.id || i}>
+                                          {p.name}{i < (league.quesList ?? []).length - 1 ? ", " : ""}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               )}
 
-                              {/* Questionable list */}
-                              {league.quesCount !== undefined && league.quesCount > 0 && league.quesList && (
-                                <div className="my-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700" data-testid={`ques-warning-${league.leagueId}`}>
-                                  <div className="font-medium">Questionable starters</div>
-                                  <div className="text-sm">
-                                    {(league.quesList ?? []).map((p, i) => (
-                                      <span key={p.id || i}>
-                                        {p.name}{i < (league.quesList ?? []).length - 1 ? ", " : ""}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Opponent Info */}
+                              {/* Opponent Info - Compact */}
                               {league.opponentName && league.opponentPoints !== undefined && (
-                                <div className="p-4 bg-background rounded-lg border" data-testid={`opponent-card-${league.leagueId}`}>
-                                  <h4 className="font-semibold mb-2">Opponent: {league.opponentName}</h4>
-                                  <p className="text-sm text-muted-foreground">
-                                    Projected Points: {league.opponentPoints.toFixed(1)}
-                                  </p>
+                                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground" data-testid={`opponent-card-${league.leagueId}`}>
+                                  <span className="font-medium">vs {league.opponentName}</span>
+                                  <span>•</span>
+                                  <span>Proj: {league.opponentPoints.toFixed(1)} pts</span>
                                 </div>
                               )}
 
                               {/* Recommendations */}
                               {league.recommendations && league.recommendations.length > 0 && (
-                              <div className="space-y-2" data-testid={`recommendations-${league.leagueId}`}>
-                                <h4 className="text-sm sm:text-base font-semibold">Recommended Changes:</h4>
-                                <div className="space-y-2">
-                                  {league.recommendations.map((rec, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 bg-background rounded-lg border"
-                                      data-testid={`recommendation-${league.leagueId}-${idx}`}
-                                    >
-                                      {rec.out && (
-                                        <div className="text-xs sm:text-sm text-red-600 flex items-center">
-                                          <span>✗ Remove: {rec.out.name} ({rec.out.proj.toFixed(1)})</span>
-                                          <StarterBadge p={rec.out} />
-                                        </div>
-                                      )}
-                                      <span className="text-muted-foreground hidden sm:inline">→</span>
-                                      <div className="text-xs sm:text-sm text-green-600 flex items-center gap-1">
-                                        {rec.fromIR && (
-                                          <span className="text-purple-700 dark:text-purple-400 font-semibold">Move from IR:</span>
+                                <div className="space-y-2" data-testid={`recommendations-${league.leagueId}`}>
+                                  <h4 className="text-xs sm:text-sm font-semibold text-foreground">Lineup Changes:</h4>
+                                  <div className="space-y-1.5">
+                                    {league.recommendations.map((rec, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex flex-wrap items-center gap-1.5 sm:gap-2 py-1.5 px-2 bg-background rounded border text-xs sm:text-sm"
+                                        data-testid={`recommendation-${league.leagueId}-${idx}`}
+                                      >
+                                        {rec.out && (
+                                          <>
+                                            <span className="text-red-600 dark:text-red-400">
+                                              ✗ {rec.out.name} ({rec.out.proj.toFixed(1)})
+                                            </span>
+                                            <StarterBadge p={rec.out} />
+                                            <span className="text-muted-foreground">→</span>
+                                          </>
                                         )}
-                                        <span>✓ Start: {rec.in.name} ({rec.in.proj.toFixed(1)})</span>
+                                        <span className="text-green-600 dark:text-green-400">
+                                          {rec.fromIR && <span className="text-purple-600 dark:text-purple-400">[IR] </span>}
+                                          ✓ {rec.in.name} ({rec.in.proj.toFixed(1)})
+                                        </span>
                                         <StarterBadge p={rec.in} />
                                       </div>
-                                    </div>
-                                  ))}
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
-                            {league.recommendations && league.recommendations.length === 0 && (
-                              <div className="text-center text-muted-foreground py-4" data-testid={`no-changes-${league.leagueId}`}>
-                                Your lineup is already optimal!
-                              </div>
-                            )}
+                              {league.recommendations && league.recommendations.length === 0 && (
+                                <div className="text-xs sm:text-sm text-green-600 dark:text-green-400 py-2" data-testid={`no-changes-${league.leagueId}`}>
+                                  ✓ Lineup is optimal
+                                </div>
+                              )}
 
-                            {/* Waiver Watchlist - NEW diff-based format */}
-                            {league.waiverRecommendations && league.waiverRecommendations.length > 0 && (
-                              <div className="mt-4 rounded-lg border p-4 bg-background" data-testid={`waiver-watchlist-${league.leagueId}`}>
-                                <h4 className="font-semibold mb-3">
-                                  Waiver Watchlist <span className="text-sm text-muted-foreground font-normal">(Top Free Agents)</span>
-                                </h4>
-                                <ul className="space-y-3">
-                                  {league.waiverRecommendations.map((rec, idx) => (
-                                    <WaiverRecItem
-                                      key={`${rec.added.player_id}-${idx}`}
-                                      rec={rec}
-                                      leagueId={league.leagueId}
-                                      variant="expanded"
-                                    />
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+                              {/* Waiver Watchlist */}
+                              {league.waiverRecommendations && league.waiverRecommendations.length > 0 && (
+                                <div className="pt-2 border-t" data-testid={`waiver-watchlist-${league.leagueId}`}>
+                                  <h4 className="text-xs sm:text-sm font-semibold mb-2">
+                                    Waiver Watchlist
+                                  </h4>
+                                  <ul className="space-y-1.5">
+                                    {league.waiverRecommendations.map((rec, idx) => (
+                                      <WaiverRecItem
+                                        key={`${rec.added.player_id}-${idx}`}
+                                        rec={rec}
+                                        leagueId={league.leagueId}
+                                        variant="expanded"
+                                      />
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
 
-                            {(!league.waiverRecommendations || league.waiverRecommendations.length === 0) && (
-                              <div className="mt-4 text-sm text-muted-foreground text-center py-3" data-testid={`no-waiver-suggestions-${league.leagueId}`}>
-                                No obvious waiver upgrades (≥ +1.5 pts)
-                              </div>
-                            )}
-                          </div>
+                              {(!league.waiverRecommendations || league.waiverRecommendations.length === 0) && (
+                                <div className="text-xs text-muted-foreground pt-2 border-t" data-testid={`no-waiver-suggestions-${league.leagueId}`}>
+                                  No waiver upgrades (≥ +1.5 pts)
+                                </div>
+                              )}
+                            </div>
                           )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )}
