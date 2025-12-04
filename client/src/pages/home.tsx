@@ -180,6 +180,8 @@ export default function Home() {
   
   useEffect(() => {
     localStorage.setItem('statChasers_sortBy', JSON.stringify(sortBy));
+    // Reset navigation index when sort order changes so "Next" starts from top
+    setCurrentLeagueIndex(0);
   }, [sortBy]);
   
   useEffect(() => {

@@ -29,15 +29,15 @@ export function MobileStickyFooter({
       data-testid="mobile-sticky-footer"
     >
       <div className="px-4 py-3 flex gap-2">
-        {/* Back to All Leagues Button */}
+        {/* Back to Top Button */}
         {onBackToAll && hasMultipleLeagues && (
           <button
             onClick={onBackToAll}
             className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            data-testid="button-back-to-all"
+            data-testid="button-back-to-top"
           >
             <ArrowLeft className="w-4 h-4" />
-            All Leagues
+            Back to Top
           </button>
         )}
 

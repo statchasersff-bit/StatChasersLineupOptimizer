@@ -21,10 +21,10 @@ export function PersistentBackBar({ onClick, visible }: PersistentBackBarProps) 
         <button
           onClick={onClick}
           className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-          data-testid="button-back-to-all-leagues"
+          data-testid="button-back-to-top"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to All Leagues
+          Back to Top
         </button>
       </div>
     </motion.div>
