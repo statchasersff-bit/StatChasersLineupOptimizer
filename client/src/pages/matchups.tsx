@@ -1515,10 +1515,10 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        +Δ {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
+                        Status {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
-                        Points gained if you apply suggested lineup changes
+                        ✓ = Optimal lineup, ✗ = Issues found (empty slots, OUT starters, or better bench options)
                       </TooltipContent>
                     </Tooltip>
                   </TableHead>
@@ -1529,7 +1529,7 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        Result {sortBy === "projectedResult" && (sortOrder === "desc" ? "↓" : "↑")}
+                        Proj {sortBy === "projectedResult" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         Projected W/L based on optimal lineups
@@ -1588,19 +1588,14 @@ export default function MatchupsPage() {
                         )}
                       </TableCell>
                       <TableCell className="px-2 py-1">
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px] md:text-xs">
-                            {league.leagueName.charAt(0).toUpperCase()}
+                        <div className="min-w-0">
+                          <div className="font-semibold leading-tight truncate max-w-[100px] sm:max-w-[120px] md:max-w-none" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
+                            {league.leagueName}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold leading-tight truncate max-w-[100px] sm:max-w-[120px] md:max-w-none" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
-                              {league.leagueName}
-                            </div>
-                            <div className="flex items-center gap-1 text-[9px] md:text-[10px] text-muted-foreground">
-                              <span>{league.format}</span>
-                              <span>·</span>
-                              <span>{league.size}T</span>
-                            </div>
+                          <div className="flex items-center gap-1 text-[9px] md:text-[10px] text-muted-foreground">
+                            <span>{league.format}</span>
+                            <span>·</span>
+                            <span>{league.size}T</span>
                           </div>
                         </div>
                       </TableCell>
@@ -1613,64 +1608,53 @@ export default function MatchupsPage() {
                       </TableCell>
                       <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap" data-testid={`text-status-${league.leagueId}`}>
                         {league.isComputing || league.rowState === undefined ? (
-                          <div className="h-4 bg-muted rounded w-16 mx-auto animate-pulse" />
+                          <div className="h-4 bg-muted rounded w-6 mx-auto animate-pulse" />
                         ) : (
-                          <OptActCell 
-                            rowState={league.rowState}
-                            deltaBench={league.deltaBench}
-                            deltaWaiver={league.deltaWaiver}
-                            deltaTotal={league.deltaTotal}
-                            freeAgentsEnabled={considerWaivers}
-                            pickupsLeft={league.pickupsLeft}
-                            lockedCount={league.debugMetrics?.lockedCount}
-                          />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center justify-center">
+                                {/* Show red X if there are issues, green check if optimal */}
+                                {(league.notPlayingCount && league.notPlayingCount > 0) || 
+                                 (league.deltaTotal && league.deltaTotal > 0.5) ? (
+                                  <span className="text-red-500 font-bold text-base">✗</span>
+                                ) : (
+                                  <span className="text-green-500 font-bold text-base">✓</span>
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {(league.notPlayingCount && league.notPlayingCount > 0) || 
+                               (league.deltaTotal && league.deltaTotal > 0.5) 
+                                ? `Issues found: ${league.deltaTotal ? `+${league.deltaTotal.toFixed(1)} pts available` : ''}${league.notPlayingCount ? ` ${league.notPlayingCount} OUT/BYE/EMPTY` : ''}`
+                                : 'Lineup is optimal'}
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </TableCell>
                       <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap">
                         {league.isComputing || !league.projectedResult ? (
-                          <div className="h-5 bg-muted rounded w-8 mx-auto animate-pulse" />
+                          <div className="h-5 bg-muted rounded w-6 mx-auto animate-pulse" />
                         ) : (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="flex items-center justify-center gap-1">
+                              <div className="flex items-center justify-center">
                                 {league.projectedResult === "W" && (
-                                  <>
-                                    <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                      <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd"/>
-                                      </svg>
-                                    </div>
-                                    <span className="font-medium text-green-600 dark:text-green-400" data-testid={`badge-result-${league.leagueId}`}>
-                                      {league.margin !== undefined && `${league.margin > 0 ? "+" : ""}${league.margin.toFixed(0)}`}
-                                    </span>
-                                  </>
+                                  <span className="font-bold text-green-600 dark:text-green-400" data-testid={`badge-result-${league.leagueId}`}>
+                                    W
+                                  </span>
                                 )}
                                 {league.projectedResult === "L" && (
-                                  <>
-                                    <div className="w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                                      <svg className="w-3 h-3 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                                      </svg>
-                                    </div>
-                                    <span className="font-medium text-red-600 dark:text-red-400" data-testid={`badge-result-${league.leagueId}`}>
-                                      {league.margin !== undefined && `${league.margin.toFixed(0)}`}
-                                    </span>
-                                  </>
+                                  <span className="font-bold text-red-600 dark:text-red-400" data-testid={`badge-result-${league.leagueId}`}>
+                                    L
+                                  </span>
                                 )}
                                 {league.projectedResult === "T" && (
-                                  <>
-                                    <div className="w-5 h-5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-                                      <svg className="w-3 h-3 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/>
-                                      </svg>
-                                    </div>
-                                    <span className="font-medium text-yellow-600 dark:text-yellow-400" data-testid={`badge-result-${league.leagueId}`}>
-                                      Tie
-                                    </span>
-                                  </>
+                                  <span className="font-bold text-yellow-600 dark:text-yellow-400" data-testid={`badge-result-${league.leagueId}`}>
+                                    T
+                                  </span>
                                 )}
                                 {league.projectedResult === "N/A" && (
-                                  <span className="text-muted-foreground">N/A</span>
+                                  <span className="text-muted-foreground">-</span>
                                 )}
                               </div>
                             </TooltipTrigger>
