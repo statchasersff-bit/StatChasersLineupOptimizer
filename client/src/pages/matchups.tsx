@@ -1506,7 +1506,7 @@ export default function MatchupsPage() {
                     onClick={() => handleSort("record")}
                     data-testid="header-record"
                   >
-                    W-L {sortBy === "record" && (sortOrder === "desc" ? "↓" : "↑")}
+                    Record {sortBy === "record" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
                     className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-accent"
@@ -1515,7 +1515,7 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        Status {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
+                        Optimal? {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         ✓ = Optimal lineup, ✗ = Issues found (empty slots, OUT starters, or better bench options)
@@ -1543,7 +1543,7 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        🟡 {sortBy === "quesCount" && (sortOrder === "desc" ? "↓" : "↑")}
+                        QUES? {sortBy === "quesCount" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         Questionable/Doubtful starters
@@ -1557,7 +1557,7 @@ export default function MatchupsPage() {
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        🔴 {sortBy === "notPlayingCount" && (sortOrder === "desc" ? "↓" : "↑")}
+                        OUT/EMPTY? {sortBy === "notPlayingCount" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
                         OUT/BYE/EMPTY starters
