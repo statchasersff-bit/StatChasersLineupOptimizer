@@ -1578,8 +1578,8 @@ export default function MatchupsPage() {
                       data-testid={`row-league-${league.leagueId}`}
                     >
                       <TableCell className="px-2 py-1 border-r border-border">
-                        <div className="min-w-0">
-                          <div className="font-semibold leading-tight truncate max-w-[100px] sm:max-w-[120px] md:max-w-none" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
+                        <div className="min-w-0 max-w-[140px] sm:max-w-[160px] md:max-w-none">
+                          <div className="font-semibold leading-tight text-[13px] sm:text-sm line-clamp-2 md:line-clamp-none md:truncate" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
                             {league.leagueName}
                           </div>
                           <div className="flex items-center gap-1 text-[9px] md:text-[10px] text-muted-foreground">
