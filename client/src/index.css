@@ -986,53 +986,8 @@
   font-weight: 700;
 }
 
-/* Responsive Table Cards - Mobile View */
-@media screen and (max-width: 640px) {
-  /* Hide table header on mobile */
-  table thead {
-    @apply hidden;
-  }
-  
-  /* Make table body display as block */
-  table tbody {
-    @apply block;
-  }
-  
-  /* Each row becomes a card */
-  table tbody tr {
-    @apply block mb-4 rounded-lg border bg-card shadow-md;
-    /* Remove default border styles when row is a card */
-    border-left-width: 0 !important;
-  }
-  
-  /* Each cell becomes a row within the card */
-  table tbody tr td {
-    @apply block text-left px-4 py-3;
-    /* Remove center alignment on mobile */
-    text-align: left !important;
-  }
-  
-  /* Add label before each cell using data-label attribute */
-  table tbody tr td[data-label]:not([data-label=""]):before {
-    content: attr(data-label);
-    @apply block font-semibold text-muted-foreground text-xs uppercase mb-1;
-  }
-  
-  /* First cell (expand icon) - special styling */
-  table tbody tr td:first-child {
-    @apply flex items-center justify-between border-b pb-3;
-  }
-  
-  /* Make league name cell stand out */
-  table tbody tr td[data-label="League"] {
-    @apply border-b pb-3;
-  }
-  
-  /* Expanded row content */
-  table tbody tr td[colspan] {
-    @apply border-t-0;
-  }
-}
+/* Table View - horizontal scroll on mobile, no card transformation */
+/* The table maintains its structure on all screen sizes with overflow-x-auto on the container */
 
 /* Bottom Toolbar (FAB-style) */
 .page-toolbar {
