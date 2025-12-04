@@ -74,15 +74,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 import { StatSummaryCard } from "@/components/StatSummaryCard";
 import { useStatTrends } from "@/hooks/use-stat-trends";
 
@@ -1489,135 +1480,47 @@ export default function Home() {
                     return null;
                   })()}
                   
-                  {/* League Summary Table */}
-                  <div className="border rounded-lg overflow-x-auto bg-card">
-                    <Table className="min-w-[700px]">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="p-2 min-w-[160px]">League</TableHead>
-                          <TableHead className="text-center p-2 whitespace-nowrap">W-L</TableHead>
-                          <TableHead className="text-center p-2 whitespace-nowrap">+Δ</TableHead>
-                          <TableHead className="text-center p-2 whitespace-nowrap">Result</TableHead>
-                          <TableHead className="text-center p-2 whitespace-nowrap">🟡</TableHead>
-                          <TableHead className="text-center p-2 whitespace-nowrap">🔴</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {sortedSummaries.map((lg) => {
-                          const isChecked = checkedLeagues.has(lg.league_id);
-                          const delta = lg.achievableDelta ?? lg.delta;
-                          const quesCount = lg.quesCount ?? 0;
-                          const outByeEmptyCount = lg.outByeEmptyCount ?? 0;
-                          
-                          return (
-                            <TableRow 
-                              key={lg.league_id}
-                              className={cn(
-                                "cursor-pointer hover:bg-muted/50 transition-colors",
-                                isChecked && "opacity-40",
-                                lg.projectedWin === true && "border-l-4 border-l-green-500",
-                                lg.projectedWin === false && "border-l-4 border-l-red-500"
-                              )}
-                              onClick={() => {
-                                // Toggle checked state on click
-                                if (isChecked) {
-                                  setCheckedLeagues(prev => {
-                                    const next = new Set(prev);
-                                    next.delete(lg.league_id);
-                                    return next;
-                                  });
-                                }
-                              }}
-                              data-testid={`row-league-${lg.league_id}`}
-                            >
-                              {/* League name + meta */}
-                              <TableCell className="p-2">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-white font-bold text-xs">
-                                    {lg.name.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="font-semibold text-xs truncate max-w-[140px]" title={lg.name}>
-                                      {lg.name}
-                                    </div>
-                                    <div className="text-[10px] text-muted-foreground truncate">
-                                      {lg.rosterUserDisplay}
-                                    </div>
-                                  </div>
-                                </div>
-                              </TableCell>
-
-                              {/* Record */}
-                              <TableCell className="text-center p-2 text-xs">
-                                {(lg as any).record ?? '—'}
-                              </TableCell>
-
-                              {/* Opt-Act delta */}
-                              <TableCell
-                                className={cn(
-                                  "text-center p-2 text-xs font-semibold",
-                                  delta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                                )}
-                              >
-                                {delta >= 0 ? "+" : ""}{delta.toFixed(1)}
-                              </TableCell>
-
-                              {/* Projected result column */}
-                              <TableCell className="text-center p-2">
-                                {lg.projectedWin === true ? (
-                                  <div className="flex items-center justify-center gap-1">
-                                    <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                      <TrendingUp className="w-3 h-3 text-green-600 dark:text-green-400" />
-                                    </div>
-                                    <span className="text-[10px] font-medium text-green-600 dark:text-green-400">
-                                      {lg.pointDifferential !== undefined && lg.pointDifferential > 0 && `+${lg.pointDifferential.toFixed(0)}`}
-                                    </span>
-                                  </div>
-                                ) : lg.projectedWin === false ? (
-                                  <div className="flex items-center justify-center gap-1">
-                                    <div className="w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                                      <TrendingUp className="w-3 h-3 text-red-600 dark:text-red-400 rotate-180" />
-                                    </div>
-                                    <span className="text-[10px] font-medium text-red-600 dark:text-red-400">
-                                      {lg.pointDifferential !== undefined && lg.pointDifferential.toFixed(0)}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[10px] text-muted-foreground">—</span>
-                                )}
-                              </TableCell>
-
-                              {/* Questionables */}
-                              <TableCell className="text-center p-2">
-                                {quesCount > 0 ? (
-                                  <span className="inline-flex items-center gap-0.5 text-xs font-semibold">
-                                    <span className="text-sm">🟡</span>
-                                    {quesCount}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-
-                              {/* OUT/BYE/EMPTY */}
-                              <TableCell className="text-center p-2">
-                                {outByeEmptyCount > 0 ? (
-                                  <span className="inline-flex items-center gap-0.5 text-xs font-semibold">
-                                    <span className="text-sm">🔴</span>
-                                    {outByeEmptyCount}
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-0.5 text-xs">
-                                    <span className="text-sm">🟢</span>
-                                  </span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  {sortedSummaries.map((lg, index) => {
+                    const isChecked = checkedLeagues.has(lg.league_id);
+                    const globalSettings = detectGlobalAutoSubSettings(sortedSummaries);
+                    
+                    return (
+                      <motion.div
+                        key={lg.league_id}
+                        ref={(el) => { leagueCardRefs.current[index] = el; }}
+                        className="animate-fadeIn relative"
+                        style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 0 }}
+                        dragElastic={0.2}
+                        onDragEnd={(e, info) => {
+                          if (info.offset.x < -100) {
+                            setCheckedLeagues(prev => new Set(Array.from(prev).concat(lg.league_id)));
+                          }
+                          else if (info.offset.x > 100 && isChecked) {
+                            setCheckedLeagues(prev => {
+                              const next = new Set(prev);
+                              next.delete(lg.league_id);
+                              return next;
+                            });
+                          }
+                        }}
+                        data-testid={`swipeable-card-${lg.league_id}`}
+                      >
+                        {isChecked && (
+                          <div className="absolute inset-0 bg-green-100 dark:bg-green-900/20 rounded-2xl border-2 border-green-500 z-10 flex items-center justify-center pointer-events-none">
+                            <div className="bg-green-500 text-white rounded-full p-3 shadow-lg">
+                              <Check className="w-8 h-8" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className={isChecked ? 'opacity-50' : ''}>
+                          <LeagueCard lg={lg} globalAutoSubSettings={globalSettings} />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </>
               ) : null}
             </section>
