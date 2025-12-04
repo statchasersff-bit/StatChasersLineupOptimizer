@@ -1488,28 +1488,28 @@ export default function MatchupsPage() {
             })}
           </div>
           
-          {/* Table View - shown on all screen sizes with horizontal scroll on mobile */}
+          {/* Table View - shown on all screen sizes, compact on mobile */}
           <div className="border rounded-lg overflow-x-auto">
-            <Table className="min-w-[600px]">
+            <Table className="text-xs md:text-sm md:min-w-[900px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-8 p-2"></TableHead>
+                  <TableHead className="w-[1%] px-1 py-1"></TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-accent min-w-[140px] p-2"
+                    className="cursor-pointer hover:bg-accent px-2 py-1"
                     onClick={() => handleSort("league")}
                     data-testid="header-league"
                   >
                     League {sortBy === "league" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-accent"
                     onClick={() => handleSort("record")}
                     data-testid="header-record"
                   >
                     W-L {sortBy === "record" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-accent"
                     onClick={() => handleSort("optMinusAct")}
                     data-testid="header-opt-act"
                   >
@@ -1523,7 +1523,7 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-accent"
                     onClick={() => handleSort("projectedResult")}
                     data-testid="header-projected-result"
                   >
@@ -1537,7 +1537,7 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-accent"
                     onClick={() => handleSort("quesCount")}
                     data-testid="header-ques"
                   >
@@ -1551,7 +1551,7 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
+                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-accent"
                     onClick={() => handleSort("notPlayingCount")}
                     data-testid="header-not-playing"
                   >
@@ -1580,23 +1580,23 @@ export default function MatchupsPage() {
                       onClick={() => toggleExpanded(league.leagueId)}
                       data-testid={`row-league-${league.leagueId}`}
                     >
-                      <TableCell className="p-2">
+                      <TableCell className="px-1 py-1 w-[1%]">
                         {expandedLeagues.has(league.leagueId) ? (
                           <ChevronDown className="h-4 w-4" />
                         ) : (
                           <ChevronRight className="h-4 w-4" />
                         )}
                       </TableCell>
-                      <TableCell className="p-2">
+                      <TableCell className="px-2 py-1">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-white font-bold text-xs">
+                          <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px] md:text-xs">
                             {league.leagueName.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-xs leading-tight truncate max-w-[120px] sm:max-w-none" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
+                            <div className="font-semibold leading-tight truncate max-w-[100px] sm:max-w-[120px] md:max-w-none" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
                               {league.leagueName}
                             </div>
-                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <div className="flex items-center gap-1 text-[9px] md:text-[10px] text-muted-foreground">
                               <span>{league.format}</span>
                               <span>·</span>
                               <span>{league.size}T</span>
@@ -1604,14 +1604,14 @@ export default function MatchupsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center p-2 text-xs" data-testid={`text-record-${league.leagueId}`}>
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap" data-testid={`text-record-${league.leagueId}`}>
                         {league.isComputing || !league.record ? (
                           <div className="h-4 bg-muted rounded w-10 mx-auto animate-pulse" />
                         ) : (
                           league.record
                         )}
                       </TableCell>
-                      <TableCell className="text-center p-2" data-testid={`text-status-${league.leagueId}`}>
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap" data-testid={`text-status-${league.leagueId}`}>
                         {league.isComputing || league.rowState === undefined ? (
                           <div className="h-4 bg-muted rounded w-16 mx-auto animate-pulse" />
                         ) : (
@@ -1626,51 +1626,51 @@ export default function MatchupsPage() {
                           />
                         )}
                       </TableCell>
-                      <TableCell className="text-center p-2">
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap">
                         {league.isComputing || !league.projectedResult ? (
-                          <div className="h-6 bg-muted rounded w-8 mx-auto animate-pulse" />
+                          <div className="h-5 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="flex items-center justify-center gap-1.5">
+                              <div className="flex items-center justify-center gap-1">
                                 {league.projectedResult === "W" && (
                                   <>
-                                    <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                      <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                    <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                                         <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd"/>
                                       </svg>
                                     </div>
-                                    <span className="text-xs font-medium text-green-600 dark:text-green-400" data-testid={`badge-result-${league.leagueId}`}>
-                                      {league.margin !== undefined && `${league.margin > 0 ? "+" : ""}${league.margin.toFixed(1)}`}
+                                    <span className="font-medium text-green-600 dark:text-green-400" data-testid={`badge-result-${league.leagueId}`}>
+                                      {league.margin !== undefined && `${league.margin > 0 ? "+" : ""}${league.margin.toFixed(0)}`}
                                     </span>
                                   </>
                                 )}
                                 {league.projectedResult === "L" && (
                                   <>
-                                    <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                                      <svg className="w-3.5 h-3.5 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                    <div className="w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                                         <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                                       </svg>
                                     </div>
-                                    <span className="text-xs font-medium text-red-600 dark:text-red-400" data-testid={`badge-result-${league.leagueId}`}>
-                                      {league.margin !== undefined && `${league.margin.toFixed(1)}`}
+                                    <span className="font-medium text-red-600 dark:text-red-400" data-testid={`badge-result-${league.leagueId}`}>
+                                      {league.margin !== undefined && `${league.margin.toFixed(0)}`}
                                     </span>
                                   </>
                                 )}
                                 {league.projectedResult === "T" && (
                                   <>
-                                    <div className="w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-                                      <svg className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                    <div className="w-5 h-5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                                         <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/>
                                       </svg>
                                     </div>
-                                    <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400" data-testid={`badge-result-${league.leagueId}`}>
+                                    <span className="font-medium text-yellow-600 dark:text-yellow-400" data-testid={`badge-result-${league.leagueId}`}>
                                       Tie
                                     </span>
                                   </>
                                 )}
                                 {league.projectedResult === "N/A" && (
-                                  <span className="text-xs text-muted-foreground">N/A</span>
+                                  <span className="text-muted-foreground">N/A</span>
                                 )}
                               </div>
                             </TooltipTrigger>
@@ -1683,30 +1683,29 @@ export default function MatchupsPage() {
                           </Tooltip>
                         )}
                       </TableCell>
-                      <TableCell className="text-center p-2">
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap">
                         {league.isComputing || league.quesCount === undefined ? (
-                          <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
+                          <div className="h-4 bg-muted rounded w-6 mx-auto animate-pulse" />
                         ) : league.quesCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold" data-testid={`badge-ques-${league.leagueId}`}>
-                            <span className="text-base">🟡</span>
+                          <span className="inline-flex items-center gap-0.5 font-semibold" data-testid={`badge-ques-${league.leagueId}`}>
+                            <span className="text-sm">🟡</span>
                             {league.quesCount}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-center p-2">
+                      <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap">
                         {league.isComputing || league.notPlayingCount === undefined ? (
-                          <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
+                          <div className="h-4 bg-muted rounded w-6 mx-auto animate-pulse" />
                         ) : league.notPlayingCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold" data-testid={`badge-not-playing-${league.leagueId}`}>
-                            <span className="text-base">🔴</span>
+                          <span className="inline-flex items-center gap-0.5 font-semibold" data-testid={`badge-not-playing-${league.leagueId}`}>
+                            <span className="text-sm">🔴</span>
                             {league.notPlayingCount}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold">
-                            <span className="text-base">🟢</span>
-                            0
+                          <span className="inline-flex items-center gap-0.5 font-semibold">
+                            <span className="text-sm">🟢</span>
                           </span>
                         )}
                       </TableCell>
