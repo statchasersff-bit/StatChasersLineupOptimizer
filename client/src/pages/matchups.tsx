@@ -1494,21 +1494,21 @@ export default function MatchupsPage() {
               <TableHeader className="bg-primary">
                 <TableRow>
                   <TableHead 
-                    className="cursor-pointer hover:bg-primary/80 px-2 py-1 text-primary-foreground border-r border-primary-foreground/30"
+                    className={`cursor-pointer hover:bg-primary/80 px-2 py-1 border-r border-primary-foreground/30 ${sortBy === "league" ? "bg-accent text-accent-foreground" : "text-primary-foreground"}`}
                     onClick={() => handleSort("league")}
                     data-testid="header-league"
                   >
                     League {sortBy === "league" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground border-r border-primary-foreground/30"
+                    className={`px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 border-r border-primary-foreground/30 ${sortBy === "record" ? "bg-accent text-accent-foreground" : "text-primary-foreground"}`}
                     onClick={() => handleSort("record")}
                     data-testid="header-record"
                   >
                     Record {sortBy === "record" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground border-r border-primary-foreground/30"
+                    className={`px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 border-r border-primary-foreground/30 ${sortBy === "optMinusAct" ? "bg-accent text-accent-foreground" : "text-primary-foreground"}`}
                     onClick={() => handleSort("optMinusAct")}
                     data-testid="header-opt-act"
                   >
@@ -1522,7 +1522,7 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground border-r border-primary-foreground/30"
+                    className={`px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 border-r border-primary-foreground/30 ${sortBy === "projectedResult" ? "bg-accent text-accent-foreground" : "text-primary-foreground"}`}
                     onClick={() => handleSort("projectedResult")}
                     data-testid="header-projected-result"
                   >
@@ -1536,7 +1536,7 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 text-primary-foreground border-r border-primary-foreground/30"
+                    className={`px-1 py-1 text-center w-[1%] whitespace-nowrap cursor-pointer hover:bg-primary/80 border-r border-primary-foreground/30 ${sortBy === "quesCount" ? "bg-accent text-accent-foreground" : "text-primary-foreground"}`}
                     onClick={() => handleSort("quesCount")}
                     data-testid="header-ques"
                   >
@@ -1550,7 +1550,7 @@ export default function MatchupsPage() {
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="px-1 py-1 text-center w-[1%] cursor-pointer hover:bg-primary/80 text-primary-foreground"
+                    className={`px-1 py-1 text-center w-[1%] cursor-pointer hover:bg-primary/80 ${sortBy === "notPlayingCount" ? "bg-accent text-accent-foreground" : "text-primary-foreground"}`}
                     onClick={() => handleSort("notPlayingCount")}
                     data-testid="header-not-playing"
                   >
@@ -1666,7 +1666,7 @@ export default function MatchupsPage() {
                             {league.quesCount}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-sm">🟢</span>
                         )}
                       </TableCell>
                       <TableCell className="px-1 py-1 text-center w-[1%] whitespace-nowrap">
