@@ -1493,7 +1493,6 @@ export default function MatchupsPage() {
             <Table className="text-xs md:text-sm md:min-w-[900px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[1%] px-1 py-1"></TableHead>
                   <TableHead 
                     className="cursor-pointer hover:bg-accent px-2 py-1"
                     onClick={() => handleSort("league")}
@@ -1574,23 +1573,10 @@ export default function MatchupsPage() {
                 {sortedMetrics.map((league) => (
                   <Fragment key={league.leagueId}>
                     <TableRow
-                      className={`cursor-pointer ${
-                        league.projectedResult === "W" 
-                          ? "border-l-4 border-l-green-500" 
-                          : league.projectedResult === "L"
-                          ? "border-l-4 border-l-red-500"
-                          : ""
-                      }`}
+                      className="cursor-pointer"
                       onClick={() => toggleExpanded(league.leagueId)}
                       data-testid={`row-league-${league.leagueId}`}
                     >
-                      <TableCell className="px-1 py-1 w-[1%]">
-                        {expandedLeagues.has(league.leagueId) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </TableCell>
                       <TableCell className="px-2 py-1">
                         <div className="min-w-0">
                           <div className="font-semibold leading-tight truncate max-w-[100px] sm:max-w-[120px] md:max-w-none" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
@@ -1702,7 +1688,7 @@ export default function MatchupsPage() {
                     {/* Expanded Row Content */}
                     {expandedLeagues.has(league.leagueId) && (
                       <TableRow data-testid={`expanded-${league.leagueId}`}>
-                        <TableCell colSpan={7} className="bg-muted/50 p-3 sm:p-6">
+                        <TableCell colSpan={6} className="bg-muted/50 p-3 sm:p-6">
                           {league.isComputing ? (
                             <StatChasersLoader message="Analyzing league..." />
                           ) : (
