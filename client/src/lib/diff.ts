@@ -182,26 +182,13 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
   // Sort by projection (highest first) to ensure higher-impact recommendations
   // get paired with weaker displaced players first
   const newPlayerIds = optIds.filter(pid => !curSet.has(pid));
-  const newPlayersWithProj = newPlayerIds
+  const sortedNewPlayers = newPlayerIds
     .map(pid => {
       const p = optPlayers.find(x => x.player_id === pid);
-      return { pid, name: p?.name ?? pid, proj: p?.proj ?? 0 };
-    });
-  
-  // DEBUG: Log before and after sorting for Big Ole TDs
-  if ((lg as any).name?.includes('Big Ole TDs')) {
-    console.log('[DIFF-DEBUG] Before sorting:', newPlayersWithProj.map(p => `${p.name}: ${p.proj}`));
-    console.log('[DIFF-DEBUG] allBenchedPlayers:', allBenchedPlayers.map(p => `${p.name}: ${p.proj}`));
-  }
-  
-  const sortedNewPlayers = [...newPlayersWithProj]
+      return { pid, proj: p?.proj ?? 0 };
+    })
     .sort((a, b) => b.proj - a.proj) // Highest projection first
     .map(x => x.pid);
-  
-  if ((lg as any).name?.includes('Big Ole TDs')) {
-    const sorted = [...newPlayersWithProj].sort((a, b) => b.proj - a.proj);
-    console.log('[DIFF-DEBUG] After sorting:', sorted.map(p => `${p.name}: ${p.proj}`));
-  }
   
   // For each promotion, pair with an available benched player
   for (const inPid of sortedNewPlayers) {

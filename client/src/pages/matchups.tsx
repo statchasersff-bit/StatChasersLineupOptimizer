@@ -1347,8 +1347,8 @@ export default function MatchupsPage() {
             )}
           </div>
 
-          {/* Mobile Help & Explainer - shown only on mobile */}
-          <div className="sm:hidden mb-4">
+          {/* Help & Legend - collapsible on all screen sizes */}
+          <div className="mb-4">
             <button 
               className="help-toggle"
               onClick={() => setShowHelp(!showHelp)}
@@ -1359,53 +1359,14 @@ export default function MatchupsPage() {
             
             <div className={`help-panel ${showHelp ? '' : 'hidden'}`}>
               <p><strong>Record:</strong> Your current win-loss record</p>
-              <p><strong>Δ (Delta):</strong> Points gained if you apply suggested changes</p>
-              <p><strong>MRGN (Margin):</strong> Expected margin of victory (+) or loss (-)</p>
-              <p><strong>Win Bar:</strong> Your probability of winning this week</p>
-              <p><strong>Dots:</strong> 🟡 Questionable · 🔴 Out/Bye/Empty · 🟢 All clear</p>
+              <p><strong>Opt-Act:</strong> Points gained if you apply suggested changes</p>
+              <p><strong>Proj Result:</strong> Expected win/loss with margin</p>
+              <p><strong>Indicators:</strong> 🟡 Questionable · 🔴 Out/Bye/Empty · 🟢 All clear</p>
             </div>
-
-            <p className="view-explainer">
-              <strong>Matchup Overview:</strong> Each row shows your team's projected score (<span className="highlight">left</span>), 
-              opponent score (<span className="highlight">right</span>), and win probability (<span className="highlight">bar</span>) — 
-              plus lineup efficiency and injury alerts below.
-            </p>
           </div>
 
-          {/* Mobile Sorting Controls - shown only on mobile */}
-          <div className="sm:hidden mb-4 flex items-center gap-3 bg-card border rounded-lg p-3" data-testid="mobile-sort-controls">
-            <label className="text-sm font-medium text-muted-foreground flex-shrink-0">Sort by:</label>
-            <Select 
-              value={sortBy} 
-              onValueChange={(value) => handleSort(value as typeof sortBy)}
-            >
-              <SelectTrigger className="flex-1" data-testid="select-sort-column">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="league">League Name</SelectItem>
-                <SelectItem value="record">Record</SelectItem>
-                <SelectItem value="optMinusAct">Lineup Efficiency (+Δ)</SelectItem>
-                <SelectItem value="projectedResult">Projected Margin (RES)</SelectItem>
-                <SelectItem value="quesCount">Questionable Players</SelectItem>
-                <SelectItem value="notPlayingCount">Out/Bye/Empty</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
-              className="flex-shrink-0"
-              data-testid="button-toggle-sort-order"
-              title={sortOrder === "desc" ? "Sort descending" : "Sort ascending"}
-            >
-              <ArrowUpDown className="h-4 w-4" />
-              <span className="sr-only">Toggle sort order</span>
-            </Button>
-          </div>
-
-          {/* Compact Mobile View - shown only on mobile */}
-          <div className="sm:hidden space-y-2 mb-6 page-content" data-testid="compact-mobile-view">
+          {/* Compact Mobile View - REMOVED: Now using table on all screen sizes */}
+          <div className="hidden" data-testid="compact-mobile-view">
             {sortedMetrics.map((league) => {
               const myProj = league.optPoints ?? 0;
               const oppProj = league.opponentPoints ?? 0;
@@ -1527,79 +1488,79 @@ export default function MatchupsPage() {
             })}
           </div>
           
-          {/* Table View - shown only on desktop */}
-          <div className="hidden sm:block border rounded-lg overflow-x-auto">
-            <Table>
+          {/* Table View - shown on all screen sizes with horizontal scroll on mobile */}
+          <div className="border rounded-lg overflow-x-auto">
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-8 sm:w-12"></TableHead>
+                  <TableHead className="w-8 p-2"></TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-accent min-w-[180px]"
+                    className="cursor-pointer hover:bg-accent min-w-[140px] p-2"
                     onClick={() => handleSort("league")}
                     data-testid="header-league"
                   >
                     League {sortBy === "league" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent min-w-[80px]"
+                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
                     onClick={() => handleSort("record")}
                     data-testid="header-record"
                   >
-                    Record {sortBy === "record" && (sortOrder === "desc" ? "↓" : "↑")}
+                    W-L {sortBy === "record" && (sortOrder === "desc" ? "↓" : "↑")}
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent"
+                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
                     onClick={() => handleSort("optMinusAct")}
                     data-testid="header-opt-act"
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        Opt-Act {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
+                        +Δ {sortBy === "optMinusAct" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
-                        Projected points if you set the optimal lineup minus your current starters
+                        Points gained if you apply suggested lineup changes
                       </TooltipContent>
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent"
+                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
                     onClick={() => handleSort("projectedResult")}
                     data-testid="header-projected-result"
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        Proj Result {sortBy === "projectedResult" && (sortOrder === "desc" ? "↓" : "↑")}
+                        Result {sortBy === "projectedResult" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
-                        W/L based on your total vs your opponent's total (optimal lineups)
+                        Projected W/L based on optimal lineups
                       </TooltipContent>
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent"
+                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
                     onClick={() => handleSort("quesCount")}
                     data-testid="header-ques"
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        QUES? {sortBy === "quesCount" && (sortOrder === "desc" ? "↓" : "↑")}
+                        🟡 {sortBy === "quesCount" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
-                        Number of starters listed as Questionable/Doubtful/Suspended
+                        Questionable/Doubtful starters
                       </TooltipContent>
                     </Tooltip>
                   </TableHead>
                   <TableHead 
-                    className="text-center cursor-pointer hover:bg-accent"
+                    className="text-center cursor-pointer hover:bg-accent p-2 whitespace-nowrap"
                     onClick={() => handleSort("notPlayingCount")}
                     data-testid="header-not-playing"
                   >
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        OUT/BYE/EMPTY? {sortBy === "notPlayingCount" && (sortOrder === "desc" ? "↓" : "↑")}
+                        🔴 {sortBy === "notPlayingCount" && (sortOrder === "desc" ? "↓" : "↑")}
                       </TooltipTrigger>
                       <TooltipContent>
-                        Players who will score 0 unless changed (Out, Bye, or Empty slot)
+                        OUT/BYE/EMPTY starters
                       </TooltipContent>
                     </Tooltip>
                   </TableHead>
@@ -1619,41 +1580,38 @@ export default function MatchupsPage() {
                       onClick={() => toggleExpanded(league.leagueId)}
                       data-testid={`row-league-${league.leagueId}`}
                     >
-                      <TableCell data-label="">
+                      <TableCell className="p-2">
                         {expandedLeagues.has(league.leagueId) ? (
                           <ChevronDown className="h-4 w-4" />
                         ) : (
                           <ChevronRight className="h-4 w-4" />
                         )}
                       </TableCell>
-                      <TableCell data-label="League">
-                        <div className="flex items-start gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                      <TableCell className="p-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-white font-bold text-xs">
                             {league.leagueName.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-bold text-sm leading-tight mb-1" data-testid={`text-league-name-${league.leagueId}`}>
+                            <div className="font-semibold text-xs leading-tight truncate max-w-[120px] sm:max-w-none" data-testid={`text-league-name-${league.leagueId}`} title={league.leagueName}>
                               {league.leagueName}
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="secondary" className="text-xs" data-testid={`badge-format-${league.leagueId}`}>
-                                {league.format}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs" data-testid={`badge-size-${league.leagueId}`}>
-                                {league.size} teams
-                              </Badge>
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <span>{league.format}</span>
+                              <span>·</span>
+                              <span>{league.size}T</span>
                             </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center" data-label="Record" data-testid={`text-record-${league.leagueId}`}>
+                      <TableCell className="text-center p-2 text-xs" data-testid={`text-record-${league.leagueId}`}>
                         {league.isComputing || !league.record ? (
-                          <div className="h-4 bg-muted rounded w-12 mx-auto animate-pulse" />
+                          <div className="h-4 bg-muted rounded w-10 mx-auto animate-pulse" />
                         ) : (
                           league.record
                         )}
                       </TableCell>
-                      <TableCell className="text-center" data-label="Status" data-testid={`text-status-${league.leagueId}`}>
+                      <TableCell className="text-center p-2" data-testid={`text-status-${league.leagueId}`}>
                         {league.isComputing || league.rowState === undefined ? (
                           <div className="h-4 bg-muted rounded w-16 mx-auto animate-pulse" />
                         ) : (
@@ -1668,7 +1626,7 @@ export default function MatchupsPage() {
                           />
                         )}
                       </TableCell>
-                      <TableCell className="text-center" data-label="Proj Result">
+                      <TableCell className="text-center p-2">
                         {league.isComputing || !league.projectedResult ? (
                           <div className="h-6 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : (
@@ -1725,7 +1683,7 @@ export default function MatchupsPage() {
                           </Tooltip>
                         )}
                       </TableCell>
-                      <TableCell className="text-center" data-label="QUES?">
+                      <TableCell className="text-center p-2">
                         {league.isComputing || league.quesCount === undefined ? (
                           <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : league.quesCount > 0 ? (
@@ -1737,7 +1695,7 @@ export default function MatchupsPage() {
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-center" data-label="OUT/BYE/EMPTY?">
+                      <TableCell className="text-center p-2">
                         {league.isComputing || league.notPlayingCount === undefined ? (
                           <div className="h-4 bg-muted rounded w-8 mx-auto animate-pulse" />
                         ) : league.notPlayingCount > 0 ? (

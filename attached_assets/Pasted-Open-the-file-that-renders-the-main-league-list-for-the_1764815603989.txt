@@ -1,0 +1,98 @@
+Open the file that renders the main league list for the StatChasers Lineup Checker (the one that calls LeagueCard in a .map). It will import LeagueCard from "../components/LeagueCard" (or similar).
+
+Replace the block where we map over LeagueCard with a proper shadcn table that uses Table, TableHeader, TableBody, TableRow, TableHead, and TableCell from @/components/ui/table.
+
+Use this exact JSX for the league table (assume the array is called leagueSummaries and each item is a LeagueSummary):
+
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+
+function LeagueSummaryTable({ leagueSummaries }: { leagueSummaries: LeagueSummary[] }) {
+  return (
+    <Table className="min-w-[900px]">
+      <TableHeader>
+        <TableRow>
+          <TableHead>League</TableHead>
+          <TableHead className="text-center">Record</TableHead>
+          <TableHead className="text-center">Opt-Act Δ</TableHead>
+          <TableHead className="text-center">Proj Result</TableHead>
+          <TableHead className="text-center">QUES?</TableHead>
+          <TableHead className="text-center">OUT/BYE/EMPTY?</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {leagueSummaries.map((lg) => (
+          <TableRow key={lg.league_id}>
+            {/* League name + meta */}
+            <TableCell>
+              <div className="font-semibold truncate">{lg.name}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {lg.rosterUserDisplay} • {lg.scoringType} • {lg.teamCount} teams
+              </div>
+            </TableCell>
+
+            {/* Record */}
+            <TableCell className="text-center">
+              {lg.record}
+            </TableCell>
+
+            {/* Opt-Act delta */}
+            <TableCell
+              className={cn(
+                "text-center font-semibold",
+                (lg.achievableDelta ?? lg.delta) >= 0
+                  ? "text-emerald-600"
+                  : "text-red-600"
+              )}
+            >
+              {(lg.achievableDelta ?? lg.delta) >= 0 ? "+" : ""}
+              {(lg.achievableDelta ?? lg.delta).toFixed(1)} pts
+            </TableCell>
+
+            {/* Projected result column */}
+            <TableCell className="text-center">
+              {lg.projectedWin === true
+                ? "Projected Win"
+                : lg.projectedWin === false
+                ? "Projected Loss"
+                : "Even"}
+            </TableCell>
+
+            {/* Questionables */}
+            <TableCell className="text-center">
+              {lg.quesCount ?? 0}
+            </TableCell>
+
+            {/* OUT/BYE/EMPTY */}
+            <TableCell className="text-center">
+              {lg.outByeEmptyCount ?? 0}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+
+Use LeagueSummaryTable in the page instead of rendering a vertical list of LeagueCards. For example, replace:
+
+<div className="space-y-4">
+  {leagueSummaries.map((lg) => (
+    <LeagueCard key={lg.league_id} lg={lg} globalAutoSubSettings={globalAutoSubSettings} />
+  ))}
+</div>
+
+
+with:
+
+<LeagueSummaryTable leagueSummaries={leagueSummaries} />
+
+
+Make sure there is no hidden md:block / md:hidden wrapping the table – I want the same table on mobile and desktop, with horizontal scroll on small screens (the Table component already wraps itself in overflow-auto).
