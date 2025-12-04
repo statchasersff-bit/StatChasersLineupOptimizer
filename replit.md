@@ -9,7 +9,15 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
-The frontend is a modern React application built with Vite and TypeScript, utilizing `shadcn/ui` components based on Radix UI for a consistent and accessible design system. TailwindCSS handles styling, supporting dark mode and custom theming. The home page uses detailed LeagueCard components with swipe gestures for marking leagues as reviewed. The matchups page uses a table-based layout that works consistently across all screen sizes with horizontal scrolling on mobile. Visual indicators like color-coded deltas, win/loss badges, and player availability badges enhance user understanding.
+The frontend is a modern React application built with Vite and TypeScript, utilizing `shadcn/ui` components based on Radix UI for a consistent and accessible design system. TailwindCSS handles styling, supporting dark mode and custom theming. The matchups page uses a table-based layout that works consistently across all screen sizes with horizontal scrolling on mobile. Visual indicators like color-coded deltas, win/loss badges, and player availability badges enhance user understanding.
+
+**Home Page Compact Design (Dec 2025)**: The LeagueCard component uses a 2-row layout to reduce scroll fatigue:
+- Row 1: League avatar, name (truncated), delta badge, status icons (🔴 OUT, 🟡 QUES, ✅ optimal)
+- Row 2: Auto-sub indicator, micro win probability bar (5 segments), opponent, changes count
+- Color-coded left borders: Red (missing starters), Yellow (questionables), Green (optimal), Blue (improvements available)
+- Accordion tabs: Changes/Lineup/Waivers sections with exclusive expansion (only one open at a time)
+- Floating Summary HUD: Sticky header showing total missing, questionable, delta points, and league count
+- Pill toggle toolbar: Sort options (Δ pts, Win %, Injuries, A-Z) as compact pills instead of dropdown
 
 ### Technical Implementations
 The application follows a component-based architecture for the frontend and a RESTful API pattern for the Express.js (TypeScript) backend. Client-side state is managed with React Query for server state synchronization and caching, while local state uses React hooks. Form management is handled by React Hook Form with Zod for validation. The core includes a sophisticated lineup optimization engine that respects fantasy football roster rules (e.g., FLEX, SUPER_FLEX), integrates free agents, and identifies risky starters. A greedy pairing algorithm powers the recommendations engine, focusing on actionable bench-to-starter promotions and distinguishing between roster moves and free agent pickups. Advanced league filtering detects dynasty/keeper leagues and persists preferences. A waiver watchlist system suggests optimal free agent pickups, considering league-specific roster slots, excluding kickers, and applying blocklist filters. Special scoring rules apply: kickers (K) and defenses (DEF/DST) use direct "proj" values, while offensive positions (QB, RB, WR, TE) use league-specific scoring settings. The system automatically detects the current week by scanning projection files from week 18 down to 1.
