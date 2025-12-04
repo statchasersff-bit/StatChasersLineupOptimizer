@@ -1373,33 +1373,110 @@ export default function Home() {
               <h2 className="text-xl sm:text-2xl font-bold text-foreground">League Insights</h2>
             </div>
 
-            {/* Filter and Sort Controls */}
+            {/* Floating Summary HUD */}
             {!isAnalyzing && sortedSummaries.length > 0 && (
-              <div className="mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-                {/* Sort Dropdown */}
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-                  <select
-                    className="text-sm border rounded-md px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    data-testid="select-sort"
+              <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm border-b shadow-sm -mx-4 px-4 py-2 mb-4" data-testid="summary-hud">
+                <div className="flex items-center justify-between gap-2 text-xs sm:text-sm">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* Missing starters count */}
+                    {(() => {
+                      const totalOut = sortedSummaries.reduce((sum, lg) => sum + (lg.outByeEmptyCount ?? 0), 0);
+                      return totalOut > 0 ? (
+                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
+                          <span>🔴</span> {totalOut} Missing
+                        </span>
+                      ) : null;
+                    })()}
+                    
+                    {/* Questionable count */}
+                    {(() => {
+                      const totalQues = sortedSummaries.reduce((sum, lg) => sum + (lg.quesCount ?? 0), 0);
+                      return totalQues > 0 ? (
+                        <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400 font-medium">
+                          <span>🟡</span> {totalQues} Ques
+                        </span>
+                      ) : null;
+                    })()}
+                    
+                    {/* Total possible points */}
+                    {(() => {
+                      const totalDelta = sortedSummaries.reduce((sum, lg) => sum + (lg.achievableDelta ?? lg.delta), 0);
+                      return (
+                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
+                          <span>+{totalDelta.toFixed(1)}</span> pts
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  
+                  {/* League counter */}
+                  <span className="text-muted-foreground font-medium whitespace-nowrap">
+                    {sortedSummaries.length} League{sortedSummaries.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Sort Pill Toolbar + Filters */}
+            {!isAnalyzing && sortedSummaries.length > 0 && (
+              <div className="mb-4 space-y-3">
+                {/* Sort Pills */}
+                <div className="flex flex-wrap items-center gap-1.5" data-testid="sort-pills">
+                  <span className="text-xs text-muted-foreground mr-1">Sort:</span>
+                  <button
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                      sortBy === 'delta'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                    }`}
+                    onClick={() => setSortBy('delta')}
+                    data-testid="pill-sort-delta"
                   >
-                    <option value="delta">Sort by: Biggest Improvements</option>
-                    <option value="winProbability">Sort by: Win Probability</option>
-                    <option value="injuries">Sort by: Most Injuries</option>
-                    <option value="alphabetical">Sort by: A-Z</option>
-                  </select>
+                    Δ pts
+                  </button>
+                  <button
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                      sortBy === 'winProbability'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                    }`}
+                    onClick={() => setSortBy('winProbability')}
+                    data-testid="pill-sort-win"
+                  >
+                    Win %
+                  </button>
+                  <button
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                      sortBy === 'injuries'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                    }`}
+                    onClick={() => setSortBy('injuries')}
+                    data-testid="pill-sort-injuries"
+                  >
+                    Injuries
+                  </button>
+                  <button
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                      sortBy === 'alphabetical'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                    }`}
+                    onClick={() => setSortBy('alphabetical')}
+                    data-testid="pill-sort-az"
+                  >
+                    A-Z
+                  </button>
                 </div>
 
                 {/* Filter Chips */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <Filter className="w-4 h-4 text-muted-foreground" />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground mr-1">Filter:</span>
                   <button
                     className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
                       filterInjuries
                         ? 'bg-red-500 text-white shadow-md'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
                     }`}
                     onClick={() => setFilterInjuries(!filterInjuries)}
                     data-testid="button-filter-injuries"
@@ -1411,31 +1488,31 @@ export default function Home() {
                     className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
                       filterBigDelta
                         ? 'bg-green-500 text-white shadow-md'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
                     }`}
                     onClick={() => setFilterBigDelta(!filterBigDelta)}
                     data-testid="button-filter-big-delta"
                   >
                     {filterBigDelta && <X className="w-3 h-3 inline mr-1" />}
-                    5+ Pts Improvement
+                    5+ Pts
                   </button>
                   {(filterInjuries || filterBigDelta) && (
                     <button
-                      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
+                      className="text-xs text-muted-foreground hover:text-foreground underline"
                       onClick={() => {
                         setFilterInjuries(false);
                         setFilterBigDelta(false);
                       }}
                       data-testid="button-clear-filters"
                     >
-                      Clear All
+                      Clear
                     </button>
                   )}
                 </div>
               </div>
             )}
 
-            <section className="space-y-3 md:space-y-4">
+            <section className="space-y-2">
               {isAnalyzing ? (
                 <>
                   <StatChasersLoader 
