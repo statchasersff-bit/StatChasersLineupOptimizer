@@ -204,42 +204,40 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     const currentSlotPlayerId = curIds[slotIdx];
     const slotIsTrulyEmpty = !currentSlotPlayerId;
     
-    // Find available (unconsumed) benched players
-    const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
-    
     // Determine primary displaced player
-    // KEY INSIGHT: When an FA enters the optimal lineup, it causes a chain reaction.
-    // The actual displaced player is someone who WAS starting but is NOT in optimal.
-    // 
-    // PAIRING STRATEGY:
-    // 1. First try to find a position-compatible displaced player (same position family)
-    // 2. If none found, fall back to the weakest remaining displaced player
-    // This ensures RB additions prefer to show benched RB/FLEX players, etc.
+    // PRIORITY 1: Use the actual player from the moves array (slot-level accurate)
+    // PRIORITY 2: Fall back to weakest available benched player (for cascade scenarios)
     let displaced: { name: string; pos: string } | null = null;
     let displacedId: string | null = null;
     
-    if (availableBenched.length > 0) {
-      // SIMPLIFIED PAIRING STRATEGY:
-      // Due to cascade effects, position matching doesn't work well.
-      // Example: RB enters RB slot → pushes existing RB to FLEX → pushes WR from FLEX
-      // The actual benched player is often a different position than the entering player.
-      // 
-      // New approach: Simply assign the weakest remaining displaced player.
-      // This ensures each recommendation shows SOMEONE being benched.
+    // First, check if moves array has the correct displaced player for this slot
+    const matchingMove = moves.find(m => m.in_pid === inPid);
+    if (matchingMove?.out_pid && matchingMove?.out_name && !consumedBenchIds.has(matchingMove.out_pid)) {
+      // Use the actual displaced player from the slot-level diff
+      const outPlayer = allBenchedPlayers.find(p => p.player_id === matchingMove.out_pid);
+      displaced = {
+        name: matchingMove.out_name,
+        pos: outPlayer?.pos ?? ''
+      };
+      displacedId = matchingMove.out_pid;
+      consumedBenchIds.add(displacedId);
+    } else {
+      // Fallback: Find available (unconsumed) benched players for cascade scenarios
+      const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
       
-      // Sort by lowest projection first - weakest player gets paired first
-      const sortedBenched = [...availableBenched].sort((a, b) => a.proj - b.proj);
-      const chosenPlayer = sortedBenched[0];
-      
-      if (chosenPlayer) {
-        displaced = {
-          name: chosenPlayer.name,
-          pos: chosenPlayer.pos
-        };
-        displacedId = chosenPlayer.player_id;
+      if (availableBenched.length > 0) {
+        // Sort by lowest projection first - weakest player gets paired first
+        const sortedBenched = [...availableBenched].sort((a, b) => a.proj - b.proj);
+        const chosenPlayer = sortedBenched[0];
         
-        // Mark this bench player as consumed
-        consumedBenchIds.add(displacedId);
+        if (chosenPlayer) {
+          displaced = {
+            name: chosenPlayer.name,
+            pos: chosenPlayer.pos
+          };
+          displacedId = chosenPlayer.player_id;
+          consumedBenchIds.add(displacedId);
+        }
       }
     }
     
