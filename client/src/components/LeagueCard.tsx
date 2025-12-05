@@ -422,6 +422,10 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                           );
                         })}
                       </div>
+                    ) : outCount > 0 ? (
+                      <div className="text-center py-4 text-xs sm:text-sm text-amber-600 dark:text-amber-400">
+                        ⚠️ {outCount} empty/unavailable starter{outCount > 1 ? 's' : ''} - no fix available on roster
+                      </div>
                     ) : (
                       <div className="text-center py-4 text-xs sm:text-sm text-green-600 dark:text-green-400">
                         ✅ Lineup is optimal!
