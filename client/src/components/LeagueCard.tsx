@@ -43,25 +43,23 @@ function getLeagueColor(name: string): string {
 }
 
 // Determine left border color based on status
+// QUES players are informational only and should NOT affect optimal status
 function getStatusBorderColor(lg: LeagueSummary): string {
   const outCount = lg.outByeEmptyCount ?? 0;
-  const quesCount = lg.quesCount ?? 0;
   const delta = lg.achievableDelta ?? lg.delta;
   
   if (outCount > 0) return 'border-l-red-500';
-  if (quesCount > 0) return 'border-l-yellow-500';
   if (delta <= 0.1) return 'border-l-green-500';
   return 'border-l-blue-500';
 }
 
 // Determine background color based on status
+// QUES players are informational only and should NOT affect optimal status
 function getStatusBackground(lg: LeagueSummary): string {
   const outCount = lg.outByeEmptyCount ?? 0;
-  const quesCount = lg.quesCount ?? 0;
   const delta = lg.achievableDelta ?? lg.delta;
   
   if (outCount > 0) return 'bg-red-50/50 dark:bg-red-950/10';
-  if (quesCount > 0) return 'bg-yellow-50/50 dark:bg-yellow-950/10';
   if (delta <= 0.1) return 'bg-green-50/50 dark:bg-green-950/10';
   return 'bg-card';
 }
@@ -196,7 +194,7 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                 <span className="text-yellow-600 dark:text-yellow-400">{quesCount}</span>
               </span>
             )}
-            {outCount === 0 && quesCount === 0 && delta <= 0.1 && (
+            {outCount === 0 && delta <= 0.1 && (
               <span className="text-xs">✅</span>
             )}
           </div>
