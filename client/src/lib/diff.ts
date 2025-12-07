@@ -39,8 +39,14 @@ export type EnrichedRecommendation = {
 export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?: string[]): LineupDiff {
   const fixedSlots = lg.roster_positions;
 
-  // current starters (by player_id -> info)
-  const curIds = lg.starters.filter((x): x is string => !!x);
+  // CRITICAL: Preserve slot positions with null for empty slots
+  // This ensures slot index lookups are accurate (e.g., DEF at index 11 stays at index 11)
+  const currentStarters: (string | null)[] = lg.starters.map(pid => 
+    (pid && pid !== "0") ? pid : null
+  );
+  
+  // Filtered version for set membership checks only (not index-based lookups)
+  const curIds = currentStarters.filter((x): x is string => x !== null);
   const curSet = new Set(curIds);
 
   // optimal starters (by player_id -> info)
@@ -77,7 +83,8 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     const slot = s.slot;
     if (!inP) return;
 
-    const curPidAtSlot = curIds[i]; // what the user currently has in the same slot index
+    // Use currentStarters (preserves nulls) for accurate slot-index lookup
+    const curPidAtSlot = currentStarters[i]; // what the user currently has in the same slot index
     const same = curPidAtSlot === inP.player_id;
 
     if (!same && !usedIn.has(inP.player_id)) {
@@ -162,8 +169,9 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
   const consumedBenchIds = new Set<string>();
   
   // Detect cascade moves once for all recommendations
+  // Use currentStarters (with nulls) to preserve correct slot indexes
   const allCascadeMoves: { player_id: string; name: string; from: string; to: string }[] = [];
-  curIds.forEach((curPid, idx) => {
+  currentStarters.forEach((curPid, idx) => {
     if (curPid && optSet.has(curPid)) {
       const optIdx = optIds.indexOf(curPid);
       if (optIdx !== -1 && optIdx !== idx) {
@@ -202,43 +210,49 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     if (!slot) continue;
     
     // CRITICAL: Check if the current slot is actually empty (no player assigned)
-    // This is the TRUE empty check - not whether we have a bench player to displace
-    const currentSlotPlayerId = curIds[slotIdx];
+    // Use currentStarters (preserves nulls) for accurate slot-index lookup
+    const currentSlotPlayerId = currentStarters[slotIdx];
     const slotIsTrulyEmpty = !currentSlotPlayerId;
     
     // Determine primary displaced player
-    // PRIORITY 1: Use the actual player from the moves array (slot-level accurate)
-    // PRIORITY 2: Fall back to weakest available benched player (for cascade scenarios)
+    // PRIORITY 1: If slot is truly empty, no one is displaced
+    // PRIORITY 2: Use the actual player from the moves array (slot-level accurate)
+    // PRIORITY 3: Fall back to weakest available benched player (for cascade scenarios)
     let displaced: { name: string; pos: string } | null = null;
     let displacedId: string | null = null;
     
-    // First, check if moves array has the correct displaced player for this slot
-    const matchingMove = moves.find(m => m.in_pid === inPid);
-    if (matchingMove?.out_pid && matchingMove?.out_name && !consumedBenchIds.has(matchingMove.out_pid)) {
-      // Use the actual displaced player from the slot-level diff
-      const outPlayer = allBenchedPlayers.find(p => p.player_id === matchingMove.out_pid);
-      displaced = {
-        name: matchingMove.out_name,
-        pos: outPlayer?.pos ?? ''
-      };
-      displacedId = matchingMove.out_pid;
-      consumedBenchIds.add(displacedId);
+    // If slot is truly empty, skip all displacement logic - no one is benched
+    if (slotIsTrulyEmpty) {
+      // displaced stays null, isFillingEmpty will be true
     } else {
-      // Fallback: Find available (unconsumed) benched players for cascade scenarios
-      const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
-      
-      if (availableBenched.length > 0) {
-        // Sort by lowest projection first - weakest player gets paired first
-        const sortedBenched = [...availableBenched].sort((a, b) => a.proj - b.proj);
-        const chosenPlayer = sortedBenched[0];
+      // First, check if moves array has the correct displaced player for this slot
+      const matchingMove = moves.find(m => m.in_pid === inPid);
+      if (matchingMove?.out_pid && matchingMove?.out_name && !consumedBenchIds.has(matchingMove.out_pid)) {
+        // Use the actual displaced player from the slot-level diff
+        const outPlayer = allBenchedPlayers.find(p => p.player_id === matchingMove.out_pid);
+        displaced = {
+          name: matchingMove.out_name,
+          pos: outPlayer?.pos ?? ''
+        };
+        displacedId = matchingMove.out_pid;
+        consumedBenchIds.add(displacedId);
+      } else {
+        // Fallback: Find available (unconsumed) benched players for cascade scenarios
+        const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
         
-        if (chosenPlayer) {
-          displaced = {
-            name: chosenPlayer.name,
-            pos: chosenPlayer.pos
-          };
-          displacedId = chosenPlayer.player_id;
-          consumedBenchIds.add(displacedId);
+        if (availableBenched.length > 0) {
+          // Sort by lowest projection first - weakest player gets paired first
+          const sortedBenched = [...availableBenched].sort((a, b) => a.proj - b.proj);
+          const chosenPlayer = sortedBenched[0];
+          
+          if (chosenPlayer) {
+            displaced = {
+              name: chosenPlayer.name,
+              pos: chosenPlayer.pos
+            };
+            displacedId = chosenPlayer.player_id;
+            consumedBenchIds.add(displacedId);
+          }
         }
       }
     }

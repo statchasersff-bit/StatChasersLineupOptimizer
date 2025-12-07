@@ -407,7 +407,11 @@ export default function LeagueCard({ lg, globalAutoSubSettings }: LeagueCardProp
                                     Start {m.in_name} → {m.slot}
                                   </div>
                                   
-                                  {!isEmptySlot && m.out_name && (
+                                  {isEmptySlot ? (
+                                    <div className="text-[10px] sm:text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                                      Fills empty slot
+                                    </div>
+                                  ) : m.out_name && (
                                     <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                                       Benches {m.out_name}
                                     </div>
