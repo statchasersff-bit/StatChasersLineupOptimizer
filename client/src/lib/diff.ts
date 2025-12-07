@@ -225,34 +225,26 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
     if (slotIsTrulyEmpty) {
       // displaced stays null, isFillingEmpty will be true
     } else {
-      // First, check if moves array has the correct displaced player for this slot
-      const matchingMove = moves.find(m => m.in_pid === inPid);
-      if (matchingMove?.out_pid && matchingMove?.out_name && !consumedBenchIds.has(matchingMove.out_pid)) {
-        // Use the actual displaced player from the slot-level diff
-        const outPlayer = allBenchedPlayers.find(p => p.player_id === matchingMove.out_pid);
-        displaced = {
-          name: matchingMove.out_name,
-          pos: outPlayer?.pos ?? ''
-        };
-        displacedId = matchingMove.out_pid;
-        consumedBenchIds.add(displacedId);
-      } else {
-        // Fallback: Find available (unconsumed) benched players for cascade scenarios
-        const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
+      // CRITICAL FIX: Don't use slot-index matching for displaced player identification
+      // When players shuffle slots (e.g., Bucky Irving RB1 -> RB2), slot-index matching
+      // incorrectly identifies them as "benched" even though they're still starting.
+      // 
+      // CORRECT APPROACH: Only use allBenchedPlayers (players leaving the lineup entirely)
+      // These are players in current but NOT in optimal - the true "outs"
+      const availableBenched = allBenchedPlayers.filter(p => !consumedBenchIds.has(p.player_id));
+      
+      if (availableBenched.length > 0) {
+        // Sort by lowest projection first - weakest player gets paired first
+        const sortedBenched = [...availableBenched].sort((a, b) => a.proj - b.proj);
+        const chosenPlayer = sortedBenched[0];
         
-        if (availableBenched.length > 0) {
-          // Sort by lowest projection first - weakest player gets paired first
-          const sortedBenched = [...availableBenched].sort((a, b) => a.proj - b.proj);
-          const chosenPlayer = sortedBenched[0];
-          
-          if (chosenPlayer) {
-            displaced = {
-              name: chosenPlayer.name,
-              pos: chosenPlayer.pos
-            };
-            displacedId = chosenPlayer.player_id;
-            consumedBenchIds.add(displacedId);
-          }
+        if (chosenPlayer) {
+          displaced = {
+            name: chosenPlayer.name,
+            pos: chosenPlayer.pos
+          };
+          displacedId = chosenPlayer.player_id;
+          consumedBenchIds.add(displacedId);
         }
       }
     }
