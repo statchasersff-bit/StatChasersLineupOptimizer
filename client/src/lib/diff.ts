@@ -68,6 +68,9 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
   const moves: LineupDiff["moves"] = [];
   const usedIn = new Set<string>(); // avoid suggesting the same 'in' twice
   const usedOut = new Set<string>();
+  
+  // Get current starter objects for player info lookup
+  const starterObjs = (lg as any).starterObjs || [];
 
   lg.optimalSlots.forEach((s, i) => {
     const inP = s.player;
@@ -97,16 +100,17 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
       let actualOutPid: string | undefined = undefined;
       
       if (curPidAtSlot) {
-        // There's someone in this slot currently
-        const outPlayer = optPlayers.find(p => p.player_id === curPidAtSlot) || allEligible?.find(p => p.player_id === curPidAtSlot);
+        // There's someone in this slot currently - ALWAYS record them
+        // This is crucial for accurate "Benches X" display
+        const outPlayer = optPlayers.find(p => p.player_id === curPidAtSlot) 
+          || allEligible?.find(p => p.player_id === curPidAtSlot)
+          || starterObjs.find((p: any) => p.player_id === curPidAtSlot);
         
-        if (!currentIsOptimalSomewhere) {
-          // This player is being benched (not moving to another slot)
-          outName = outPlayer?.name ?? `player_id ${curPidAtSlot}`;
-          outProj = outPlayer?.proj ?? 0;
-          actualOutPid = curPidAtSlot;
-        }
-        // If currentIsOptimalSomewhere, the player is just moving slots, so don't show as "out"
+        // ALWAYS record the actual slot occupant for accurate display
+        // Even if they're optimal elsewhere (cascade), we still want to know who WAS here
+        outName = outPlayer?.name ?? `player_id ${curPidAtSlot}`;
+        outProj = outPlayer?.proj ?? 0;
+        actualOutPid = curPidAtSlot;
       }
       
       // Calculate actual gain (difference between incoming and outgoing player)
@@ -133,10 +137,8 @@ export function buildLineupDiff(lg: LeagueSummary, allEligible?: any[], irList?:
   const enrichedMoves: EnrichedRecommendation[] = [];
   
   // Identify all players being benched (in current but not optimal)
-  // CRITICAL FIX: Also look in lg.starterObjs for player info, since benched players
+  // Use starterObjs (defined earlier) for player info since benched players
   // are current starters and might not be in optPlayers or allEligible
-  const starterObjs = (lg as any).starterObjs || [];
-  
   const allBenchedPlayers = curIds
     .filter(pid => !optSet.has(pid))
     .map(pid => {
