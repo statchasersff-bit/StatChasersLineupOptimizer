@@ -49,6 +49,13 @@ export async function fetchBuiltInCSV(season: string, week: string | number) {
       // Apply robust number coercion
       const processed = coerceProjectionRow(row);
       
+      // CRITICAL: Normalize sleeper_id to string for consistent index lookups
+      // The ID could come from multiple column names and needs to be a string
+      const rawId = processed.sleeper_id ?? processed.SLEEPER_ID ?? processed.player_id ?? processed.PLAYER_ID;
+      if (rawId !== undefined && rawId !== null) {
+        processed.sleeper_id = String(rawId).trim();
+      }
+      
       // Check if this is old format (has stats column) or new format (individual columns)
       if (processed.stats && typeof processed.stats === 'string') {
         // Old format: Parse stats JSON strings to objects
