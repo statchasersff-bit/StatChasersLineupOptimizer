@@ -1003,7 +1003,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex flex-col gap-2">
-              <div className="text-xs text-muted-foreground">Last Update: 12/13/2025 7:52am EST</div>
+              <div className="text-xs text-muted-foreground">Last Update: 12/20/2025 8:34am EST</div>
               <BrandLogo className="animate-iconBounce" />
             </div>
             
