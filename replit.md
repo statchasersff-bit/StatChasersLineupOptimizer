@@ -36,6 +36,7 @@ The application follows a component-based architecture for the frontend and a RE
 - **Waiver Watchlist System**: Analyzes free agent availability, suggests top upgrades based on projections, considering roster slots and filtering low-impact players.
 - **Auto-Subs Intelligence**: Detects uniform auto-sub settings across leagues, showing a global banner when consistent or per-league chips when settings differ, auto-subs are OFF, or the league is at capacity.
 - **Compact League Header Design**: Mobile-optimized grid layout for league headers ensures readability and reduces visual clutter.
+- **Dual Projection Sources**: Supports both StatChasers CSV and Sleeper API projections with a segmented toggle. Sleeper projections are filtered using a deterministic Top-N per position pool (QB: 50, RB: 140, WR: 190, TE: 60, K: 36, DEF: 36, ~512 players total). Fallback modes handle missing Sleeper data (use StatChasers, treat as 0, or exclude). Pool size displayed in UI. Settings persist via localStorage and sync between home and matchups pages. Players index is preloaded when Sleeper source is selected.
 
 ### System Design Choices
 The project uses a monorepo structure with shared types. The build process uses Vite for the frontend and esbuild for the backend. Data storage combines Drizzle ORM with PostgreSQL for primary data and in-memory storage for development. Authentication is basic, focusing on Sleeper API integration.

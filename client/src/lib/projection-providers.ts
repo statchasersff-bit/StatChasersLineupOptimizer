@@ -6,12 +6,25 @@ import { fetchJSON } from "./sleeper";
 export type ProjectionSource = "statchasers" | "sleeper";
 export type FallbackMode = "fallback_to_statchasers" | "zero" | "exclude";
 
+export const TOP_N_LIMITS: Record<string, number> = {
+  QB: 50,
+  RB: 140,
+  WR: 190,
+  TE: 60,
+  K: 36,
+  DEF: 36,
+};
+
 export interface ProjectionProviderOptions {
   season: string;
   week: string | number;
   source: ProjectionSource;
   fallbackMode: FallbackMode;
   playersIndex?: Record<string, any>;
+}
+
+export interface PoolBreakdown {
+  [pos: string]: { kept: number; limit: number };
 }
 
 export interface ProjectionResult {
@@ -23,6 +36,7 @@ export interface ProjectionResult {
     fromFallback: number;
     excluded: number;
   };
+  pool?: PoolBreakdown;
   cachedAt?: number;
 }
 
@@ -147,6 +161,33 @@ function sleeperRowToProjection(
   };
 }
 
+function applyTopNFilter(projections: Projection[]): { filtered: Projection[]; pool: PoolBreakdown } {
+  const byPos: Record<string, Projection[]> = {};
+  for (const p of projections) {
+    const pos = (p.pos || "").toUpperCase();
+    if (!byPos[pos]) byPos[pos] = [];
+    byPos[pos].push(p);
+  }
+
+  const filtered: Projection[] = [];
+  const pool: PoolBreakdown = {};
+
+  for (const [pos, players] of Object.entries(byPos)) {
+    const limit = TOP_N_LIMITS[pos];
+    if (limit === undefined) {
+      filtered.push(...players);
+      continue;
+    }
+    players.sort((a, b) => (b.proj || 0) - (a.proj || 0));
+    const kept = players.slice(0, limit);
+    filtered.push(...kept);
+    pool[pos] = { kept: kept.length, limit };
+  }
+
+  console.log(`[TopN] Pool: ${filtered.length} players — ${Object.entries(pool).map(([p, v]) => `${p}: ${v.kept}/${v.limit}`).join(", ")}`);
+  return { filtered, pool };
+}
+
 async function fetchStatChasersProjections(
   season: string,
   week: string | number
@@ -201,6 +242,9 @@ export async function getProjections(
 
   console.log(`[SleeperProvider] Converted ${sleeperProjections.length} Sleeper projections`);
 
+  let allProjections: Projection[] = [...sleeperProjections];
+  let fromFallback = 0;
+
   if (fallbackMode === "fallback_to_statchasers") {
     let statchasersProjections: Projection[] = [];
     try {
@@ -210,54 +254,31 @@ export async function getProjections(
     }
 
     const sleeperIds = new Set(sleeperProjections.map(p => p.sleeper_id).filter(Boolean));
-    const fallbackRows: Projection[] = [];
-
     for (const sc of statchasersProjections) {
       if (sc.sleeper_id && !sleeperIds.has(sc.sleeper_id)) {
-        fallbackRows.push(sc);
+        allProjections.push(sc);
+        fromFallback++;
       }
     }
-
-    const merged = [...sleeperProjections, ...fallbackRows];
-    console.log(`[SleeperProvider] Merged: ${sleeperProjections.length} Sleeper + ${fallbackRows.length} StatChasers fallback = ${merged.length} total`);
-
-    return {
-      projections: merged,
-      source: "sleeper",
-      stats: {
-        total: merged.length,
-        fromPrimary: sleeperProjections.length,
-        fromFallback: fallbackRows.length,
-        excluded: 0,
-      },
-      cachedAt: getSleeperCacheTimestamp(season, week) ?? undefined,
-    };
+    console.log(`[SleeperProvider] Merged: ${sleeperProjections.length} Sleeper + ${fromFallback} StatChasers fallback = ${allProjections.length} total`);
+  } else if (fallbackMode === "exclude") {
+    allProjections = allProjections.filter(p => p.proj > 0);
   }
 
-  if (fallbackMode === "zero") {
-    return {
-      projections: sleeperProjections,
-      source: "sleeper",
-      stats: {
-        total: sleeperProjections.length,
-        fromPrimary: sleeperProjections.length,
-        fromFallback: 0,
-        excluded: 0,
-      },
-      cachedAt: getSleeperCacheTimestamp(season, week) ?? undefined,
-    };
-  }
+  const beforeTopN = allProjections.length;
+  const { filtered, pool } = applyTopNFilter(allProjections);
+  const excluded = beforeTopN - filtered.length;
 
-  const nonZero = sleeperProjections.filter(p => p.proj > 0);
   return {
-    projections: nonZero,
+    projections: filtered,
     source: "sleeper",
     stats: {
-      total: nonZero.length,
-      fromPrimary: nonZero.length,
-      fromFallback: 0,
-      excluded: sleeperProjections.length - nonZero.length,
+      total: filtered.length,
+      fromPrimary: filtered.length - fromFallback,
+      fromFallback,
+      excluded,
     },
+    pool,
     cachedAt: getSleeperCacheTimestamp(season, week) ?? undefined,
   };
 }

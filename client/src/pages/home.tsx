@@ -12,7 +12,7 @@ import { scoreByLeague } from "@/lib/scoring";
 import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
 import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
-import { getProjections as getProjectionsFromProvider, type ProjectionSource, type FallbackMode, getSleeperCacheTimestamp } from "@/lib/projection-providers";
+import { getProjections as getProjectionsFromProvider, type ProjectionSource, type FallbackMode, type PoolBreakdown, getSleeperCacheTimestamp } from "@/lib/projection-providers";
 import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
 import { detectGlobalAutoSubSettings } from "@/lib/autoSubsGlobal";
 import { summarizeStarters, type Starter } from "@/lib/availability";
@@ -116,6 +116,7 @@ export default function Home() {
   const [projectionSource, setProjectionSource] = useState<ProjectionSource>(() => loadSetting('statChasers_projSource', "statchasers"));
   const [fallbackMode, setFallbackMode] = useState<FallbackMode>(() => loadSetting('statChasers_fallbackMode', "fallback_to_statchasers"));
   const [projectionStats, setProjectionStats] = useState<{ total: number; fromPrimary: number; fromFallback: number; excluded: number } | null>(null);
+  const [projectionPool, setProjectionPool] = useState<PoolBreakdown | null>(null);
   const [showAdvancedProjection, setShowAdvancedProjection] = useState(false);
   const [totalLeagues, setTotalLeagues] = useState(0);
   const [loadedLeagues, setLoadedLeagues] = useState(0);
@@ -219,6 +220,20 @@ export default function Home() {
     })();
   }, [season]);
 
+  // Pre-load playersIndex when Sleeper projections are selected
+  useEffect(() => {
+    if (projectionSource === "sleeper" && !playersIndex) {
+      (async () => {
+        try {
+          const idx = await getPlayersIndex();
+          setPlayersIndex(idx);
+        } catch (e) {
+          console.warn("[Home] Failed to preload players index:", e);
+        }
+      })();
+    }
+  }, [projectionSource, playersIndex]);
+
   // Built-in projections loader
   useEffect(() => {
     if (!week) return;
@@ -227,6 +242,10 @@ export default function Home() {
       console.log(`[Home] Loading projections for season=${season}, week=${week}, source=${projectionSource}`);
       
       if (projectionSource === "sleeper") {
+        if (!playersIndex) {
+          console.log("[Home] Waiting for playersIndex before loading Sleeper projections...");
+          return;
+        }
         try {
           const result = await getProjectionsFromProvider({
             season, week, source: "sleeper", fallbackMode,
@@ -234,6 +253,7 @@ export default function Home() {
           });
           setProjections(result.projections);
           setProjectionStats(result.stats);
+          setProjectionPool(result.pool || null);
           const sourceLabel = result.source === "sleeper" ? "Sleeper" : "StatChasers";
           setUsingSavedMsg(`Using ${sourceLabel} projections for Week ${week}, ${season}. ${result.stats.total} players.`
             + (result.stats.fromFallback > 0 ? ` (${result.stats.fromFallback} from StatChasers fallback)` : "")
@@ -246,6 +266,7 @@ export default function Home() {
           });
           if (!got) { setProjections([]); setUsingSavedMsg(null); }
           setProjectionStats(null);
+          setProjectionPool(null);
         }
       } else {
         const got = await loadBuiltInOrSaved({
@@ -254,6 +275,7 @@ export default function Home() {
         });
         if (!got) { setProjections([]); setUsingSavedMsg(null); }
         setProjectionStats(null);
+        setProjectionPool(null);
       }
     })();
   }, [season, week, projectionSource, fallbackMode, playersIndex]);
@@ -1208,11 +1230,14 @@ export default function Home() {
                 )}
               </div>
               
-              {/* Sleeper info badge */}
+              {/* Sleeper info + pool badge */}
               {projectionSource === 'sleeper' && (
                 <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2.5 py-1.5 flex items-start gap-1.5">
                   <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                  <span>Some players may not have Sleeper projections. Missing players will use your fallback setting.</span>
+                  <span>
+                    Sleeper projections are filtered to a Top-N candidate pool per position for stable, predictable results.
+                    {projectionPool && ` Pool: ${Object.values(projectionPool).reduce((s, v) => s + v.kept, 0)} players.`}
+                  </span>
                 </div>
               )}
               
@@ -1358,7 +1383,14 @@ export default function Home() {
           
           <div className="mt-3 text-xs" data-testid="text-projections-status">
             {usingSavedMsg ? (
-              <div className="text-emerald-700 dark:text-emerald-400">{usingSavedMsg}</div>
+              <div className="text-emerald-700 dark:text-emerald-400">
+                {usingSavedMsg}
+                {projectionSource === 'sleeper' && projectionPool && (
+                  <span className="ml-1 text-emerald-600 dark:text-emerald-500">
+                    Candidate pool: {Object.values(projectionPool).reduce((s, v) => s + v.kept, 0)} players (Top-N by position)
+                  </span>
+                )}
+              </div>
             ) : projections.length > 0 ? (
               <div className="text-muted-foreground">
                 Using {projectionSource === 'sleeper' ? 'Sleeper' : 'StatChasers'} projections for Week {week}. {projections.length} players available.

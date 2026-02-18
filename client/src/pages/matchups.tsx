@@ -11,7 +11,7 @@ import { scoreByLeague } from "@/lib/scoring";
 import { buildFACandidates } from "@/lib/faIntegration";
 import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
-import { getProjections as getProjectionsFromProvider, type ProjectionSource, type FallbackMode, getSleeperCacheTimestamp } from "@/lib/projection-providers";
+import { getProjections as getProjectionsFromProvider, type ProjectionSource, type FallbackMode, type PoolBreakdown, getSleeperCacheTimestamp } from "@/lib/projection-providers";
 import type { Projection } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { summarizeStarters, type Starter, type AvailTag } from "@/lib/availability";
@@ -180,6 +180,7 @@ export default function MatchupsPage() {
   const [playersIndex, setPlayersIndex] = useState<Record<string, any> | null>(null);
   const [actualProjSource, setActualProjSource] = useState<ProjectionSource>("statchasers");
   const [projSourceMsg, setProjSourceMsg] = useState<string>("");
+  const [projectionPool, setProjectionPool] = useState<PoolBreakdown | null>(null);
   const [totalLeagues, setTotalLeagues] = useState(0);
   const [loadedLeagues, setLoadedLeagues] = useState(0);
   const { toast } = useToast();
@@ -247,10 +248,11 @@ export default function MatchupsPage() {
           });
           setProjections(result.projections);
           setActualProjSource(result.source);
+          setProjectionPool(result.pool || null);
+          const poolSize = result.pool ? Object.values(result.pool).reduce((s, v) => s + v.kept, 0) : result.stats.total;
           const cacheAge = result.cachedAt ? ` (cached ${Math.round((Date.now() - result.cachedAt) / 60000)}m ago)` : "";
-          const fallbackInfo = result.stats.fromFallback > 0 ? ` (${result.stats.fromFallback} from StatChasers fallback)` : "";
-          const excludedInfo = result.stats.excluded > 0 ? ` (${result.stats.excluded} excluded)` : "";
-          setProjSourceMsg(`Sleeper projections${cacheAge} - ${result.stats.total} players${fallbackInfo}${excludedInfo}`);
+          const fallbackInfo = result.stats.fromFallback > 0 ? ` · ${result.stats.fromFallback} fallback` : "";
+          setProjSourceMsg(`Candidate pool: ${poolSize} players (Top-N by position)${cacheAge}${fallbackInfo}`);
         } catch (e) {
           console.warn("[Matchups] Sleeper projections failed, falling back:", e);
           const got = await loadBuiltInOrSaved({
@@ -260,6 +262,7 @@ export default function MatchupsPage() {
           if (!got) setProjections([]);
           setActualProjSource("statchasers");
           setProjSourceMsg("StatChasers (Sleeper unavailable)");
+          setProjectionPool(null);
         }
       } else {
         const got = await loadBuiltInOrSaved({
@@ -269,6 +272,7 @@ export default function MatchupsPage() {
         if (!got) setProjections([]);
         setActualProjSource("statchasers");
         setProjSourceMsg("");
+        setProjectionPool(null);
       }
     })();
   }, [season, week, projectionSource, fallbackMode, playersIndex]);
