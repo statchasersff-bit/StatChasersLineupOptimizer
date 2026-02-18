@@ -12,6 +12,7 @@ import { scoreByLeague } from "@/lib/scoring";
 import { buildFreeAgentPool, getOwnedPlayerIds } from "@/lib/freeAgents";
 import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
+import { getProjections as getProjectionsFromProvider, type ProjectionSource, type FallbackMode, getSleeperCacheTimestamp } from "@/lib/projection-providers";
 import { getLeagueAutoSubConfig, findAutoSubRecommendations } from "@/lib/autoSubs";
 import { detectGlobalAutoSubSettings } from "@/lib/autoSubsGlobal";
 import { summarizeStarters, type Starter } from "@/lib/availability";
@@ -112,6 +113,10 @@ export default function Home() {
   const [filterBigDelta, setFilterBigDelta] = useState(() => loadSetting('statChasers_filterBigDelta', false));
   const [usingSavedMsg, setUsingSavedMsg] = useState<string | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
+  const [projectionSource, setProjectionSource] = useState<ProjectionSource>(() => loadSetting('statChasers_projSource', "statchasers"));
+  const [fallbackMode, setFallbackMode] = useState<FallbackMode>(() => loadSetting('statChasers_fallbackMode', "fallback_to_statchasers"));
+  const [projectionStats, setProjectionStats] = useState<{ total: number; fromPrimary: number; fromFallback: number; excluded: number } | null>(null);
+  const [showAdvancedProjection, setShowAdvancedProjection] = useState(false);
   const [totalLeagues, setTotalLeagues] = useState(0);
   const [loadedLeagues, setLoadedLeagues] = useState(0);
   const [checkedLeagues, setCheckedLeagues] = useState<Set<string>>(() => {
@@ -192,6 +197,14 @@ export default function Home() {
     localStorage.setItem('statChasers_filterBigDelta', JSON.stringify(filterBigDelta));
   }, [filterBigDelta]);
   
+  useEffect(() => {
+    localStorage.setItem('statChasers_projSource', JSON.stringify(projectionSource));
+  }, [projectionSource]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_fallbackMode', JSON.stringify(fallbackMode));
+  }, [fallbackMode]);
+  
   // Persist checked leagues to localStorage
   useEffect(() => {
     localStorage.setItem('checkedLeagues', JSON.stringify(Array.from(checkedLeagues)));
@@ -208,27 +221,42 @@ export default function Home() {
 
   // Built-in projections loader
   useEffect(() => {
-    // Don't load projections until week is auto-detected
     if (!week) return;
     
     (async () => {
-      console.log(`[Home] Loading projections for season=${season}, week=${week}`);
-      const got = await loadBuiltInOrSaved({
-        season, week,
-        loadSaved: loadProjections,
-        saveSaved: saveProjections,
-        setProjections,
-        setProjIdx: () => {}, // Will be handled by projIdx useMemo
-        setBanner: setUsingSavedMsg
-      });
-      if (!got) {
-        // no built-in & nothing saved: user can upload manually
-        setProjections([]);
-        setUsingSavedMsg(null);
-        console.log(`[Home] No projections found, setting empty state`);
+      console.log(`[Home] Loading projections for season=${season}, week=${week}, source=${projectionSource}`);
+      
+      if (projectionSource === "sleeper") {
+        try {
+          const result = await getProjectionsFromProvider({
+            season, week, source: "sleeper", fallbackMode,
+            playersIndex: playersIndex || undefined,
+          });
+          setProjections(result.projections);
+          setProjectionStats(result.stats);
+          const sourceLabel = result.source === "sleeper" ? "Sleeper" : "StatChasers";
+          setUsingSavedMsg(`Using ${sourceLabel} projections for Week ${week}, ${season}. ${result.stats.total} players.`
+            + (result.stats.fromFallback > 0 ? ` (${result.stats.fromFallback} from StatChasers fallback)` : "")
+            + (result.stats.excluded > 0 ? ` (${result.stats.excluded} excluded)` : ""));
+        } catch (e) {
+          console.warn("[Home] Sleeper projections failed, falling back to StatChasers:", e);
+          const got = await loadBuiltInOrSaved({
+            season, week, loadSaved: loadProjections, saveSaved: saveProjections,
+            setProjections, setProjIdx: () => {}, setBanner: setUsingSavedMsg
+          });
+          if (!got) { setProjections([]); setUsingSavedMsg(null); }
+          setProjectionStats(null);
+        }
+      } else {
+        const got = await loadBuiltInOrSaved({
+          season, week, loadSaved: loadProjections, saveSaved: saveProjections,
+          setProjections, setProjIdx: () => {}, setBanner: setUsingSavedMsg
+        });
+        if (!got) { setProjections([]); setUsingSavedMsg(null); }
+        setProjectionStats(null);
       }
     })();
-  }, [season, week]);
+  }, [season, week, projectionSource, fallbackMode, playersIndex]);
 
   // Debug projections state changes
   useEffect(() => {
@@ -1148,6 +1176,62 @@ export default function Home() {
                   />
                 </div>
               </div>
+              
+              {/* Projection Source */}
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-muted-foreground text-sm whitespace-nowrap">Projections:</label>
+                <div className="inline-flex rounded-md border border-input overflow-hidden text-sm">
+                  <button
+                    className={`px-3 py-1.5 transition-all ${projectionSource === 'statchasers' ? 'bg-primary text-primary-foreground font-medium' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    onClick={() => setProjectionSource('statchasers')}
+                    data-testid="btn-proj-statchasers"
+                  >
+                    StatChasers
+                  </button>
+                  <button
+                    className={`px-3 py-1.5 transition-all border-l border-input ${projectionSource === 'sleeper' ? 'bg-primary text-primary-foreground font-medium' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    onClick={() => setProjectionSource('sleeper')}
+                    data-testid="btn-proj-sleeper"
+                  >
+                    Sleeper
+                  </button>
+                </div>
+                {projectionSource === 'sleeper' && (
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                    onClick={() => setShowAdvancedProjection(!showAdvancedProjection)}
+                    data-testid="btn-proj-advanced"
+                  >
+                    <Settings className="w-3 h-3" />
+                    <span>{showAdvancedProjection ? 'Hide' : 'Advanced'}</span>
+                  </button>
+                )}
+              </div>
+              
+              {/* Sleeper info badge */}
+              {projectionSource === 'sleeper' && (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2.5 py-1.5 flex items-start gap-1.5">
+                  <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                  <span>Some players may not have Sleeper projections. Missing players will use your fallback setting.</span>
+                </div>
+              )}
+              
+              {/* Advanced fallback dropdown */}
+              {projectionSource === 'sleeper' && showAdvancedProjection && (
+                <div className="bg-muted/30 rounded-md p-3 space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">When a Sleeper projection is missing:</label>
+                  <select
+                    className="w-full sm:w-auto border border-input bg-background text-foreground rounded px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={fallbackMode}
+                    onChange={(e) => setFallbackMode(e.target.value as FallbackMode)}
+                    data-testid="select-fallback-mode"
+                  >
+                    <option value="fallback_to_statchasers">Fall back to StatChasers</option>
+                    <option value="zero">Treat as 0 points</option>
+                    <option value="exclude">Exclude player from optimizer</option>
+                  </select>
+                </div>
+              )}
 
               {/* Buttons - full width on mobile, inline on desktop */}
               <div className="flex flex-col sm:flex-row gap-3">
@@ -1274,11 +1358,17 @@ export default function Home() {
           
           <div className="mt-3 text-xs" data-testid="text-projections-status">
             {usingSavedMsg ? (
-              <div className="text-emerald-700">{usingSavedMsg}</div>
+              <div className="text-emerald-700 dark:text-emerald-400">{usingSavedMsg}</div>
             ) : projections.length > 0 ? (
-              <div className="text-muted-foreground">Using StatChasers projections for Week {week}. {projections.length} players available.</div>
+              <div className="text-muted-foreground">
+                Using {projectionSource === 'sleeper' ? 'Sleeper' : 'StatChasers'} projections for Week {week}. {projections.length} players available.
+                {projectionSource === 'sleeper' && (() => {
+                  const ts = getSleeperCacheTimestamp(season, week);
+                  return ts ? ` (cached ${Math.round((Date.now() - ts) / 60000)}m ago)` : '';
+                })()}
+              </div>
             ) : (
-              <div className="text-gray-500">No built-in projections found for this week. You can upload a CSV via the settings button.</div>
+              <div className="text-gray-500">No projections found for this week. {projectionSource === 'sleeper' ? 'Try switching to StatChasers or ' : ''}Upload a CSV via the settings button.</div>
             )}
           </div>
           </div>

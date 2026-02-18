@@ -11,6 +11,7 @@ import { scoreByLeague } from "@/lib/scoring";
 import { buildFACandidates } from "@/lib/faIntegration";
 import { loadBuiltInOrSaved, findLatestWeek } from "@/lib/builtin";
 import { saveProjections, loadProjections } from "@/lib/storage";
+import { getProjections as getProjectionsFromProvider, type ProjectionSource, type FallbackMode, getSleeperCacheTimestamp } from "@/lib/projection-providers";
 import type { Projection } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { summarizeStarters, type Starter, type AvailTag } from "@/lib/availability";
@@ -169,6 +170,16 @@ export default function MatchupsPage() {
     return saved ? saved === "1" : true; // Default to optimal
   });
   const [considerWaivers, setConsiderWaivers] = useState(true);
+  const [projectionSource, setProjectionSource] = useState<ProjectionSource>(() => {
+    try { return JSON.parse(localStorage.getItem('statChasers_projSource') || '"statchasers"'); } catch { return "statchasers"; }
+  });
+  const [fallbackMode, setFallbackMode] = useState<FallbackMode>(() => {
+    try { return JSON.parse(localStorage.getItem('statChasers_fallbackMode') || '"fallback_to_statchasers"'); } catch { return "fallback_to_statchasers"; }
+  });
+  const [showAdvancedProjection, setShowAdvancedProjection] = useState(false);
+  const [playersIndex, setPlayersIndex] = useState<Record<string, any> | null>(null);
+  const [actualProjSource, setActualProjSource] = useState<ProjectionSource>("statchasers");
+  const [projSourceMsg, setProjSourceMsg] = useState<string>("");
   const [totalLeagues, setTotalLeagues] = useState(0);
   const [loadedLeagues, setLoadedLeagues] = useState(0);
   const { toast } = useToast();
@@ -196,27 +207,71 @@ export default function MatchupsPage() {
   useEffect(() => {
     localStorage.setItem(OPP_OPTIMAL_KEY, oppOptimal ? "1" : "0");
   }, [oppOptimal]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_projSource', JSON.stringify(projectionSource));
+  }, [projectionSource]);
+  
+  useEffect(() => {
+    localStorage.setItem('statChasers_fallbackMode', JSON.stringify(fallbackMode));
+  }, [fallbackMode]);
+
+  // Pre-load playersIndex when Sleeper projections are selected
+  useEffect(() => {
+    if (projectionSource === "sleeper" && !playersIndex) {
+      (async () => {
+        try {
+          const idx = await getPlayersIndex();
+          setPlayersIndex(idx);
+        } catch (e) {
+          console.warn("[Matchups] Failed to preload players index:", e);
+        }
+      })();
+    }
+  }, [projectionSource, playersIndex]);
 
   // Load projections on mount and when season/week changes
   useEffect(() => {
-    // Don't load projections until week is auto-detected
     if (!week) return;
     
     (async () => {
-      const got = await loadBuiltInOrSaved({
-        season,
-        week,
-        loadSaved: loadProjections,
-        saveSaved: saveProjections,
-        setProjections,
-        setProjIdx: () => {},
-        setBanner: () => {}
-      });
-      if (!got) {
-        setProjections([]);
+      if (projectionSource === "sleeper") {
+        if (!playersIndex) {
+          console.log("[Matchups] Waiting for playersIndex before loading Sleeper projections...");
+          return;
+        }
+        try {
+          const result = await getProjectionsFromProvider({
+            season, week, source: "sleeper", fallbackMode,
+            playersIndex,
+          });
+          setProjections(result.projections);
+          setActualProjSource(result.source);
+          const cacheAge = result.cachedAt ? ` (cached ${Math.round((Date.now() - result.cachedAt) / 60000)}m ago)` : "";
+          const fallbackInfo = result.stats.fromFallback > 0 ? ` (${result.stats.fromFallback} from StatChasers fallback)` : "";
+          const excludedInfo = result.stats.excluded > 0 ? ` (${result.stats.excluded} excluded)` : "";
+          setProjSourceMsg(`Sleeper projections${cacheAge} - ${result.stats.total} players${fallbackInfo}${excludedInfo}`);
+        } catch (e) {
+          console.warn("[Matchups] Sleeper projections failed, falling back:", e);
+          const got = await loadBuiltInOrSaved({
+            season, week, loadSaved: loadProjections, saveSaved: saveProjections,
+            setProjections, setProjIdx: () => {}, setBanner: () => {}
+          });
+          if (!got) setProjections([]);
+          setActualProjSource("statchasers");
+          setProjSourceMsg("StatChasers (Sleeper unavailable)");
+        }
+      } else {
+        const got = await loadBuiltInOrSaved({
+          season, week, loadSaved: loadProjections, saveSaved: saveProjections,
+          setProjections, setProjIdx: () => {}, setBanner: () => {}
+        });
+        if (!got) setProjections([]);
+        setActualProjSource("statchasers");
+        setProjSourceMsg("");
       }
     })();
-  }, [season, week]);
+  }, [season, week, projectionSource, fallbackMode, playersIndex]);
 
   const projIdx = useMemo(() => buildProjectionIndex(projections), [projections]);
 
@@ -290,6 +345,7 @@ export default function MatchupsPage() {
 
       // STEP 2: Compute deep analysis progressively for each league
       const playersIndex = await getPlayersIndex();
+      setPlayersIndex(playersIndex);
       const schedule = await getWeekSchedule(season, week);
 
       for (const lg of leagues) {
@@ -1028,13 +1084,60 @@ export default function MatchupsPage() {
                   <span className="text-xs sm:text-sm">Show only Non-Optimal Leagues</span>
                 </label>
               </div>
+              
+              {/* Projection Source Toggle */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Projections:</span>
+                <div className="inline-flex rounded-md border border-input overflow-hidden text-xs">
+                  <button
+                    className={`px-2.5 py-1 transition-all ${projectionSource === 'statchasers' ? 'bg-primary text-primary-foreground font-medium' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    onClick={() => setProjectionSource('statchasers')}
+                    data-testid="btn-proj-statchasers"
+                  >
+                    StatChasers
+                  </button>
+                  <button
+                    className={`px-2.5 py-1 transition-all border-l border-input ${projectionSource === 'sleeper' ? 'bg-primary text-primary-foreground font-medium' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    onClick={() => setProjectionSource('sleeper')}
+                    data-testid="btn-proj-sleeper"
+                  >
+                    Sleeper
+                  </button>
+                </div>
+                {projectionSource === 'sleeper' && (
+                  <>
+                    <button
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowAdvancedProjection(!showAdvancedProjection)}
+                      data-testid="btn-proj-advanced"
+                    >
+                      {showAdvancedProjection ? '▲' : '▼'}
+                    </button>
+                  </>
+                )}
+              </div>
+              {projectionSource === 'sleeper' && showAdvancedProjection && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Missing:</span>
+                  <select
+                    className="border border-input bg-background text-foreground rounded px-2 py-1 text-xs"
+                    value={fallbackMode}
+                    onChange={(e) => setFallbackMode(e.target.value as FallbackMode)}
+                    data-testid="select-fallback-mode"
+                  >
+                    <option value="fallback_to_statchasers">Use StatChasers</option>
+                    <option value="zero">0 points</option>
+                    <option value="exclude">Exclude</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             {projections.length > 0 && (
               <Badge variant="outline" className="w-fit" data-testid="badge-projections">
-                Using StatChasers projections for Week {week}
+                {projSourceMsg || `Using ${actualProjSource === 'sleeper' ? 'Sleeper' : 'StatChasers'} projections for Week ${week}`}
               </Badge>
             )}
             {isLoading && totalLeagues > 0 && (
