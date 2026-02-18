@@ -1229,16 +1229,6 @@ export default function Home() {
                 )}
               </div>
               
-              {/* Sleeper info + pool badge */}
-              {projectionSource === 'sleeper' && (
-                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2.5 py-1.5 flex items-start gap-1.5">
-                  <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                  <span>
-                    Sleeper projections are filtered to a Top-N candidate pool per position for stable, predictable results.
-                    {projectionPool && ` Pool: ${Object.values(projectionPool).reduce((s, v) => s + v.kept, 0)} players.`}
-                  </span>
-                </div>
-              )}
               
               {/* Advanced fallback dropdown */}
               {projectionSource === 'sleeper' && showAdvancedProjection && (
