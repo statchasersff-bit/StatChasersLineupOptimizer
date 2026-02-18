@@ -254,10 +254,9 @@ export default function Home() {
           setProjections(result.projections);
           setProjectionStats(result.stats);
           setProjectionPool(result.pool || null);
-          const sourceLabel = result.source === "sleeper" ? "Sleeper" : "StatChasers";
-          setUsingSavedMsg(`Using ${sourceLabel} projections for Week ${week}, ${season}. ${result.stats.total} players.`
-            + (result.stats.fromFallback > 0 ? ` (${result.stats.fromFallback} from StatChasers fallback)` : "")
-            + (result.stats.excluded > 0 ? ` (${result.stats.excluded} excluded)` : ""));
+          const poolSize = result.pool ? Object.values(result.pool).reduce((s, v) => s + v.kept, 0) : result.stats.total;
+          const fallbackInfo = result.stats.fromFallback > 0 ? ` · ${result.stats.fromFallback} from StatChasers fallback` : "";
+          setUsingSavedMsg(`Candidate pool: ${poolSize} players (Top-N by position)${fallbackInfo}`);
         } catch (e) {
           console.warn("[Home] Sleeper projections failed, falling back to StatChasers:", e);
           const got = await loadBuiltInOrSaved({
@@ -1385,11 +1384,6 @@ export default function Home() {
             {usingSavedMsg ? (
               <div className="text-emerald-700 dark:text-emerald-400">
                 {usingSavedMsg}
-                {projectionSource === 'sleeper' && projectionPool && (
-                  <span className="ml-1 text-emerald-600 dark:text-emerald-500">
-                    Candidate pool: {Object.values(projectionPool).reduce((s, v) => s + v.kept, 0)} players (Top-N by position)
-                  </span>
-                )}
               </div>
             ) : projections.length > 0 ? (
               <div className="text-muted-foreground">
