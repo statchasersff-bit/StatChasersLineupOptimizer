@@ -1,0 +1,170 @@
+What the user experience should look like (premium + simple)
+
+In Setup → Projections, add a segmented control:
+
+Projection Source: StatChasers (Recommended) | Sleeper
+
+Small helper line under it:
+
+“StatChasers uses your uploaded sheet. Sleeper uses Sleeper’s weekly projections (when available).”
+
+If “Sleeper” is selected, show a subtle info badge:
+
+“Some players may not have Sleeper projections. We’ll fall back to StatChasers or exclude them (your choice).”
+
+Also add a tiny “gear” dropdown (advanced) for power users:
+
+Fallback behavior when missing a projection
+
+Fall back to StatChasers
+
+Treat as 0
+
+Exclude player from optimizer
+
+That last part keeps you from getting support tickets later.
+
+2) Data model: treat projections as a provider
+
+Right now your optimizer probably consumes one merged table (from Excel). Instead, standardize on a single internal shape and swap providers.
+
+Canonical projection shape
+
+player_id (Sleeper player_id is ideal)
+
+week
+
+season
+
+points (fantasy points for your scoring preset)
+
+optional: floor, ceiling, stdev, team, pos, updated_at, source
+
+Then you implement providers:
+
+StatChasersProvider → reads from your uploaded Excel (what you already do)
+
+SleeperProvider → pulls Sleeper projections for week/season
+
+Your optimizer never cares where it came from — it just asks:
+getProjections({season, week, scoringPreset, provider})
+
+3) Sleeper projections: the key technical gotcha
+
+The hard part isn’t fetching projections — it’s player mapping and missing data.
+
+Mapping
+
+Your Excel must map to Sleeper player_id if possible.
+
+If you currently key by name/team, you will get mismatches (“DJ Moore”, “Joshua Palmer”, etc.).
+
+Best approach: store and optimize using Sleeper player_id everywhere.
+
+When you import Excel, you map each row → player_id once, then persist that mapping.
+
+Missing projections
+
+Sleeper won’t always have a projection for:
+
+practice squad callups
+
+recently signed players
+
+some DST/K edge cases (depends on season/week)
+So you need that fallback option.
+
+4) Backend flow (recommended)
+A) Add a projection_source field to requests
+
+When user clicks Analyze Lineups, include:
+
+projectionSource: "statchasers" | "sleeper"
+
+fallbackMode: "fallback_to_statchasers" | "zero" | "exclude"
+
+B) Add a caching layer for Sleeper projections
+
+You don’t want to fetch per-user, per-league, per-click.
+
+Cache by:
+
+season-week-scoringPreset-provider
+Example key:
+
+sleeper:2025:16:ppr
+
+TTL suggestions:
+
+15–60 minutes during the season
+
+longer (hours/days) in offseason
+
+C) Merge projections at runtime
+
+Pseudo-logic:
+
+If provider = StatChasers:
+
+use StatChasers table as-is
+
+If provider = Sleeper:
+
+fetch Sleeper projections
+
+map by player_id
+
+if missing:
+
+apply fallback mode
+
+This keeps your Excel upload still valuable even when Sleeper is chosen (as a fallback, or as a “baseline”).
+
+5) UI changes on the screen you shared (what I’d change)
+
+On that Setup card:
+
+Add a new row under Season/Week:
+
+Projection Source [segmented control]
+
+Move “Using StatChasers built-in projections…” text to dynamically reflect the selection:
+
+“Using StatChasers projections for Week 16, 2025.”
+
+“Using Sleeper projections for Week 16, 2025.”
+
+Optional premium touch:
+
+Show a tiny “Updated:” timestamp beside the selected provider (especially for Sleeper cache).
+
+6) What to tell Replit AI (copy/paste)
+
+Use this as your instruction:
+
+Add a projection source selector to the Lineup Optimizer.
+
+UI:
+- In the Setup card, add a segmented control: "StatChasers" (default) and "Sleeper".
+- Add an advanced dropdown for fallback behavior when Sleeper projection is missing:
+  - fallback_to_statchasers (default)
+  - zero
+  - exclude
+- Persist selection in state and include it in the Analyze Lineups request payload.
+
+Backend:
+- Refactor projections into provider pattern:
+  - getProjections({season, week, scoringPreset, source})
+  - StatChasers provider reads the existing uploaded Excel projections (current behavior).
+  - Sleeper provider fetches Sleeper weekly projections and returns canonical rows keyed by Sleeper player_id.
+- Add caching for Sleeper projections by season/week/scoringPreset with 30 min TTL.
+- When source="sleeper", merge projections by player_id and apply fallback mode for missing players.
+
+Data:
+- Ensure every player used by optimizer is keyed by Sleeper player_id.
+- If Excel rows are currently keyed by player name, add an import-time mapping step to attach sleeper player_id using Sleeper players endpoint once, and store mapping.
+- Update optimizer to use the canonical projection table only (no source-specific assumptions).
+
+Finally:
+- Update the Setup helper text to reflect selected projection source.
+- Add tests or a simple debug log: counts of players with projections, missing projections, and fallback applied.
